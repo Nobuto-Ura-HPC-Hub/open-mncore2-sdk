@@ -56,7 +56,7 @@ cd ~/work/libmnc2-*/vecadd && ninja
 | libmnc2-kit | MN-Core 2 ホスト API ライブラリ | 提供中 |
 | mncore2-emuenv-kit | PFN エミュレータ環境の SDK 統合（ユーザ提供の tarball から構成） | 今後提供 |
 | vsmlink-kit | VSM リンカライブラリ | 今後提供 |
-| mnc2-inspect-kit | VSM/ASM 解析ツール | 今後提供 |
+| mnc2-inspect-kit | ハードウェア情報取得ライブラリ | 提供中 |
 
 ## ライセンス
 
