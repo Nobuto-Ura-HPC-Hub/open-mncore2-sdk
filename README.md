@@ -17,20 +17,29 @@ PFN 公式配布のエミュレータ環境と組み合わせて使います。
 
 ## セットアップ
 
+[Releases](https://github.com/Nobuto-Ura-HPC-Hub/open-mncore2-sdk/releases) から kit tarball をダウンロードし、順にインストールします。
+
 ```bash
-# 1. このリポジトリを取得
-git clone https://github.com/Nobuto-Ura-HPC-Hub/open-mncore2-sdk.git
-cd open-mncore2-sdk
+PREFIX=$HOME/.local/mncore2-sdk
 
-# 2. PFN エミュレータ環境を取得し、tarball を配置
-#    （取得方法は PFN の案内に従ってください）
-cp /path/to/mncore2_emuenv_*.tar.xz .
+# 1. sdk-base-kit（最初にインストール）
+tar xf sdk-base-kit-*.tar.gz
+sdk-base-kit-*/install.sh $PREFIX
 
-# 3. SDK をセットアップ
-./setup.sh --prefix=$HOME/.local/mncore2-sdk
+# 2. mncore2-emuenv-kit（PFN ファイルの配置が必要。kit 内の README.md を参照）
+tar xf mncore2-emuenv-kit-*.tar.gz
+mncore2-emuenv-kit-*/install.sh $PREFIX
 
-# 4. 環境を有効化
-source $HOME/.local/mncore2-sdk/bin/activate
+# 3. libmnc2-kit
+tar xf libmnc2-kit-*.tar.gz
+libmnc2-kit-*/install.sh $PREFIX
+
+# 4. mnc2-inspect-kit
+tar xf mnc2-inspect-kit-*.tar.gz
+mnc2-inspect-kit-*/install.sh $PREFIX
+
+# 5. 環境を有効化
+source $PREFIX/bin/activate
 ```
 
 ## 使い方
@@ -53,10 +62,10 @@ cd ~/work/libmnc2-*/vecadd && ninja
 | Kit | 内容 | 状態 |
 |-----|------|------|
 | sdk-base-kit | 環境設定スクリプト（activate, sdk-versions, sdk-examples） | 提供中 |
+| mncore2-emuenv-kit | PFN エミュレータ環境の SDK 統合（ユーザ提供の tarball から構成） | 提供中 |
 | libmnc2-kit | MN-Core 2 ホスト API ライブラリ | 提供中 |
-| mncore2-emuenv-kit | PFN エミュレータ環境の SDK 統合（ユーザ提供の tarball から構成） | 今後提供 |
-| vsmlink-kit | VSM リンカライブラリ | 今後提供 |
 | mnc2-inspect-kit | ハードウェア情報取得ライブラリ | 提供中 |
+| vsmlink-kit | VSM リンカライブラリ | 今後提供 |
 
 ## ライセンス
 
