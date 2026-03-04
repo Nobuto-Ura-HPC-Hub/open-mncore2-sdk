@@ -15,8 +15,11 @@ PREFIX=""
 EMUENV_PATH=""
 GITHUB_REPO="Nobuto-Ura-HPC-Hub/open-mncore2-sdk"
 
-# ---- kit バージョン定義 ----
-# リリース時に更新する
+# ---- リリース定義 ----
+# SDK リリースバージョン（GitHub Releases のタグ）
+SDK_RELEASE="0.1.0"
+
+# 各 kit のバージョン（リリース時に更新する）
 SDK_BASE_VERSION="0.1.5"
 LIBMNC2_VERSION="0.2.0"
 VSMLINK_VERSION=""
@@ -68,7 +71,7 @@ download_kit() {
     local kit_name="$1"
     local version="$2"
     local tarball="${kit_name}-${version}.tar.gz"
-    local url="https://github.com/${GITHUB_REPO}/releases/download/v${version}/${tarball}"
+    local url="https://github.com/${GITHUB_REPO}/releases/download/v${SDK_RELEASE}/${tarball}"
 
     echo "[download] $tarball"
     if command -v curl > /dev/null 2>&1; then
