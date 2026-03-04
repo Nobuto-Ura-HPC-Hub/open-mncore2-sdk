@@ -50,12 +50,13 @@ cd ~/work/libmnc2-*/vecadd && ninja
 
 ## 含まれる kit
 
-| Kit | 内容 |
-|-----|------|
-| sdk-base-kit | 環境設定スクリプト（activate, sdk-versions, sdk-examples） |
-| libmnc2-kit | MN-Core 2 ホスト API ライブラリ |
-| vsmlink-kit | VSM リンカライブラリ |
-| mncore2-emuenv-kit | PFN エミュレータ環境の SDK 統合（ユーザ提供の tarball から構成） |
+| Kit | 内容 | 状態 |
+|-----|------|------|
+| sdk-base-kit | 環境設定スクリプト（activate, sdk-versions, sdk-examples） | 提供中 |
+| libmnc2-kit | MN-Core 2 ホスト API ライブラリ | 提供中 |
+| mncore2-emuenv-kit | PFN エミュレータ環境の SDK 統合（ユーザ提供の tarball から構成） | 今後提供 |
+| vsmlink-kit | VSM リンカライブラリ | 今後提供 |
+| mnc2-inspect-kit | VSM/ASM 解析ツール | 今後提供 |
 
 ## ライセンス
 
