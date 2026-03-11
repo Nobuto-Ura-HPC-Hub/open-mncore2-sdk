@@ -17,7 +17,7 @@ PFN 公式配布のエミュレータ環境と組み合わせて使います。
 
 ## セットアップ
 
-[Releases](https://github.com/Nobuto-Ura-HPC-Hub/open-mncore2-sdk/releases) から kit tarball をダウンロードし、順にインストールします。
+[Releases](https://github.com/Nobuto-Ura-HPC-Hub/open-mncore2-sdk/releases) から kit tarball をダウンロードし、依存順にインストールします。
 
 ```bash
 PREFIX=$HOME/.local/mncore2-sdk
@@ -38,7 +38,19 @@ libmnc2-kit-*/install.sh $PREFIX
 tar xf mnc2-inspect-kit-*.tar.gz
 mnc2-inspect-kit-*/install.sh $PREFIX
 
-# 5. 環境を有効化
+# 5. vsmlink-kit
+tar xf vsmlink-kit-*.tar.gz
+vsmlink-kit-*/install.sh $PREFIX
+
+# 6. mncl-kit
+tar xf mncl-kit-*.tar.gz
+mncl-kit-*/install.sh $PREFIX
+
+# 7. openacc-c-kit
+tar xf openacc-c-kit-*.tar.gz
+openacc-c-kit-*/install.sh $PREFIX
+
+# 8. 環境を有効化
 source $PREFIX/bin/activate
 ```
 
@@ -51,11 +63,36 @@ source $HOME/.local/mncore2-sdk/bin/activate
 # インストール済み kit の確認
 sdk-versions
 
-# examples をコピーしてビルド
+# examples をコピーしてビルド・実行
 sdk-examples --list
-sdk-examples libmnc2 ~/work
-cd ~/work/libmnc2-*/vecadd && ninja
+sdk-examples openacc-c ~/work
+cd ~/work/openacc-c/01-vecadd-1d-4096
+
+make              # S2S + MNCL: input.c -> .cl/.stparam -> ._vsm
+make build-e2e    # + vsmlink + assemble3 + host C
+make test         # emu:lib で実行・検証
 ```
+
+## チュートリアル
+
+openacc-c-kit にはベクトル加算の E2E サンプルが含まれています。
+
+```bash
+sdk-examples openacc-c ~/work
+```
+
+でコピーされるサンプル一覧:
+
+| # | 内容 | 計算 |
+|---|------|------|
+| 01-vecadd-1d-4096 | c[i] = a[i] + b[i] | 1D, 4096 PE |
+| 02-vecadd-1d-8192 | 同上 | 1D, 8192 PE |
+| 03-vecadd-2d-4096 | 同上 | 2D, 4096 PE |
+| 04-vecadd-2d-8192 | 同上 | 2D, 8192 PE |
+| 05-vecadd-3d-4096 | 同上 | 3D, 4096 PE |
+| 06-vecadd-3d-8192 | 同上 | 3D, 8192 PE |
+
+各サンプルの詳細は `sdk-examples openacc-c` でコピーされる `README.md` を参照してください。
 
 ## 含まれる kit
 
@@ -65,7 +102,9 @@ cd ~/work/libmnc2-*/vecadd && ninja
 | mncore2-emuenv-kit | PFN エミュレータ環境の SDK 統合（ユーザ提供の tarball から構成） | 提供中 |
 | libmnc2-kit | MN-Core 2 ホスト API ライブラリ | 提供中 |
 | mnc2-inspect-kit | ハードウェア情報取得ライブラリ | 提供中 |
-| vsmlink-kit | VSM リンカライブラリ | 今後提供 |
+| vsmlink-kit | VSM リンカライブラリ | 提供中 |
+| mncl-kit | MN-Core 2 OpenCL C コンパイラ（clang ベース） | 提供中 |
+| openacc-c-kit | OpenACC C コンバータ + E2E サンプル | 提供中 |
 
 ## ライセンス
 
