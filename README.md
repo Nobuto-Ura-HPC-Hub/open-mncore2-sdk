@@ -54,6 +54,18 @@ openacc-c-kit-*/install.sh $PREFIX
 source $PREFIX/bin/activate
 ```
 
+## activate が設定する環境変数
+
+`source $PREFIX/bin/activate` を実行すると以下が設定されます。`deactivate` で元に戻せます。
+
+| 変数 | 内容 |
+|------|------|
+| `SDK_ROOT` | SDK のインストールパス（絶対パス） |
+| `PATH` | `$SDK_ROOT/bin` を追加（`assemble3`, `gpfn3_package_main`, `sdk-versions` 等） |
+| `LD_LIBRARY_PATH` | `$SDK_ROOT/lib` を追加（LLVM 共有ライブラリ等） |
+| `OCL_ICD_VENDORS` | `$SDK_ROOT/etc/OpenCL/vendors/`（OpenCL ICD） |
+| `MNC2_EMU_CMD` | `gpfn3_package_main`（libmnc2 の emu:process バックエンド） |
+
 ## 使い方
 
 ```bash
