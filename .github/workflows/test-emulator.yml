@@ -1,13 +1,19 @@
-name: Test Emulator
+name: Test SDK
 
 on:
   workflow_dispatch:
+    inputs:
+      release_tag:
+        description: 'Release tag to test (e.g., v0.3.0)'
+        required: false
+        default: 'v0.3.0'
 
 permissions:
   packages: read
+  contents: read
 
 jobs:
-  test-emu:
+  test-sdk:
     runs-on: ubuntu-latest
     container:
       image: ghcr.io/nobuto-ura-hpc-hub/mncore2-emuenv-base:20240826
@@ -15,14 +21,16 @@ jobs:
         username: ${{ github.actor }}
         password: ${{ secrets.GITHUB_TOKEN }}
     steps:
-      - name: Verify assemble3
-        run: assemble3 --help
+      - name: Checkout
+        uses: actions/checkout@v4
 
-      - name: Run emulator smoke test
+      - name: Install build tools
         run: |
-          echo 'd get $lm0n0c0b0m0p0 1' > /tmp/sample.vsm
-          assemble3 /tmp/sample.vsm > /tmp/sample.asm
-          gpfn3_package_main -i /tmp/sample.asm -d /tmp/dump.txt
-          cat /tmp/dump.txt
-          grep -q "DEBUG-LM0" /tmp/dump.txt
-          echo "PASS: emulator smoke test"
+          apt-get update && apt-get install -y --no-install-recommends \
+              build-essential ninja-build curl jq ca-certificates > /dev/null 2>&1
+
+      - name: Run SDK tests
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_TAG: ${{ inputs.release_tag }}
+        run: bash ci/test-sdk.sh
