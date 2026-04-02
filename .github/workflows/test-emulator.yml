@@ -1,0 +1,28 @@
+name: Test Emulator
+
+on:
+  workflow_dispatch:
+
+permissions:
+  packages: read
+
+jobs:
+  test-emu:
+    runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/nobuto-ura-hpc-hub/mncore2-emuenv-base:20240826
+      credentials:
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - name: Verify assemble3
+        run: assemble3 --help
+
+      - name: Run emulator smoke test
+        run: |
+          echo 'd get $lm0n0c0b0m0p0 1' > /tmp/sample.vsm
+          assemble3 /tmp/sample.vsm > /tmp/sample.asm
+          gpfn3_package_main -i /tmp/sample.asm -d /tmp/dump.txt
+          cat /tmp/dump.txt
+          grep -q "DEBUG-LM0" /tmp/dump.txt
+          echo "PASS: emulator smoke test"
