@@ -30,13 +30,13 @@ sdk-base-kit-*/install.sh $PREFIX
 tar xf mncore2-emuenv-kit-*.tar.gz
 mncore2-emuenv-kit-*/install.sh $PREFIX
 
-# 3. libmnc2-kit
-tar xf libmnc2-kit-*.tar.gz
-libmnc2-kit-*/install.sh $PREFIX
-
-# 4. mnc2-inspect-kit
+# 3. mnc2-inspect-kit
 tar xf mnc2-inspect-kit-*.tar.gz
 mnc2-inspect-kit-*/install.sh $PREFIX
+
+# 4. libmnc2-kit
+tar xf libmnc2-kit-*.tar.gz
+libmnc2-kit-*/install.sh $PREFIX
 
 # 5. vsmlink-kit
 tar xf vsmlink-kit-*.tar.gz
@@ -63,8 +63,6 @@ source $PREFIX/bin/activate
 | `SDK_ROOT` | SDK のインストールパス（絶対パス） |
 | `PATH` | `$SDK_ROOT/bin` を追加（`assemble3`, `gpfn3_package_main`, `sdk-versions` 等） |
 | `LD_LIBRARY_PATH` | `$SDK_ROOT/lib` を追加（LLVM 共有ライブラリ等） |
-| `OCL_ICD_VENDORS` | `$SDK_ROOT/etc/OpenCL/vendors/`（OpenCL ICD） |
-| `MNC2_EMU_CMD` | `gpfn3_package_main`（libmnc2 の emu:process バックエンド） |
 
 ## 使い方
 
@@ -112,8 +110,8 @@ sdk-examples openacc-c ~/work
 |-----|------|------|
 | sdk-base-kit | 環境設定スクリプト（activate, sdk-versions, sdk-examples） | 提供中 |
 | mncore2-emuenv-kit | PFN エミュレータ環境の SDK 統合（ユーザ提供の tarball から構成） | 提供中 |
-| libmnc2-kit | MN-Core 2 ホスト API ライブラリ | 提供中 |
 | mnc2-inspect-kit | ハードウェア情報取得ライブラリ | 提供中 |
+| libmnc2-kit | MN-Core 2 ホスト API ライブラリ | 提供中 |
 | vsmlink-kit | VSM リンカライブラリ | 提供中 |
 | mncl-kit | MN-Core 2 OpenCL C コンパイラ（clang ベース） | 提供中 |
 | openacc-c-kit | OpenACC C コンバータ + E2E サンプル | 提供中 |
