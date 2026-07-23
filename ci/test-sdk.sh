@@ -44,13 +44,13 @@ ln -sf "$(which assemble3)" "$PREFIX/bin/assemble3"
 ln -sf "$(which gpfn3_package_main)" "$PREFIX/bin/gpfn3_package_main"
 printf 'mncore2-emuenv-kit\t20240826.2\n' >> "$PREFIX/.sdk-versions"
 
-# 3. libmnc2-kit
-tar xzf libmnc2-kit-*.tar.gz
-libmnc2-kit-*/install.sh "$PREFIX"
-
-# 4. mnc2-inspect-kit
+# 3. mnc2-inspect-kit
 tar xzf mnc2-inspect-kit-*.tar.gz
 mnc2-inspect-kit-*/install.sh "$PREFIX"
+
+# 4. libmnc2-kit
+tar xzf libmnc2-kit-*.tar.gz
+libmnc2-kit-*/install.sh "$PREFIX"
 
 # 5. vsmlink-kit
 tar xzf vsmlink-kit-*.tar.gz
