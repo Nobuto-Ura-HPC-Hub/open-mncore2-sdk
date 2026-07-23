@@ -16,7 +16,7 @@ jobs:
   test-sdk:
     runs-on: ubuntu-latest
     container:
-      image: ghcr.io/nobuto-ura-hpc-hub/mncore2-emuenv-base:20240826
+      image: ghcr.io/nobuto-ura-hpc-hub/mncore2-emuenv-base:20240826-ubuntu24.04
       credentials:
         username: ${{ github.actor }}
         password: ${{ secrets.GITHUB_TOKEN }}
