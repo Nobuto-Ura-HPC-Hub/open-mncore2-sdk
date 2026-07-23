@@ -42,7 +42,7 @@ sdk-base-kit-*/install.sh "$PREFIX"
 mkdir -p "$PREFIX/bin"
 ln -sf "$(which assemble3)" "$PREFIX/bin/assemble3"
 ln -sf "$(which gpfn3_package_main)" "$PREFIX/bin/gpfn3_package_main"
-printf 'mncore2-emuenv-kit\t20240826.2\n' >> "$PREFIX/.sdk-versions"
+printf 'mncore2-emuenv-kit\t20240826.3\n' >> "$PREFIX/.sdk-versions"
 
 # 3. mnc2-inspect-kit
 tar xzf mnc2-inspect-kit-*.tar.gz
