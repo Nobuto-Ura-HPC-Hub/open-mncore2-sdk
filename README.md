@@ -7,7 +7,7 @@ PFN 公式配布のエミュレータ環境と組み合わせて使います。
 
 ## 前提
 
-- Ubuntu 22.04+ / Rocky Linux 9+
+- Ubuntu 24.04+
 - PFN 公式配布の MN-Core 2 エミュレータ環境（`mncore2_emuenv_*.tar.xz`）
   - `assemble3` — MN-Core 2 アセンブラ
   - `gpfn3_package_main` — MN-Core 2 パッケージエミュレータ
