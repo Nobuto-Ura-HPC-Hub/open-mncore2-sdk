@@ -1,6 +1,10 @@
-# MN-Core2 SDK Tutorial
+# Open MN-Core2 SDK Tutorial
 
-このチュートリアルでは、MN-Core2 SDK の各 kit を使った開発方法を解説します。
+このチュートリアルでは、**Open MN-Core2 SDK**（非公式プロジェクト）の各 kit を使った開発方法を解説します。
+
+## 重要なお知らせ
+
+このプロジェクトは **Preferred Networks, Inc. の公式配布ではありません**。Open MN-Core2 SDK は非公式の開発環境です。詳細は[README](../README.md)の Disclaimer セクションを参照してください。
 
 ## 目次
 
