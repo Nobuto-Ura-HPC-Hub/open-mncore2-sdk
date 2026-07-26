@@ -1,3 +1,4 @@
+{% raw %}
 # MN-Core勉強会 追加資料
 
 tarballを解凍すると以下のファイルが見つかると思います。
@@ -914,3 +915,4 @@ DEBUG-LM0(n0c0b0m0p3,4):(8) (0x4020000000000000) #d getd $lm4n0c0b0m0p3 1
   - Distribute/Gather + Broadcast/Reduce between DRAM and 8L2Bs
   - DRAM (16GiB)
   - PDM (kind of a memory mainly for communication with the host)
+{% endraw %}

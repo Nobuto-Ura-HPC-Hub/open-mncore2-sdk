@@ -1,3 +1,4 @@
+{% raw %}
 # _vsm ディレクティブ仕様
 
 vsmlink が展開する全ディレクティブの構文と動作。
@@ -776,3 +777,4 @@ left/right の方向ごとに独立したビットを持つ（例: cross_MAB_lef
 ### 袖交換（put/get）
 
 `@get_neighbor` の節の「put/get モデル」を参照。
+{% endraw %}

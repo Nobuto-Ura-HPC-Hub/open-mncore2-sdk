@@ -1,3 +1,4 @@
+{% raw %}
 ## 配布物
 
 - `README.md` 本文書
@@ -70,3 +71,4 @@ DEBUG-LM0(n0c0b0m0p1,0):(f:0, i:{{0x0,0x0},{0x0,0x1}}, v:0x1) #d get $lm0n0c0b0m
 DEBUG-LM0(n0c0b0m0p2,0):(f:0, i:{{0x0,0x0},{0x0,0x2}}, v:0x2) #d get $lm0n0c0b0m0 1
 DEBUG-LM0(n0c0b0m0p3,0):(f:0, i:{{0x0,0x0},{0x0,0x3}}, v:0x3) #d get $lm0n0c0b0m0 1
 ```
+{% endraw %}
