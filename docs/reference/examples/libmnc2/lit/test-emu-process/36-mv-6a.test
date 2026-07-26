@@ -1,0 +1,1 @@
+# RUN: ninja -C %examples/36-mv-6a test-emu

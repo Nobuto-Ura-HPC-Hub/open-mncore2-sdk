@@ -1,0 +1,29 @@
+# put_l1bm: PDM -> L2BM -> L1BM (mvp + l2bmb)
+#
+# debug_read(MNC2_MEM_L1BM) のテスト用。
+# send で PDM に入れたデータを L2BM 経由で L1BM に転送して停止。
+
+	nop; wait i10
+	nop/3
+	mvp/n512 $p0@0 $lc0@0.0
+	mvp/n512 $p512@0 $lc0@0.1
+	mvp/n512 $p1024@0 $lc0@1.0
+	mvp/n512 $p1536@0 $lc0@1.1
+	mvp/n512 $p2048@0 $lc0@2.0
+	mvp/n512 $p2560@0 $lc0@2.1
+	mvp/n512 $p3072@0 $lc0@3.0
+	mvp/n512i23 $p3584@0 $lc0@3.1
+	nop/2
+	nop; wait i23
+	nop/5
+	l2bmb@0 $lc0 $lb0
+	l2bmb@1 $lc64 $lb0
+	l2bmb@2 $lc128 $lb0
+	l2bmb@3 $lc192 $lb0
+	l2bmb@4 $lc256 $lb0
+	l2bmb@5 $lc320 $lb0
+	l2bmb@6 $lc384 $lb0
+	l2bmb@7 $lc448 $lb0
+	nop/5
+	nop/4
+	# pseudo ret

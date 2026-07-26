@@ -1,0 +1,7 @@
+;; T4: @stencil in nested if-if — mask safety test
+;; 1D stencil (offset -1)
+((:version :0.0)
+ (:ndim 1)
+ (:pe_shape (4096))
+ (:pe_local (1))
+ (:boundary (:clamp)))

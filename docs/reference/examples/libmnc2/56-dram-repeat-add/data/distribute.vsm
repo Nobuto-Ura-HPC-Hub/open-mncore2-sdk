@@ -1,0 +1,20 @@
+# distribute.vsm — 56 Kernel A: PDM@0 → DRAM@0..3 distribute (mvd)
+#
+# 動作:
+#   mvd distribute: PDM@0[0..4095] (4096 LW) → DRAM@G[0..1023] for G=0..3
+#                   (各 group に 1024 LW ずつ自動分配)
+#     G0: PDM[0..1023]
+#     G1: PDM[1024..2047]
+#     G2: PDM[2048..3071]
+#     G3: PDM[3072..4095]
+# 入力: PDM@0[0..4095] (host send 済)
+# 出力: DRAM@G[0..1023] が該当 1024 u64 を保持
+# DMA: send_wait_tag=2 (host 側)
+
+	nop; wait i02
+	nop/3
+	mvd/n4096i01 $p0@0 $d0
+	nop/2
+	nop; wait i01
+	nop/5
+	# pseudo ret

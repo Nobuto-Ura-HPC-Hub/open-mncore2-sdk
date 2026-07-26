@@ -1,0 +1,2 @@
+# RUN: ninja -C %examples/05-stencil1d build-e2e
+# RUN: ninja -C %examples/05-stencil1d test-emu-lib

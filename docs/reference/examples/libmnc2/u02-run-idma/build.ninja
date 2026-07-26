@@ -1,0 +1,71 @@
+# build.ninja — u02-run-idma (libgpfn3 直接版、実機専用)
+#
+# uXX ツールは実機 (pod) でしか動かない。pod の libgpfn3.so に dynamic
+# link する (u01-mmap と同方式)。旧版の libmnc2 経由はやめて libgpfn3 を
+# 直接使うようにした結果、emu での build/run は不可能 (local には
+# libgpfn3.so が無い) だが、それは uXX の想定通り。
+include ../../scripts/sdk.ninja
+builddir = _build
+
+rule cc
+  command = gcc -Wall -Wextra -O2 -I../ulib -I${sdk_root}/libgpfn3-emu/include -c $in -o $out
+  description = CC $out
+
+rule link
+  command = gcc $in -o $out -L${sdk_root}/lib -lgpfn3
+  description = LINK $out
+
+rule asm3_text
+  command = assemble3 $in --output-file $out
+  description = ASM3 $out
+
+rule asm3_loader
+  command = assemble3 $in --output-file $stem --loader
+  description = ASM3 [loader] $stem
+
+build $builddir/run-idma.o: cc run_idma.c
+build $builddir/run-idma: link $builddir/run-idma.o
+
+build $builddir/run-idma2.o: cc run_idma2.c
+build $builddir/run-idma2: link $builddir/run-idma2.o
+
+build $builddir/set-descriptor-regset.o: cc set_descriptor_regset.c
+build $builddir/set-descriptor-regset: link $builddir/set-descriptor-regset.o
+
+build $builddir/kick-idma2.o: cc kick_idma2.c
+build $builddir/kick-idma2: link $builddir/kick-idma2.o
+
+build $builddir/test-idma2-mmap.o: cc test_idma2_mmap.c
+build $builddir/test-idma2-mmap: link $builddir/test-idma2-mmap.o
+
+build $builddir/write-DM.o: cc write_dm.c
+build $builddir/write-DM: link $builddir/write-DM.o
+
+build $builddir/read-DM.o: cc read_dm.c
+build $builddir/read-DM: link $builddir/read-DM.o
+
+build $builddir/set-capture.o: cc set-capture.c
+build $builddir/set-capture: link $builddir/set-capture.o
+
+build $builddir/reset.o: cc reset.c
+build $builddir/reset: link $builddir/reset.o
+
+# テスト用 example kernel (旧版から引き続き)
+build $builddir/imm-f64-collect.asm: asm3_text data/imm-f64-collect.vsm
+build $builddir/imm-f64-collect.idma.dat: asm3_loader data/imm-f64-collect.vsm
+  stem = $builddir/imm-f64-collect
+
+build $builddir/fimm-f32-collect.asm: asm3_text data/fimm-f32-collect.vsm
+build $builddir/fimm-f32-collect.idma.dat: asm3_loader data/fimm-f32-collect.vsm
+  stem = $builddir/fimm-f32-collect
+
+default $builddir/run-idma $builddir/run-idma2 $builddir/set-descriptor-regset $builddir/kick-idma2 $builddir/test-idma2-mmap $builddir/write-DM $builddir/read-DM $builddir/set-capture $builddir/reset $builddir/imm-f64-collect.asm $builddir/imm-f64-collect.idma.dat $builddir/fimm-f32-collect.asm $builddir/fimm-f32-collect.idma.dat
+
+bindir = ../bin
+
+rule install_bin
+  command = mkdir -p $bindir && cp $in $bindir/
+  description = INSTALL $in -> $bindir/
+
+build install: phony install-bins
+build install-bins: install_bin $builddir/run-idma $builddir/run-idma2 $builddir/set-descriptor-regset $builddir/kick-idma2

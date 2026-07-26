@@ -1,0 +1,2 @@
+# RUN: ninja -C %examples/01-vecadd build-e2e
+# RUN: ninja -C %examples/01-vecadd test-emu-lib

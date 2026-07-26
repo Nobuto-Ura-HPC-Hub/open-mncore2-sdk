@@ -1,0 +1,2 @@
+# RUN: ninja -C %examples/14-odd-even-sort-full build-e2e
+# RUN: ninja -C %examples/14-odd-even-sort-full test-emu-lib

@@ -1,0 +1,178 @@
+# 17-boundary-collect: @boundary_flags 8bit フラグを @collect で回収・検証
+#
+# ninja              → vsmlink: _vsm + .param + .stparam → .vsm
+# ninja build-e2e    → + assemble3 + host C ビルド
+# ninja test-emu-lib → + emu:lib で実行・sha256 検証
+# ninja test-device  → + 実機で実行・sha256 検証
+# ninja cmp          → collected_flags.bin と gen_bf_golden の出力を cmp で照合
+#
+# 前提: SDK activate 済み (vsmlink, assemble3, mnc2.h が利用可能)
+
+include ../../scripts/sdk.ninja
+include ../scripts/vsmlink.ninja
+include sha256.ninja
+builddir = _build
+
+# --- 独自 rule (golden 生成, sha256 チェック付き test, dump_flags, edge テスト) ---
+rule cc_host
+  command = gcc -Wall -Wextra -c $in -o $out
+  description = CC [host] $out
+
+rule link_host
+  command = gcc $in -o $out
+  description = LINK [host] $out
+
+rule gen_bf_golden
+  command = ./$in ok $out
+  description = GEN_GOLDEN [ok] $out
+
+rule cmp_bins
+  command = cmp $in && echo "cmp OK: $in"
+  description = CMP $in
+
+rule sha256_check
+  command = echo "$expected  $in" | sha256sum -c -
+  description = SHA256 $in
+
+rule test_emu_lib_sha256
+  command = LD_LIBRARY_PATH=${sdk_root}/lib/emu-lib ./$in && echo "$expected  $bin" | sha256sum -c -
+  description = TEST+SHA256 [emu:lib] $in
+
+rule test_device_sha256
+  command = ./$in && echo "$expected  $bin" | sha256sum -c -
+  description = TEST+SHA256 [device] $in
+
+rule dump_flags
+  command = python3 ../data/dump_flags.py $in
+  description = DUMP_FLAGS $in
+
+rule dump_flags_human
+  command = python3 ../data/dump_flags.py $in --human
+  description = DUMP_FLAGS [human] $in
+
+rule vsmlink_edge
+  command = vsmlink $vsm $param $stparam $out
+  description = VSMLINK [edge] $out
+
+rule run_edge
+  command = LD_LIBRARY_PATH=${sdk_root}/lib/emu-lib ./$exe && python3 ../data/dump_flags.py $bin
+  description = TEST+DUMP [edge] $bin
+
+rule test_dump_flags
+  command = python3 ../data/dump_flags.py $in | grep -q "$expected" && echo "PASS: dump_flags" || (echo "FAIL: dump_flags"; exit 1)
+  description = TEST dump_flags
+
+rule test_edge
+  command = LD_LIBRARY_PATH=${sdk_root}/lib/emu-lib ./$builddir/test_boundary_collect --kernel $builddir/$kernel --output $builddir/$outbin $args 2>&1 && $
+            actual=$$(python3 ../data/dump_flags.py $builddir/$outbin) && $
+            echo "actual: $$actual" && $
+            echo "$$actual" | grep -q "$expected" && echo "PASS: $label" || (echo "FAIL: $label"; exit 1)
+  description = TEST [edge] $label
+
+# --- default: vsmlink only ---
+build $builddir/boundary-collect.vsm: vsmlink boundary-collect._vsm boundary-collect.param boundary-collect.stparam
+  vsm = boundary-collect._vsm
+  param = boundary-collect.param
+  stparam = boundary-collect.stparam
+
+# --- build-e2e: assemble + host C ---
+build $builddir/boundary-collect.asm: asm3 $builddir/boundary-collect.vsm
+build $builddir/boundary-collect.idma.dat: asm3_loader $builddir/boundary-collect.vsm
+  stem = $builddir/boundary-collect
+
+build $builddir/test_boundary_collect.o: cc test_boundary_collect.c
+build $builddir/test_boundary_collect: link_exe $builddir/test_boundary_collect.o
+
+build build-e2e: phony $builddir/boundary-collect.asm $builddir/boundary-collect.idma.dat $builddir/test_boundary_collect
+
+# --- test targets ---
+build test: test_usage
+
+build test-emu-lib: test_emu_lib_sha256 $builddir/test_boundary_collect | $builddir/boundary-collect.idma.dat
+  expected = $sha256_collected_flags
+  bin = $builddir/collected_flags.bin
+
+build test-device: test_device_sha256 $builddir/test_boundary_collect | $builddir/boundary-collect.idma.dat
+  expected = $sha256_collected_flags
+  bin = $builddir/collected_flags.bin
+
+# --- cmp: 収集データ vs gen_bf_golden 照合 ---
+# ninja test-emu-lib を先に実行して _build/collected_flags.bin を生成しておくこと
+gen_bf_golden_src = ../data/gen_bf_golden.c
+build $builddir/gen_bf_golden.o: cc_host $gen_bf_golden_src
+build $builddir/gen_bf_golden: link_host $builddir/gen_bf_golden.o
+build $builddir/golden.bin: gen_bf_golden $builddir/gen_bf_golden
+build cmp: cmp_bins $builddir/collected_flags.bin $builddir/golden.bin | $builddir/gen_bf_golden
+
+# --- sha256: collected_flags.bin のハッシュ検証 ---
+build sha256: sha256_check $builddir/collected_flags.bin
+  expected = $sha256_collected_flags
+
+build dump: dump_flags $builddir/collected_flags.bin
+build dump-human: dump_flags_human $builddir/collected_flags.bin
+
+# --- data_edge テスト (4 パターン) ---
+build $builddir/bc-edge11.vsm: vsmlink_edge boundary-collect._vsm boundary-collect.param boundary-collect-edge11.stparam
+  vsm = boundary-collect._vsm
+  param = boundary-collect.param
+  stparam = boundary-collect-edge11.stparam
+build $builddir/bc-edge11.idma.dat: asm3_loader $builddir/bc-edge11.vsm
+  stem = $builddir/bc-edge11
+
+build $builddir/bc-edge10.vsm: vsmlink_edge boundary-collect._vsm boundary-collect.param boundary-collect-edge10.stparam
+  vsm = boundary-collect._vsm
+  param = boundary-collect.param
+  stparam = boundary-collect-edge10.stparam
+build $builddir/bc-edge10.idma.dat: asm3_loader $builddir/bc-edge10.vsm
+  stem = $builddir/bc-edge10
+
+build $builddir/bc-edge01.vsm: vsmlink_edge boundary-collect._vsm boundary-collect.param boundary-collect-edge01.stparam
+  vsm = boundary-collect._vsm
+  param = boundary-collect.param
+  stparam = boundary-collect-edge01.stparam
+build $builddir/bc-edge01.idma.dat: asm3_loader $builddir/bc-edge01.vsm
+  stem = $builddir/bc-edge01
+
+build $builddir/bc-edge00.vsm: vsmlink_edge boundary-collect._vsm boundary-collect.param boundary-collect-edge00.stparam
+  vsm = boundary-collect._vsm
+  param = boundary-collect.param
+  stparam = boundary-collect-edge00.stparam
+build $builddir/bc-edge00.idma.dat: asm3_loader $builddir/bc-edge00.vsm
+  stem = $builddir/bc-edge00
+
+# --- test-dump-flags: dump_flags 検証 ---
+build test-dump-flags: test_dump_flags $builddir/collected_flags.bin | test-emu-lib
+  expected = 4096 : 2048 : 0 0 1 1 7 7 56 56 960 960
+
+# --- test-edge-*: data_edge テスト (4 パターン) ---
+build test-edge-11: test_edge | $builddir/bc-edge11.idma.dat $builddir/test_boundary_collect
+  kernel = bc-edge11.idma.dat
+  outbin = collected_flags_edge11.bin
+  args = --edge-left --edge-right
+  expected = 4096 : 2048 : 1 1 0 0 7 7 56 56 960 960
+  label = data_edge_11
+
+build test-edge-10: test_edge | $builddir/bc-edge10.idma.dat $builddir/test_boundary_collect
+  kernel = bc-edge10.idma.dat
+  outbin = collected_flags_edge10.bin
+  args = --edge-left
+  expected = 4096 : 2048 : 1 0 0 1 7 7 56 56 960 960
+  label = data_edge_10
+
+build test-edge-01: test_edge | $builddir/bc-edge01.idma.dat $builddir/test_boundary_collect
+  kernel = bc-edge01.idma.dat
+  outbin = collected_flags_edge01.bin
+  args = --edge-right
+  expected = 4096 : 2048 : 0 1 1 0 7 7 56 56 960 960
+  label = data_edge_01
+
+build test-edge-00: test_edge | $builddir/bc-edge00.idma.dat $builddir/test_boundary_collect
+  kernel = bc-edge00.idma.dat
+  outbin = collected_flags_edge00.bin
+  args =
+  expected = 4096 : 2048 : 0 0 1 1 7 7 56 56 960 960
+  label = data_edge_00
+
+build clean: clean
+
+default $builddir/boundary-collect.vsm

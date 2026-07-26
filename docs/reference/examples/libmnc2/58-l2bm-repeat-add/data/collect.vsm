@@ -1,0 +1,83 @@
+# collect.vsm — 58 Kernel C: PE → L2BM → PDM@0 結合 (mvd 1 発)
+#
+# 前提: 直前の add1 が終了した時点で各 PE の $lr0 にデータ
+# (= (i << 16) + N) が残っている。$r0 (HIGH) = 0、$r1 (LOW) = data。
+#
+# 動作:
+#   1. flat PE ID = $peid | ($l1bid << 6) | ($l2bid << 9) を $lr16 LOW で合成
+#   2. ipassa で $lr16 LOW (= $r17) を $lr0 HIGH (= $r0) に書き込み、
+#      $lr0 = (high: id) | (low: data) になる
+#   3. $lr0 → LM → L1BM → L2BM (8 L2BM bank に書き戻し)
+#   4. mvd L2BM-PDM 結合 1 発で 8 L2BMs → PDM@0 集約
+#
+# DMA: recv_wait_tag = 6
+
+# ===== Phase 1: PE compute (PE ID 合成 + $r0 マージ) =====
+
+# Step 1: $peid → $lr32
+	lpassa $peid $lr32
+	nop/4
+
+# Step 2: $l1bid << 6 → $lr40
+	imm i"6" $r17
+	imm i"0" $r16
+	nop/4
+	lpassa $lr16 $ln0
+	nop/24
+	lpassa $l1bid $lr40
+	nop/4
+	ilsl $lr40 $ln0 $lr40
+	nop/4
+
+# Step 3: $l2bid << 9 → $lr48
+	imm i"9" $r17
+	nop/4
+	lpassa $lr16 $ln0
+	nop/24
+	lpassa $l2bid $lr48
+	nop/4
+	ilsl $lr48 $ln0 $lr48
+	nop/4
+
+# Step 4: 合成 → $lr16 (= flat PE ID in lower 32bit)
+	lpassa $lr32 $lr16
+	nop/4
+	lpassa $lr40 $ln0
+	nop/24
+	iadd $ln0 $lr16 $lr16
+	nop/4
+	lpassa $lr48 $ln0
+	nop/24
+	iadd $ln0 $lr16 $lr16
+	nop/4
+
+# Step 5: $r17 (= $lr16 LOW = ID) → $r0 (= $lr0 HIGH)
+	ipassa $r17 $r0
+	nop/4
+
+# ===== Phase 2: LM → L1BM =====
+	lpassa $lr0 $lm0v
+	nop/4
+	# 占有 L1BM [256, 512)。結合方向にはマスクが効かないため、
+	# 4 cycle 分 256 u64 すべてが上書きされる。
+	# 回収するのは cycle 0 の [256, 320) のみ。
+	l1bmd $lm0v $lb256
+	nop/24
+
+# ===== Phase 3: L1BM → L2BM (8x l2bm) =====
+	l2bm@0 $lb256 $lc0
+	l2bm@1 $lb256 $lc64
+	l2bm@2 $lb256 $lc128
+	l2bm@3 $lb256 $lc192
+	l2bm@4 $lb256 $lc256
+	l2bm@5 $lb256 $lc320
+	l2bm@6 $lb256 $lc384
+	l2bm@7 $lb256 $lc448
+	nop/5
+
+# ===== Phase 4: 8 L2BMs → PDM@0 (mvd 結合 1 命令) =====
+	mvd/n4096i06 $lc0 $p0@0
+	nop/2
+	nop; wait i06
+	nop/5
+	# pseudo ret

@@ -1,0 +1,37 @@
+# 16-broadcast-f64: out[i] = v + w + x[i] (f64 broadcast x2 + distribute)
+#
+# ninja build-e2e    -> .cl -> ._vsm -> .vsm + vsmlink + assemble3 + host C
+# ninja test-emu-lib -> emu:lib backend で実行・検証
+# ninja test-device  -> 実機 backend で実行・検証
+
+include ../scripts/mncl.ninja
+include ../../scripts/sdk.ninja
+builddir = _build
+
+# --- kernel ---
+build $builddir/bcast_f64._vsm: emit-vsm bcast_f64.cl
+
+build $builddir/bcast_f64.vsm: vsmlink $builddir/bcast_f64._vsm bcast_f64.param bcast_f64.stparam
+  vsm = $builddir/bcast_f64._vsm
+  param = bcast_f64.param
+  stparam = bcast_f64.stparam
+
+build $builddir/bcast_f64.asm: asm3 $builddir/bcast_f64.vsm
+build $builddir/bcast_f64.idma.dat: asm3_loader $builddir/bcast_f64.vsm
+  stem = $builddir/bcast_f64
+
+# --- host driver ---
+build $builddir/test_bcast_f64.o: cc test_bcast_f64.c
+build $builddir/test_bcast_f64: link $builddir/test_bcast_f64.o
+
+# --- ビルド段階 phony ---
+build build-e2e: phony $builddir/bcast_f64.asm $builddir/bcast_f64.idma.dat $builddir/test_bcast_f64
+
+# --- test 3 種 ---
+build test-emu-lib: test_emu_lib $builddir/test_bcast_f64 | $builddir/bcast_f64.asm $builddir/bcast_f64.idma.dat
+build test-device:  test_device  $builddir/test_bcast_f64 | $builddir/bcast_f64.asm $builddir/bcast_f64.idma.dat
+build test:         test_usage
+
+build clean: clean
+
+default $builddir/bcast_f64.asm $builddir/bcast_f64.idma.dat

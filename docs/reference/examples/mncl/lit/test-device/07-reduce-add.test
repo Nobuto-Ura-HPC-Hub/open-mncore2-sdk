@@ -1,0 +1,2 @@
+# RUN: ninja -C %examples/07-reduce-add build-e2e
+# RUN: ninja -C %examples/07-reduce-add test-device

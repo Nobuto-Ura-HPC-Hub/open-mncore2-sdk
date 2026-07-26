@@ -1,0 +1,49 @@
+# 05-stencil1d: 1D 3-point stencil (identity kernel with stencil exchange)
+#
+# ninja              → vsmlink: _vsm + .param + .stparam → .vsm
+# ninja verify       → expected.vsm との diff 検証
+# ninja build-e2e    → + assemble3 + host C ビルド (emu:lib)
+# ninja test         → + emu:lib で実行・検証
+#
+# 前提: SDK activate 済み (vsmlink, assemble3, mnc2.h が利用可能)
+
+include ../../scripts/sdk.ninja
+include ../scripts/vsmlink.ninja
+builddir = _build
+
+rule verify_cmd
+  command = diff -u $expected $actual && echo "OK: stencil1d output matches expected"
+  description = VERIFY $actual
+
+# --- default: vsmlink only ---
+build $builddir/stencil1d.vsm: vsmlink stencil1d._vsm stencil1d.param stencil1d.stparam
+  vsm = stencil1d._vsm
+  param = stencil1d.param
+  stparam = stencil1d.stparam
+
+# --- verify: golden data ---
+build verify: verify_cmd $builddir/stencil1d.vsm
+  expected = expected.vsm
+  actual = $builddir/stencil1d.vsm
+
+# --- build-e2e: assemble + host C ---
+build $builddir/stencil1d.asm: asm3 $builddir/stencil1d.vsm
+build $builddir/stencil1d.idma.dat: asm3_loader $builddir/stencil1d.vsm
+  stem = $builddir/stencil1d
+
+build $builddir/test_stencil1d.o: cc test_stencil1d.c
+build $builddir/test_stencil1d: link_exe $builddir/test_stencil1d.o
+
+build build-e2e: phony $builddir/stencil1d.asm $builddir/stencil1d.idma.dat $builddir/test_stencil1d
+
+build $builddir/57b42dea.bin: fetch_data
+  bin = 57b42dea.bin
+
+# --- test: run E2E ---
+build test: test_usage
+build test-emu-lib: test_emu_lib $builddir/test_stencil1d | $builddir/stencil1d.idma.dat $builddir/57b42dea.bin
+build test-device: test_device $builddir/test_stencil1d | $builddir/stencil1d.idma.dat $builddir/57b42dea.bin
+
+build clean: clean
+
+default $builddir/stencil1d.vsm

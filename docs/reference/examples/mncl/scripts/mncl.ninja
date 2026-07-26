@@ -1,0 +1,80 @@
+# mncl.ninja — examples/ 共通ビルドルール
+# (host-dma examples.ninja, vsm-linker vsmlink.ninja の MNCL 版)
+#
+# 使い方: 各 build.ninja で sdk.ninja を include した後に
+#         include ../../scripts/mncl.ninja
+#
+# 変数:
+#   ${sdk_root} — sdk.ninja で定義済み (activate 時に動的生成、host/pod 両対応)
+#   ${cl_ext}   — clang -cl-ext オプション (本ファイルで定義)
+#
+# 注: mncl_include を mncl.ninja で先行定義しない。 各 build.ninja で
+#     sdk.ninja を mncl.ninja より先に include しないと sdk_root が未定義のまま
+#     展開されて空文字になるため、 rule 内で直接 ${sdk_root} を参照して lazy 解決。
+
+cl_ext = -cl-ext=-all,+cl_khr_byte_addressable_store,+cl_khr_global_int32_base_atomics,+cl_khr_global_int32_extended_atomics,+cl_khr_local_int32_base_atomics,+cl_khr_local_int32_extended_atomics,+cl_khr_fp64,+cl_khr_int64_base_atomics,+cl_khr_int64_extended_atomics,+cl_nv_device_attribute_query,+cl_khr_spir
+
+# --- compile / link rules ---
+
+rule emit-vsm
+  command = mkdir -p $builddir && $
+            clang -cc1 -O1 $
+            -triple=mncore2-unknown-unknown -target-cpu mncore2 $
+            -cl-std=CL2.0 ${cl_ext} $
+            -fno-builtin $
+            -I${sdk_root}/include/mncl $
+            -include opencl-c.h $
+            -S $in -o $out
+  description = MNCL $out
+
+rule vsmlink
+  command = vsmlink $vsm $param $stparam $out
+  description = VSMLINK $out
+
+rule asm3
+  command = assemble3 $in --output-file $out
+  description = ASM3 $out
+
+rule asm3_loader
+  command = assemble3 $in --output-file $stem --loader
+  description = ASM3 [loader] $stem
+
+rule cc
+  command = gcc -Wall -Wextra -I${sdk_root}/include -c $in -o $out
+  description = CC $out
+
+# link: emu-lib variant でシンボル解決 (link 時のみ)
+# 実行時の variant 切替は LD_LIBRARY_PATH のみ。RUNPATH は焼かない。
+rule link
+  command = gcc $in -o $out $
+            -L${sdk_root}/lib/emu-lib -L${sdk_root}/lib $
+            -lmnc2 -lgpfn3 -lstdc++ -lpthread -lm
+  description = LINK $out
+
+# --- test rules (3 種) ---
+
+rule test_emu_lib
+  command = LD_LIBRARY_PATH=${sdk_root}/lib/emu-lib ./$in
+  description = TEST [emu:lib] $in
+  pool = console
+
+rule test_device
+  command = LD_LIBRARY_PATH=${sdk_root}/lib ./$in
+  description = TEST [device] $in
+  pool = console
+
+rule test_usage
+  command = echo "使い方: ninja test-emu-lib (host emu) / ninja test-device (実機)"
+  description = INFO
+
+# --- misc ---
+
+rule fetch_data
+  # ../data/created/<bin> が未生成なら自動で ninja -C ../data を呼ぶ (vsmlink-kit と同形)。
+  # kit ユーザは ninja test-device するだけで、 data 側のビルドが chain で発火する。
+  command = mkdir -p $builddir && ninja -C ../data created/$bin >/dev/null && cp ../data/created/$bin $out
+  description = FETCH $out
+
+rule clean
+  command = rm -rf _build
+  description = CLEAN

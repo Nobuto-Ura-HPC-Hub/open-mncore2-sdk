@@ -1,0 +1,6 @@
+;; odd-even-sort-gid: 1D 4096 PE, layout :any, fp64 (3 kernel 共通、 例 10 と同一)
+((:version :0.0)
+ (:ndim 1)
+ (:pe_shape (4096))
+ (:pe_local (1))
+ (:data_layout :any))

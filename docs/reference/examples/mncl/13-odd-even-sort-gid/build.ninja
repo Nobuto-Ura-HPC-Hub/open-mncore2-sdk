@@ -1,0 +1,68 @@
+# 13-odd-even-sort-gid: 奇偶転置ソート 1 ステップ (4096 PE, fp64, neighbor + if/else)
+# 10-odd-even-sort の get_global_id 版。 左メンバ判定を host flag ではなく PE 自身が
+# get_global_id で行う。 kernel 本体・境界処理・3 kernel 構成は例 10 と同一。
+
+include ../scripts/mncl.ninja
+include ../../scripts/sdk.ninja
+builddir = _build
+
+# stparam は 3 kernel 共通 (4096 PE 1D, layout :any)
+
+# --- even kernel ---
+build $builddir/odd-even-sort-gid-even._vsm: emit-vsm odd-even-sort-gid-even.cl
+build $builddir/odd-even-sort-gid-even.vsm: vsmlink $builddir/odd-even-sort-gid-even._vsm odd-even-sort-gid-even.param odd-even-sort-gid.stparam
+  vsm = $builddir/odd-even-sort-gid-even._vsm
+  param = odd-even-sort-gid-even.param
+  stparam = odd-even-sort-gid.stparam
+build $builddir/odd-even-sort-gid-even.asm: asm3 $builddir/odd-even-sort-gid-even.vsm
+build $builddir/odd-even-sort-gid-even.idma.dat: asm3_loader $builddir/odd-even-sort-gid-even.vsm
+  stem = $builddir/odd-even-sort-gid-even
+
+# --- odd kernel ---
+build $builddir/odd-even-sort-gid-odd._vsm: emit-vsm odd-even-sort-gid-odd.cl
+build $builddir/odd-even-sort-gid-odd.vsm: vsmlink $builddir/odd-even-sort-gid-odd._vsm odd-even-sort-gid-odd.param odd-even-sort-gid.stparam
+  vsm = $builddir/odd-even-sort-gid-odd._vsm
+  param = odd-even-sort-gid-odd.param
+  stparam = odd-even-sort-gid.stparam
+build $builddir/odd-even-sort-gid-odd.asm: asm3 $builddir/odd-even-sort-gid-odd.vsm
+build $builddir/odd-even-sort-gid-odd.idma.dat: asm3_loader $builddir/odd-even-sort-gid-odd.vsm
+  stem = $builddir/odd-even-sort-gid-odd
+
+# --- reduce kernel ---
+build $builddir/odd-even-sort-gid-reduce._vsm: emit-vsm odd-even-sort-gid-reduce.cl
+build $builddir/odd-even-sort-gid-reduce.vsm: vsmlink $builddir/odd-even-sort-gid-reduce._vsm odd-even-sort-gid-reduce.param odd-even-sort-gid.stparam
+  vsm = $builddir/odd-even-sort-gid-reduce._vsm
+  param = odd-even-sort-gid-reduce.param
+  stparam = odd-even-sort-gid.stparam
+build $builddir/odd-even-sort-gid-reduce.asm: asm3 $builddir/odd-even-sort-gid-reduce.vsm
+build $builddir/odd-even-sort-gid-reduce.idma.dat: asm3_loader $builddir/odd-even-sort-gid-reduce.vsm
+  stem = $builddir/odd-even-sort-gid-reduce
+
+# --- host ---
+build $builddir/test_odd-even-sort-gid.o: cc test_odd-even-sort-gid.c
+build $builddir/test_odd-even-sort-gid: link $builddir/test_odd-even-sort-gid.o
+
+# --- boundary flags (../data/created/<sha>.bin から fetch。 例 10 と同じ 75c77b0f.bin) ---
+# 奇数フェーズはペアが PE グループ境界を跨ぐので non-zero boundary_flags が要る。
+build $builddir/collected_flags.bin: fetch_data
+  bin = 75c77b0f.bin
+
+build build-e2e: phony $
+    $builddir/odd-even-sort-gid-even.asm $builddir/odd-even-sort-gid-even.idma.dat $
+    $builddir/odd-even-sort-gid-odd.asm $builddir/odd-even-sort-gid-odd.idma.dat $
+    $builddir/odd-even-sort-gid-reduce.asm $builddir/odd-even-sort-gid-reduce.idma.dat $
+    $builddir/test_odd-even-sort-gid $builddir/collected_flags.bin
+
+build test-emu-lib: test_emu_lib $builddir/test_odd-even-sort-gid | $
+    $builddir/odd-even-sort-gid-even.idma.dat $builddir/odd-even-sort-gid-odd.idma.dat $
+    $builddir/odd-even-sort-gid-reduce.idma.dat $builddir/collected_flags.bin
+build test-device:  test_device  $builddir/test_odd-even-sort-gid | $
+    $builddir/odd-even-sort-gid-even.idma.dat $builddir/odd-even-sort-gid-odd.idma.dat $
+    $builddir/odd-even-sort-gid-reduce.idma.dat $builddir/collected_flags.bin
+build test:         test_usage
+
+build clean: clean
+
+default $builddir/odd-even-sort-gid-even.asm $builddir/odd-even-sort-gid-even.idma.dat $
+    $builddir/odd-even-sort-gid-odd.asm $builddir/odd-even-sort-gid-odd.idma.dat $
+    $builddir/odd-even-sort-gid-reduce.asm $builddir/odd-even-sort-gid-reduce.idma.dat

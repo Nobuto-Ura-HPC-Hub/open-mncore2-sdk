@@ -1,0 +1,3 @@
+((:version :0.1)
+ (:reserved_wait_tag #x3f)
+ (:slot 28 :place :pdm0 :addr 32768 :recv_wait_tag #x06))

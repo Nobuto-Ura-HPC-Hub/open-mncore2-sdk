@@ -1,0 +1,62 @@
+# 08-reduce-max: reduce_max sample (4096 PE → 4 partial maxes)
+#
+# ninja              -> .cl -> ._vsm -> .vsm
+# ninja build-e2e    -> + vsmlink + assemble3 + host C + 入力ファイル生成
+# ninja test         -> usage 表示
+# ninja test-emu-lib -> emu:lib backend で --verify 実行 (生成入力ファイル使用)
+# ninja test-device  -> 実機 backend で --verify 実行
+#
+# 手動実行:
+#   ./_build/test_reduce my_input.bin > out.bin     # binary stdout
+#   ./_build/test_reduce --verify my_input.bin      # PASS/FAIL 表示
+
+include ../scripts/mncl.ninja
+include ../../scripts/sdk.ninja
+builddir = _build
+
+# --- kernel ---
+build $builddir/reduce._vsm: emit-vsm reduce.cl
+
+build $builddir/reduce.vsm: vsmlink $builddir/reduce._vsm reduce.param reduce.stparam
+  vsm = $builddir/reduce._vsm
+  param = reduce.param
+  stparam = reduce.stparam
+
+build $builddir/reduce.asm: asm3 $builddir/reduce.vsm
+build $builddir/reduce.idma.dat: asm3_loader $builddir/reduce.vsm
+  stem = $builddir/reduce
+
+# --- host driver ---
+build $builddir/test_reduce.o: cc test_reduce.c
+build $builddir/test_reduce: link $builddir/test_reduce.o
+
+# --- 入力ファイル生成 (4096 doubles = 1..4096、 max は 4096) ---
+rule gen_input_seq
+  command = python3 -c "import struct,sys; sys.stdout.buffer.write(b''.join(struct.pack('<d', i+1) for i in range(4096)))" > $out
+  description = GEN_INPUT $out
+
+build $builddir/input.bin: gen_input_seq
+
+# --- ビルド段階 phony ---
+build build-e2e: phony $builddir/reduce.asm $builddir/reduce.idma.dat $builddir/test_reduce $builddir/input.bin
+
+# --- test 3 種 (--verify with input.bin) ---
+rule test_emu_lib_verify
+  command = LD_LIBRARY_PATH=${sdk_root}/lib/emu-lib ./$in --verify $args
+  description = TEST [emu:lib] $in --verify $args
+  pool = console
+
+rule test_device_verify
+  command = LD_LIBRARY_PATH=${sdk_root}/lib ./$in --verify $args
+  description = TEST [device] $in --verify $args
+  pool = console
+
+build test-emu-lib: test_emu_lib_verify $builddir/test_reduce | $builddir/reduce.asm $builddir/reduce.idma.dat $builddir/input.bin
+  args = $builddir/input.bin
+build test-device:  test_device_verify  $builddir/test_reduce | $builddir/reduce.asm $builddir/reduce.idma.dat $builddir/input.bin
+  args = $builddir/input.bin
+build test:         test_usage
+
+build clean: clean
+
+default $builddir/reduce.asm $builddir/reduce.idma.dat

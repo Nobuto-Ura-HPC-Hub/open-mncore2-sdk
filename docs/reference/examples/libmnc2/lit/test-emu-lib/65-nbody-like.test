@@ -1,0 +1,3 @@
+# nbody like (f64): 全粒子 (x, m) を各 PE に distribute、 粒子 i を broadcast して
+# 各 PE で F_j += (x_i - x_j)*(m_i*m_j) を累積 (割り算/rsqrt なし)、 collect して golden と比較。
+# RUN: ninja -C %examples/65-nbody-like test-emu-lib

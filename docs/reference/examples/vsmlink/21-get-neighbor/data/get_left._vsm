@@ -1,0 +1,16 @@
+# ABI PFN3_SBY64
+#
+# @get_neighbor offset=-1 テスト
+# input[i] = i+1, output[i] = input[i-1] (左隣)
+# 内部 PE (1..4094): output[i] == i
+# PE 0: 境界（左隣なし）
+#
+	@distribute _arg_a from_param 8 size 1 $lm0
+	@boundary_flags bf1 0 $lr416 data_edge_left data_edge_right cross_chip_left cross_chip_right cross_L2B_left cross_L2B_right cross_L1B_left cross_L1B_right cross_MAB_left cross_MAB_right
+	@alloc left :omr 5 6 7 8 :grf0 0 32 80 88 402 404 96 84 86 90 92 :n 0
+	@get_neighbor $lr400 -1 $lm0 bf1 nbuf0 left
+	@free left
+	nop
+	nop
+	lpassa $lr400 $ln4088
+	@collect _out to_param 16 size 1 $ln4088

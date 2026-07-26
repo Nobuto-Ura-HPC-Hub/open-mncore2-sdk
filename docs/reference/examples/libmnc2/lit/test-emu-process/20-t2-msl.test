@@ -1,0 +1,1 @@
+# RUN: ninja -C %examples/20-t2-msl test-emu

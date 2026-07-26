@@ -1,0 +1,34 @@
+# ABI PFN3_SBY64
+#
+# kick: leapfrog の半キック v += a*(dt/2)。ホストが 1 ステップにつき 2 回実行する。
+# LM0 常駐: ax=$lm8 ay=$lm10 az=$lm12 dthalf=$lm28 vx=$lm22 vy=$lm24 vz=$lm26
+# バンク: LM0=$lm LM1=$ln GRF0=$lr GRF1=$ls
+#
+# a,dthalf,v はすべて LM0 なので、dthalf を GRF0 に写して LM0*LM0 のバンク衝突を避ける。
+#
+	lpassa $lm28 $lr0        # dthalf を GRF0 へ
+	nop/2
+	# vx += ax*dthalf
+	dvmulu $lm8 $lr0 $nowrite
+	dvfmad $lm8 $lr0 $mauf $ls0
+	nop/2
+	dvadd $lm22 $ls0 $ln0
+	nop/2
+	lpassa $ln0 $lm22
+	nop/24
+	# vy += ay*dthalf
+	dvmulu $lm10 $lr0 $nowrite
+	dvfmad $lm10 $lr0 $mauf $ls0
+	nop/2
+	dvadd $lm24 $ls0 $ln0
+	nop/2
+	lpassa $ln0 $lm24
+	nop/24
+	# vz += az*dthalf
+	dvmulu $lm12 $lr0 $nowrite
+	dvfmad $lm12 $lr0 $mauf $ls0
+	nop/2
+	dvadd $lm26 $ls0 $ln0
+	nop/2
+	lpassa $ln0 $lm26
+	nop/24

@@ -1,0 +1,1 @@
+# RUN: ninja -C %examples/02-roundtrip test-emu-lib

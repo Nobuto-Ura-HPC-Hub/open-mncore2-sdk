@@ -1,0 +1,17 @@
+# build.ninja — 20-t2-msl
+include ../../scripts/sdk.ninja
+include ../../scripts/examples.ninja
+
+build $builddir/t2_msl.asm: asm3_text data/t2_msl.vsm
+build $builddir/t2_msl.idma.dat: asm3_loader data/t2_msl.vsm
+  stem = $builddir/t2_msl
+
+build $builddir/ex_t2_msl.o: cc ex_t2_msl.c
+build $builddir/ex_t2_msl: link $builddir/ex_t2_msl.o | ${sdk_root}/lib/libmnc2.a
+
+build test:         test_usage
+build test-emu:     test_emu_process $builddir/ex_t2_msl | $builddir/t2_msl.asm $builddir/t2_msl.idma.dat
+build test-emu-lib: test_emu_lib     $builddir/ex_t2_msl | $builddir/t2_msl.asm $builddir/t2_msl.idma.dat
+build test-device:  test_device      $builddir/ex_t2_msl | $builddir/t2_msl.asm $builddir/t2_msl.idma.dat
+
+default $builddir/ex_t2_msl $builddir/t2_msl.idma.dat

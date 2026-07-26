@@ -1,0 +1,52 @@
+# 22-identify-reduce-add: @identify → @reduce :liadd
+#
+# ninja              → vsmlink のみ
+# ninja build-e2e    → + assemble3 + C ビルド
+# ninja test-emu-lib → + emu:lib で実行・検証
+# ninja test-device  → + 実機で実行・検証
+
+include ../../scripts/sdk.ninja
+include ../scripts/vsmlink.ninja
+builddir = _build
+
+# --- 独自 rule: test driver が kernel path を引数で取る ---
+rule test_emu_lib_k
+  command = LD_LIBRARY_PATH=${sdk_root}/lib/emu-lib ./$exe $kernel
+  description = TEST [emu:lib] $exe $kernel
+
+rule test_device_k
+  command = ./$exe $kernel
+  description = TEST [device] $exe $kernel
+
+# --- vsmlink ---
+build $builddir/identify_reduce.vsm: vsmlink identify_reduce._vsm | identify_reduce.param identify_reduce.stparam
+  vsm     = identify_reduce._vsm
+  param   = identify_reduce.param
+  stparam = identify_reduce.stparam
+
+# --- assemble ---
+build $builddir/identify_reduce.asm: asm3 $builddir/identify_reduce.vsm
+build $builddir/identify_reduce.idma.dat: asm3_loader $builddir/identify_reduce.vsm
+  stem = $builddir/identify_reduce
+
+# --- host C ---
+build $builddir/test_identify_reduce.o: cc test_identify_reduce.c
+build $builddir/test_identify_reduce: link_exe $builddir/test_identify_reduce.o
+
+build build-e2e: phony $
+    $builddir/identify_reduce.asm $
+    $builddir/identify_reduce.idma.dat $
+    $builddir/test_identify_reduce
+
+# --- test targets ---
+build test: test_usage
+
+build test-emu-lib: test_emu_lib_k $builddir/identify_reduce.idma.dat | $builddir/test_identify_reduce
+  exe    = $builddir/test_identify_reduce
+  kernel = $builddir/identify_reduce.idma.dat
+
+build test-device: test_device_k $builddir/identify_reduce.idma.dat | $builddir/test_identify_reduce
+  exe    = $builddir/test_identify_reduce
+  kernel = $builddir/identify_reduce.idma.dat
+
+default $builddir/identify_reduce.vsm

@@ -1,0 +1,53 @@
+# build.ninja — 45-multi-collect
+#
+# emu:lib / emu:process: 従来通り ex_multi_collect を走らせる (内部で
+#   workaround を当てた emu 側の挙動を回帰検証)。
+#
+# device: 同一 wait tag 再利用の mnc2_recv 2 回呼びは実機で成立しない
+#   (= API 誤用パターン)。 recv を使わず peek pipeline で検証する:
+#     clear-pdm → run-put → read-collect1 → read-collect2 → test-device
+#
+# パスは ${sdk_root}/bin/ (= $PREFIX/bin) を使用し、../bin/ は使わない。
+# (install 後 sdk-examples 先では ../bin/ が存在しないため)
+
+include ../../scripts/sdk.ninja
+include ../../scripts/examples.ninja
+
+# device pipeline (peek 方式、mnc2_recv を使わない) のための独自 rule
+rule clear_pdm_device
+  command = head -c 32 /dev/zero | ${sdk_root}/bin/write-pdm 0 && head -c 32 /dev/zero | ${sdk_root}/bin/write-pdm 0x8000
+  description = CLEAR [device] PDM[0..31, 0x8000..0x801f]
+
+rule run_put_device
+  command = LD_LIBRARY_PATH=${sdk_root}/lib ./$in
+  description = RUN [device] put $in (skips mnc2_recv)
+
+rule check_collect1_device
+  command = ${sdk_root}/bin/read-pdm 0 32 | od -An -v -tx8 --endian=little | diff - data/expected-collect1.txt && echo "PASS: collect1[0..3] matches expected"
+  description = CHECK [device] collect1 vs data/expected-collect1.txt
+
+rule check_collect2_device
+  command = ${sdk_root}/bin/read-pdm 0x8000 32 | od -An -v -tx8 --endian=little | diff - data/expected-collect2.txt && echo "PASS: collect2[0..3] matches expected"
+  description = CHECK [device] collect2 vs data/expected-collect2.txt
+
+# カーネル
+build $builddir/multi_collect.asm: asm3_text data/multi_collect.vsm
+build $builddir/multi_collect.idma.dat: asm3_loader data/multi_collect.vsm
+  stem = $builddir/multi_collect
+
+# test driver
+build $builddir/ex_multi_collect.o: cc ex_multi_collect.c
+build $builddir/ex_multi_collect: link $builddir/ex_multi_collect.o | ${sdk_root}/lib/libmnc2.a
+
+build test: test_usage
+build test-emu:     test_emu_process $builddir/ex_multi_collect | $builddir/multi_collect.asm $builddir/multi_collect.idma.dat
+build test-emu-lib: test_emu_lib     $builddir/ex_multi_collect | $builddir/multi_collect.asm $builddir/multi_collect.idma.dat
+
+# device 4 段 pipeline
+build clear-pdm-device: clear_pdm_device
+build run-put-device: run_put_device $builddir/ex_multi_collect | $builddir/multi_collect.idma.dat clear-pdm-device
+build check-collect1-device: check_collect1_device | run-put-device data/expected-collect1.txt
+build check-collect2-device: check_collect2_device | check-collect1-device data/expected-collect2.txt
+build test-device: phony check-collect2-device
+
+default $builddir/ex_multi_collect $builddir/multi_collect.asm $builddir/multi_collect.idma.dat

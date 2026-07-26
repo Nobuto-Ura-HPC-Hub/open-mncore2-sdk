@@ -1,0 +1,293 @@
+# === Stencil 1D Debug Tutorial ===
+#
+# 【手書きの .vsm】このファイルは vsmlink を通さず assemble3 に直接渡す。
+# したがって vsmlink の守備範囲ではない。wait tag は数値で直接書いてあり、
+# .param の :reserved_wait_tag による管理の外にある。.param のタグを
+# デフォルト (#x3f) から変えると衝突しうるが、vsmlink は関知しないので
+# 警告も出ない。変えるときは手で確認すること。
+#
+# 1D ステンシル offset=-1（左隣取得）のデータ移動を段階的に観察する。
+# 各ステージの結果を異なる GRF レジスタに格納し、debug_read で読み出す。
+#
+# ── MN-Core 2 のトポロジ ──
+#
+#   PE 0-3     PE 0-3     PE 0-3          PE 0-3
+#   ├─MAB 0──┤├─MAB 1──┤├─MAB 2──┤ ... ├─MAB 15─┤
+#   └───────── L1B (64 PE = 16 MAB) ─────────────┘
+#
+#   L1B 0    L1B 1    L1B 2  ...  L1B 7
+#   └──────── L2B section (512 PE = 8 L1B) ──────┘
+#
+#   Section 0  Section 1  ...  Section 7
+#   └──────── チップ全体 (4096 PE = 8 section) ──┘
+#
+# PE が直接通信できるのは同じ MAB 内の 4 PE だけ（msl / msr）。
+# 隣接 PE が別の MAB・L1B・セクションにいる場合、上位メモリ階層を経由する。
+# このプログラムでは、各階層の命令を 1 つずつ実行して中間状態を観察する。
+#
+# ── GRF0 レジスタ割り当て ──
+#
+#   lr0:  入力データ（distribute 結果）
+#   lr2:  Stage 1 — msl 結果（PE 間左シフト）
+#   lr4:  Stage 2 — msr 結果（PE 間右シフト）
+#   lr6:  Stage 3 — cross MAB（l1bmd+1 + msr*3）
+#   lr8:  Stage 4 — cross L1B（l2bm + l2bmb + l1bmd+1 + msr*3）
+#   lr10: Stage 5 — cross L2B（mvp + l2bmb + l1bmd+1 + msr*3）
+#
+# ── L1BM バンク割り当て ──
+#
+#   lb0:   distribute 用
+#   lb128: Stage 3 用（cross MAB）
+#   lb192: Stage 4 用（cross L1B）
+#   lb256: Stage 5 用（cross L2B）
+#
+# 実行方法: MNC2_BACKEND=emu:lib ./test_stencil1d_debug
+# 袖交換の全体像: ../05-stencil1d/README.md を参照
+
+# ============================================================
+# Phase A: Distribute（PDM → PE）
+# ============================================================
+#
+# ホストが PDM に書き込んだ入力データ（input[i] = i+1）を全 4096 PE に配布する。
+# 経路: PDM → (mvp) → L2BM → (l2bmb) → L1BM → (l1bmd) → PE の LM0
+#
+# mvp: PDM から L2BM への DMA 転送（512 長語単位 × 8 セクション）
+# L2BM はチップ上の中間バッファで、4 グループ × 2 L2B = 8 セクション分のスロットを持つ。
+# 各 mvp は lc<offset>@<group>.<l2b> で L2BM 上のアドレスを指定する。
+	nop; wait i10
+	nop/3
+	mvp/n512 $p0@0 $lc0@0.0
+	mvp/n512 $p512@0 $lc0@0.1
+	mvp/n512 $p1024@0 $lc0@1.0
+	mvp/n512 $p1536@0 $lc0@1.1
+	mvp/n512 $p2048@0 $lc0@2.0
+	mvp/n512 $p2560@0 $lc0@2.1
+	mvp/n512 $p3072@0 $lc0@3.0
+	mvp/n512i23 $p3584@0 $lc0@3.1
+	nop/2
+	nop; wait i23
+	nop/5
+# l2bmb: L2BM → L1BM への broadcast（8 L1B に同時配信）
+# l2bmb@N は L2BM の N 番目のスロット（64 長語間隔）を L1B N の L1BM に転送する。
+	l2bmb@0 $lc0 $lb0
+	l2bmb@1 $lc64 $lb0
+	l2bmb@2 $lc128 $lb0
+	l2bmb@3 $lc192 $lb0
+	l2bmb@4 $lc256 $lb0
+	l2bmb@5 $lc320 $lb0
+	l2bmb@6 $lc384 $lb0
+	l2bmb@7 $lc448 $lb0
+	nop/5
+# l1bmd: L1BM → PE（全 MAB に scatter。各 PE の LM0 にデータが入る）
+	l1bmd $lb0 $lm0v
+	nop/24
+
+# ============================================================
+# Phase B: lr0 = 入力データのコピー
+# ============================================================
+# distribute の結果を lr0 に保存する。
+# この時点で PE[i] の lr0 = i+1（0-origin の PE 番号 + 1）。
+	lpassa $lm0 $lr0
+	nop
+	nop
+
+# ============================================================
+# Stage 1: msl → lr2（PE 間左シフト）
+# ============================================================
+#
+# msl は同一 MAB 内で「左隣の PE」のデータを取得する命令。
+# PE j は PE (j-1) mod 4 のデータを受け取る。
+#
+# 例: MAB 0 の場合
+#   msl 前: PE[0]=1  PE[1]=2  PE[2]=3  PE[3]=4
+#   msl 後: PE[0]=4  PE[1]=1  PE[2]=2  PE[3]=3
+#                ↑ MAB 内ラップ（PE 3 のデータ）
+#
+# PE 1-3 は正しい左隣を取得できるが、
+# PE 0 は同じ MAB の PE 3（右端）のデータを受け取ってしまう。
+# → cross MAB（Stage 3）で修正する。
+	lpassa $lm0 $lr2
+	nop
+	nop
+	msl $lr2 $lr2
+	nop
+	nop
+
+# ============================================================
+# Stage 2: msr → lr4（PE 間右シフト）
+# ============================================================
+#
+# msr は同一 MAB 内で「右隣の PE」のデータを取得する命令。
+# PE j は PE (j+1) mod 4 のデータを受け取る。
+# PE 3 は PE 0 のデータ（MAB 内ラップ）を受け取る。
+# → 右方向の参照は Stage 3 以降で同様に修正する。
+	lpassa $lm0 $lr4
+	nop
+	nop
+	msr $lr4 $lr4
+	nop
+	nop
+
+# ============================================================
+# Stage 3: cross MAB → lr6
+# ============================================================
+#
+# PE 0 が隣接 MAB（番号 -1）のデータを取得する。
+# 経路: PE → (l1bmd) → L1BM → (l1bmd+1) → PE → (msr*3)
+#
+# L1BM は L1B 内の全 16 MAB のデータを保持するバッファ。
+# l1bmd: 各 PE のデータを L1BM に gather（全 MAB 分まとめて書き込み）
+# l1bmd+1: L1BM から「MAB 番号 +1」のスロットを読み出す。
+#   つまり MAB M の PE は MAB M-1 のデータを受け取る。
+#   （l1bmd+1 は「+1 番目のスロット」= 1 つ前の MAB の意味）
+# msr*3: l1bmd+1 の結果は PE 3 に左端のデータが来るので、
+#   3 回右シフトして PE 0 に移動する。
+#
+# 注意: MAB 0 は L1B 内で MAB 15 のデータを読む（ラップアラウンド）。
+# L1B 0 の MAB 0 では、これは L1B 0 自身の MAB 15 であり、
+# 本来ほしい「前の L1B の MAB 15」ではない。→ cross L1Bで修正する。
+	l1bmd $lr0v $lb128
+	nop/10
+	l1bmd+1 $lb128 $lr6v
+	nop/24
+	msr $lr6 $lr6
+	nop
+	nop
+	msr $lr6 $lr6
+	nop
+	nop
+	msr $lr6 $lr6
+	nop
+	nop
+
+# ============================================================
+# Stage 4: cross L1B → lr8
+# ============================================================
+#
+# L1B 0 の MAB 0 が、前の L1B（L1B N-1）の MAB 15 のデータを取得する。
+# 経路: PE → L1BM → (l2bm) → L2BM → (l2bmb) → L1BM → (l1bmd+1) → PE → (msr*3)
+#
+# L2BM は L2B セクション内の 8 L1B 間の通信バッファ。
+# l2bm@N: L1B N の L1BM → L2BM のスロット N に転送
+# l2bmb@N: L2BM のスロット N-1 のデータを L1B N の L1BM に書き戻す
+#   → L1B 1 は L1B 0 のデータ、L1B 2 は L1B 1 のデータ、...を受け取る
+#   → L1B 0 は受信しない（l2bmb@0 を発行しない。左隣はセクション外）
+#
+# この後 l1bmd+1 + msr*3 で PE 0 に配置する（Stage 3 と同じ補正）。
+#
+# 注意: L1B 0 は l2bmb を受信しないので、Stage 3 のラップ結果がそのまま残る。
+# → cross L2B（Stage 5）で修正する。
+	l1bmd $lr0v $lb192
+	nop/10
+# L1BM → L2BM（各 L1B のデータを L2BM の 8 スロットに scatter）
+	l2bm@0 $lb192 $lc512
+	l2bm@1 $lb192 $lc576
+	l2bm@2 $lb192 $lc640
+	l2bm@3 $lb192 $lc704
+	l2bm@4 $lb192 $lc768
+	l2bm@5 $lb192 $lc832
+	l2bm@6 $lb192 $lc896
+	l2bm@7 $lb192 $lc960
+	nop/3
+# L2BM → 隣接 L1B（offset=-1: L1B N は L1B N-1 のデータを受信）
+# l2bmb@1 は L2BM スロット 0（= L1B 0 のデータ）を L1B 1 に配信
+	l2bmb@1 $lc512 $lb192
+	l2bmb@2 $lc576 $lb192
+	l2bmb@3 $lc640 $lb192
+	l2bmb@4 $lc704 $lb192
+	l2bmb@5 $lc768 $lb192
+	l2bmb@6 $lc832 $lb192
+	l2bmb@7 $lc896 $lb192
+	nop/6
+# L1BM → PE（l1bmd+1 + msr*3 で PE 0 に配置）
+	l1bmd+1 $lb192 $lr8v
+	nop/24
+	msr $lr8 $lr8
+	nop
+	nop
+	msr $lr8 $lr8
+	nop
+	nop
+	msr $lr8 $lr8
+	nop
+	nop
+
+# ============================================================
+# Stage 5: cross L2B → lr10
+# ============================================================
+#
+# セクション 0 の L1B 0 が、前のセクション（Section N-1）の L1B 7 のデータを取得する。
+# L2BM 間は直接通信できないので、PDM を一時バッファとして経由する。
+#
+# 経路（3 段階）:
+#   1. collect: PE → L1BM → L2BM → (mvp) → PDM
+#   2. redistribute: PDM → (mvp) → 隣接セクションの L2BM
+#   3. distribute: L2BM → (l2bmb@0) → L1B 0 の L1BM → (l1bmd+1) → PE → (msr*3)
+#
+# PDM は PCIe 直結のメモリで、全セクションからアクセスできる。
+# 一時領域（$p8192〜）を使って、Section N のデータを Section N+1 に受け渡す。
+	l1bmd $lr0v $lb256
+	nop/10
+# 1. collect: L1BM → L2BM → PDM
+#    各セクションの L2BM データを PDM の一時領域に退避する。
+#    L2BM のスロット配置: lc1024 + N*64 が L1B N のデータ。
+	l2bm@0 $lb256 $lc1024
+	l2bm@1 $lb256 $lc1088
+	l2bm@2 $lb256 $lc1152
+	l2bm@3 $lb256 $lc1216
+	l2bm@4 $lb256 $lc1280
+	l2bm@5 $lb256 $lc1344
+	l2bm@6 $lb256 $lc1408
+	l2bm@7 $lb256 $lc1472
+	nop/3
+# L2BM → PDM（mvp collect: 各グループ × 2 L2B = 8 転送）
+# wait タグ（i28〜i2b）はグループごとの DMA 完了同期。
+	mvp/n512 $lc1024@0.0 $p8192@0
+	mvp/n512i28 $lc1024@0.1 $p8704@0
+	nop/3
+	nop; wait i28
+	mvp/n512 $lc1024@1.0 $p9216@0
+	mvp/n512i29 $lc1024@1.1 $p9728@0
+	nop/3
+	nop; wait i29
+	mvp/n512 $lc1024@2.0 $p10240@0
+	mvp/n512i2a $lc1024@2.1 $p10752@0
+	nop/3
+	nop; wait i2a
+	mvp/n512 $lc1024@3.0 $p11264@0
+	mvp/n512i2b $lc1024@3.1 $p11776@0
+	nop/3
+	nop; wait i2b
+	nop/5
+# 2. redistribute: PDM → 隣接セクションの L2BM
+#    offset=-1 なので、Section N のデータを Section N+1 の L2BM に送る。
+#    PDM アドレスのシフト: $p8192（Sec 0）→ lc1536@0.1（Sec 1 の L2BM）
+#    Section 0 のデータは Section 1 に、Section 6 のデータは Section 7 に届く。
+#    Section 0 自身は左隣がないので、受信データなし（境界条件 = 0）。
+	mvp/n512 $p8192@0 $lc1536@0.1
+	mvp/n512 $p8704@0 $lc1536@1.0
+	mvp/n512 $p9216@0 $lc1536@1.1
+	mvp/n512 $p9728@0 $lc1536@2.0
+	mvp/n512 $p10240@0 $lc1536@2.1
+	mvp/n512 $p10752@0 $lc1536@3.0
+	mvp/n512i2c $p11264@0 $lc1536@3.1
+	nop/2
+	nop; wait i2c
+	nop/5
+# 3. distribute: L2BM → L1B 0 の L1BM → PE
+#    l2bmb@0: L2BM 内の L1B 7 のデータ（lc1984 = lc1536 + 7*64）を
+#    L1B 0 の L1BM に書き込む。これで L1B 0 が前セクションの L1B 7 のデータを持つ。
+	l2bmb@0 $lc1984 $lb256
+	nop/6
+# l1bmd+1 + msr*3: Stage 3/4 と同じ補正で PE 0 に配置する。
+	l1bmd+1 $lb256 $lr10v
+	nop/24
+	msr $lr10 $lr10
+	nop
+	nop
+	msr $lr10 $lr10
+	nop
+	nop
+	msr $lr10 $lr10
+	nop
+	nop

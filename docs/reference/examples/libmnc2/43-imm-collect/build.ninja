@@ -1,0 +1,20 @@
+# build.ninja — 43-imm-collect
+include ../../scripts/sdk.ninja
+include ../../scripts/examples.ninja
+
+# カーネル
+build $builddir/imm_collect.asm: asm3_text data/imm_collect.vsm
+build $builddir/imm_collect.idma.dat: asm3_loader data/imm_collect.vsm
+  stem = $builddir/imm_collect
+
+# test driver
+build $builddir/ex_imm_collect.o: cc ex_imm_collect.c
+build $builddir/ex_imm_collect: link $builddir/ex_imm_collect.o | ${sdk_root}/lib/libmnc2.a
+
+# test targets
+build test-emu:     test_emu_process $builddir/ex_imm_collect | $builddir/imm_collect.asm $builddir/imm_collect.idma.dat
+build test-emu-lib: test_emu_lib     $builddir/ex_imm_collect | $builddir/imm_collect.asm $builddir/imm_collect.idma.dat
+build test-device:  test_device      $builddir/ex_imm_collect | $builddir/imm_collect.asm $builddir/imm_collect.idma.dat
+build test:         test_usage
+
+default $builddir/ex_imm_collect $builddir/imm_collect.asm $builddir/imm_collect.idma.dat

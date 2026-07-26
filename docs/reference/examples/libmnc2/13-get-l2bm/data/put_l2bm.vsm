@@ -1,0 +1,20 @@
+# put_l2bm: PDM -> L2BM (mvp のみ)
+#
+# debug_read(MNC2_MEM_L2BM) のテスト用。
+# send(send_wait_tag=0x10) で PDM に入れたデータを L2BM に転送して停止。
+# L2BM に残ったデータを debug_read で読み出して検証する。
+
+	nop; wait i10
+	nop/3
+	mvp/n512 $p0@0 $lc0@0.0
+	mvp/n512 $p512@0 $lc0@0.1
+	mvp/n512 $p1024@0 $lc0@1.0
+	mvp/n512 $p1536@0 $lc0@1.1
+	mvp/n512 $p2048@0 $lc0@2.0
+	mvp/n512 $p2560@0 $lc0@2.1
+	mvp/n512 $p3072@0 $lc0@3.0
+	mvp/n512i23 $p3584@0 $lc0@3.1
+	nop/2
+	nop; wait i23
+	nop/4
+	# pseudo ret

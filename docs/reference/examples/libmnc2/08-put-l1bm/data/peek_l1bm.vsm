@@ -1,0 +1,18 @@
+# peek_l1bm: L1BM[lb=0 MAB 0] → L2BM[lc1024] → PDM[0..63]
+#
+# 14-get-l1bm の collect path を n64 1 mvp に短縮した版。
+# put_l1bm が L1BM[lb0] に入れたデータの先頭 64 u64 (= 4 PE 分 × 16) を
+# PDM 先頭に戻す。host 側では先頭 4 u64 だけ参照する。
+#
+# HW 制約: mvp の書き戻し先は PDM 先頭 1 MiB 内に限るため $p0@0 を使う。
+# put_l1bm 実行後は元の input data は不要なので上書き OK。
+#
+# 前提: put_l1bm.idma.dat 実行直後に run-idma --no-reset で呼び出す。
+
+	l2bm@0 $lb0 $lc1024
+	nop/5
+	mvp/n64i24 $lc1024@0.0 $p0@0
+	nop/3
+	nop; wait i24
+	nop/4
+	# pseudo ret

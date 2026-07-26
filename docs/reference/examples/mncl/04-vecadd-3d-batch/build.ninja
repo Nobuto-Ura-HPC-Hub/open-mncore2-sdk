@@ -1,0 +1,39 @@
+# 04-vecadd-3d-batch: 同 kernel (vecadd.cl) を N round 繰り返す batch test
+#
+# ninja              -> .cl -> ._vsm -> .vsm
+# ninja build-e2e    -> + vsmlink + assemble3 + host C (test_vecadd_batch)
+# ninja test         -> usage 表示
+# ninja test-emu-lib -> emu:lib backend で実行・検証
+# ninja test-device  -> 実機 backend で実行・検証
+
+include ../scripts/mncl.ninja
+include ../../scripts/sdk.ninja
+builddir = _build
+
+# --- kernel ---
+build $builddir/vecadd._vsm: emit-vsm vecadd.cl
+
+build $builddir/vecadd-3d.vsm: vsmlink $builddir/vecadd._vsm vecadd.param vecadd-3d.stparam
+  vsm = $builddir/vecadd._vsm
+  param = vecadd.param
+  stparam = vecadd-3d.stparam
+
+build $builddir/vecadd.asm: asm3 $builddir/vecadd-3d.vsm
+build $builddir/vecadd.idma.dat: asm3_loader $builddir/vecadd-3d.vsm
+  stem = $builddir/vecadd
+
+# --- host driver (batch) ---
+build $builddir/test_vecadd_batch.o: cc test_vecadd_batch.c
+build $builddir/test_vecadd_batch: link $builddir/test_vecadd_batch.o
+
+# --- ビルド段階 phony ---
+build build-e2e: phony $builddir/vecadd.asm $builddir/vecadd.idma.dat $builddir/test_vecadd_batch
+
+# --- test 3 種 ---
+build test-emu-lib: test_emu_lib $builddir/test_vecadd_batch | $builddir/vecadd.asm $builddir/vecadd.idma.dat
+build test-device:  test_device  $builddir/test_vecadd_batch | $builddir/vecadd.asm $builddir/vecadd.idma.dat
+build test:         test_usage
+
+build clean: clean
+
+default $builddir/vecadd.asm $builddir/vecadd.idma.dat

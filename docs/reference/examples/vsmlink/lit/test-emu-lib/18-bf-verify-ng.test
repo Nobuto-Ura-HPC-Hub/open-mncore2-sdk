@@ -1,0 +1,3 @@
+# 18-bf-verify: ネガティブテスト（全ゼロの境界フラグで stencil → mismatch 検出）
+# --expect-fail により mismatch があれば PASS、なければ FAIL
+# RUN: ninja -C %root/examples/18-bf-verify test-ng

@@ -1,0 +1,17 @@
+# build.ninja — 19-t1-msr
+include ../../scripts/sdk.ninja
+include ../../scripts/examples.ninja
+
+build $builddir/t1_msr.asm: asm3_text data/t1_msr.vsm
+build $builddir/t1_msr.idma.dat: asm3_loader data/t1_msr.vsm
+  stem = $builddir/t1_msr
+
+build $builddir/ex_t1_msr.o: cc ex_t1_msr.c
+build $builddir/ex_t1_msr: link $builddir/ex_t1_msr.o | ${sdk_root}/lib/libmnc2.a
+
+build test:         test_usage
+build test-emu:     test_emu_process $builddir/ex_t1_msr | $builddir/t1_msr.asm $builddir/t1_msr.idma.dat
+build test-emu-lib: test_emu_lib     $builddir/ex_t1_msr | $builddir/t1_msr.asm $builddir/t1_msr.idma.dat
+build test-device:  test_device      $builddir/ex_t1_msr | $builddir/t1_msr.asm $builddir/t1_msr.idma.dat
+
+default $builddir/ex_t1_msr $builddir/t1_msr.idma.dat

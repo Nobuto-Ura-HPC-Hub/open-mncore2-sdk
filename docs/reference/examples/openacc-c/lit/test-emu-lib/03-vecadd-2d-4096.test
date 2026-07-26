@@ -1,0 +1,2 @@
+# RUN: make -C %examples/03-vecadd-2d-4096 build-e2e
+# RUN: make -C %examples/03-vecadd-2d-4096 test-emu-lib

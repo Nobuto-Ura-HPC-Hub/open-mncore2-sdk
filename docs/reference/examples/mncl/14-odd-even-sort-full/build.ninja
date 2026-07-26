@@ -1,0 +1,57 @@
+# 14-odd-even-sort-full: 奇偶転置ソートの full 版 (4096 PE, fp64, neighbor + if/else)
+# 13-odd-even-sort-gid の get_global_id 判定を土台に、swap 有無を inline reduce_add で出し、
+# host が even/odd フェーズをループして配列を完全にソートする（収束まで回す）。
+# kernel は even / odd の 2 本（reduce は inline なので別 kernel 無し）。
+
+include ../scripts/mncl.ninja
+include ../../scripts/sdk.ninja
+builddir = _build
+
+# stparam は 2 kernel 共通 (4096 PE 1D, layout :any)
+
+# --- even kernel ---
+build $builddir/odd-even-sort-full-even._vsm: emit-vsm odd-even-sort-full-even.cl
+build $builddir/odd-even-sort-full-even.vsm: vsmlink $builddir/odd-even-sort-full-even._vsm odd-even-sort-full-even.param odd-even-sort-full.stparam
+  vsm = $builddir/odd-even-sort-full-even._vsm
+  param = odd-even-sort-full-even.param
+  stparam = odd-even-sort-full.stparam
+build $builddir/odd-even-sort-full-even.asm: asm3 $builddir/odd-even-sort-full-even.vsm
+build $builddir/odd-even-sort-full-even.idma.dat: asm3_loader $builddir/odd-even-sort-full-even.vsm
+  stem = $builddir/odd-even-sort-full-even
+
+# --- odd kernel ---
+build $builddir/odd-even-sort-full-odd._vsm: emit-vsm odd-even-sort-full-odd.cl
+build $builddir/odd-even-sort-full-odd.vsm: vsmlink $builddir/odd-even-sort-full-odd._vsm odd-even-sort-full-odd.param odd-even-sort-full.stparam
+  vsm = $builddir/odd-even-sort-full-odd._vsm
+  param = odd-even-sort-full-odd.param
+  stparam = odd-even-sort-full.stparam
+build $builddir/odd-even-sort-full-odd.asm: asm3 $builddir/odd-even-sort-full-odd.vsm
+build $builddir/odd-even-sort-full-odd.idma.dat: asm3_loader $builddir/odd-even-sort-full-odd.vsm
+  stem = $builddir/odd-even-sort-full-odd
+
+# --- host ---
+build $builddir/test_odd-even-sort-full.o: cc test_odd-even-sort-full.c
+build $builddir/test_odd-even-sort-full: link $builddir/test_odd-even-sort-full.o
+
+# --- boundary flags (../data/created/<sha>.bin から fetch。 例 10/13 と同じ 75c77b0f.bin) ---
+# 奇数フェーズはペアが PE グループ境界を跨ぐので non-zero boundary_flags が要る。
+build $builddir/collected_flags.bin: fetch_data
+  bin = 75c77b0f.bin
+
+build build-e2e: phony $
+    $builddir/odd-even-sort-full-even.asm $builddir/odd-even-sort-full-even.idma.dat $
+    $builddir/odd-even-sort-full-odd.asm $builddir/odd-even-sort-full-odd.idma.dat $
+    $builddir/test_odd-even-sort-full $builddir/collected_flags.bin
+
+build test-emu-lib: test_emu_lib $builddir/test_odd-even-sort-full | $
+    $builddir/odd-even-sort-full-even.idma.dat $builddir/odd-even-sort-full-odd.idma.dat $
+    $builddir/collected_flags.bin
+build test-device:  test_device  $builddir/test_odd-even-sort-full | $
+    $builddir/odd-even-sort-full-even.idma.dat $builddir/odd-even-sort-full-odd.idma.dat $
+    $builddir/collected_flags.bin
+build test:         test_usage
+
+build clean: clean
+
+default $builddir/odd-even-sort-full-even.asm $builddir/odd-even-sort-full-even.idma.dat $
+    $builddir/odd-even-sort-full-odd.asm $builddir/odd-even-sort-full-odd.idma.dat

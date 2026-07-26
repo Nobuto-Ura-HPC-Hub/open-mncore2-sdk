@@ -1,0 +1,1 @@
+# RUN: ninja -C %root/examples/17-boundary-collect test-emu-lib

@@ -1,0 +1,531 @@
+# 65-nbody-like — distribute と broadcast の教材 (f64、 質量積 w = m_i * m_j)
+#
+# このファイルは gen_nbody.py の出力。 手で編集せず、 スクリプトを直して生成し直すこと。
+#
+# 各 PE が自粒子 (x_j, m_j) を持つ。 粒子 i=0..31 の (x_i, m_i) を broadcast し、 各 PE で
+#     F_j += (x_i - x_j) * (m_i * m_j)
+# を累積して collect する。 割り算/rsqrt 無し、 f64。
+#
+# この example の主題は 2 つの配り方の対比:
+#
+#   distribute (各 PE に違う値)  mvp x8 -> l2bmb@0..7 -> l1bmd
+#     l1bmd は 4 cycle 動作で L1BM[addr + cycle*64] の 64 u64 を配下 64 PE に 1 個ずつ配る。
+#     cycle 0 に x_j、 cycle 1 に m_j を置くことで 1 命令で 2 値を配る (/1100)。
+#     運ぶ実データが 4096 PE x 2 値 = 8192 u64 あるので、 上流の mvp と l2bmb は本数が要る。
+#
+#   broadcast (全 PE に同じ値)   mvb -> l2bmb -> l1bmp
+#     l2bmb が 1 回で運ぶ 64 u64 を (x_i, m_i) の組 32 個で埋めきる。
+#     データ移動は mvb 1 個 + l2bmb 1 個だけで 32 粒子分が全 4096 PE に届く。
+#     l1bmp は 4 cycle で L1BM[addr + cycle] の 1 u64 を全 PE に放送するので、
+#     1 命令で 2 粒子分 (x, m, x, m) を引き出せる。 16 命令で 64 u64 を使い切る。
+#     host 側の詰め物は不要 (先頭から 64 u64 を素直に並べるだけ)。
+#
+# レジスタ:
+#   $ln0 = x_j、 $ln2 = m_j          (LM1、 distribute で受ける)
+#   $lr0/$lr2 = 偶数番粒子の (x_i, m_i)、 $lr4/$lr6 = 奇数番粒子の (x_i, m_i)  (GRF0、 broadcast)
+#   $lr8 = diff/prod 作業用、 $ls6 = w = m_i*m_j、 $ls4 = acc = F_j
+#
+# L1BM 割り当て (l1bmd 1 命令の占有は addr_b から 256 u64、 addr_b は 64 u64 アライン)
+#   $lb0    [   0,  256)  分配入力。 cycle 0 = [0, 64) が x_j、 cycle 1 = [64, 128) が m_j
+#   $lb256  [ 256,  512)  broadcast 受け。 実占有は先頭 64 u64 [256, 320)
+#   $lb512  [ 512,  768)  結合出力。 回収は cycle 0 の [512, 576) のみ
+#
+# PDM: [0..4095]=x_j、 [4096..8191]=m_j、 [8192..8255]=(x_i, m_i) x 32
+# 出力: PDM[0..4095] = F_j (double)、 recv_wait_tag=0x1e
+
+	nop; wait i10
+	nop/3
+	# === distribute 1/2: PDM[0..4095] = x_j -> L2BM $lc0..511 ===
+	mvp/n512 $p0@0 $lc0@0.0
+	mvp/n512 $p512@0 $lc0@0.1
+	mvp/n512 $p1024@0 $lc0@1.0
+	mvp/n512 $p1536@0 $lc0@1.1
+	mvp/n512 $p2048@0 $lc0@2.0
+	mvp/n512 $p2560@0 $lc0@2.1
+	mvp/n512 $p3072@0 $lc0@3.0
+	mvp/n512i23 $p3584@0 $lc0@3.1
+	nop/2
+	nop; wait i23
+	nop/5
+	# === distribute 2/2: PDM[4096..8191] = m_j -> L2BM $lc512..1023 ===
+	mvp/n512 $p4096@0 $lc512@0.0
+	mvp/n512 $p4608@0 $lc512@0.1
+	mvp/n512 $p5120@0 $lc512@1.0
+	mvp/n512 $p5632@0 $lc512@1.1
+	mvp/n512 $p6144@0 $lc512@2.0
+	mvp/n512 $p6656@0 $lc512@2.1
+	mvp/n512 $p7168@0 $lc512@3.0
+	mvp/n512i22 $p7680@0 $lc512@3.1
+	nop/2
+	nop; wait i22
+	nop/5
+	# === L2BM -> L1BM: x_j を cycle 0 ブロック [0, 64)、 m_j を cycle 1 ブロック [64, 128) へ ===
+	l2bmb@0 $lc0 $lb0
+	l2bmb@1 $lc64 $lb0
+	l2bmb@2 $lc128 $lb0
+	l2bmb@3 $lc192 $lb0
+	l2bmb@4 $lc256 $lb0
+	l2bmb@5 $lc320 $lb0
+	l2bmb@6 $lc384 $lb0
+	l2bmb@7 $lc448 $lb0
+	l2bmb@0 $lc512 $lb64
+	l2bmb@1 $lc576 $lb64
+	l2bmb@2 $lc640 $lb64
+	l2bmb@3 $lc704 $lb64
+	l2bmb@4 $lc768 $lb64
+	l2bmb@5 $lc832 $lb64
+	l2bmb@6 $lc896 $lb64
+	l2bmb@7 $lc960 $lb64
+	nop/5
+	# 占有 L1BM [0, 256)。 cycle 0 が x_j -> $ln0、 cycle 1 が m_j -> $ln2。
+	# cycle 2,3 は未初期化の [128, 256) を読むので /1100 で PE 側書き込みを止める。
+	l1bmd $lb0 $ln0v/1100
+	nop/24
+	nop/24
+	# === broadcast: 32 粒子の (x_i, m_i) 64 u64 を 1 回で全 4096 PE へ ===
+	mvb/n64i24 $p8192@0 $lc1024
+	nop/2
+	nop; wait i24
+	nop/5
+	# 占有 L1BM [256, 320)。 l1bmp が 4 u64 ずつ 16 回で使い切る。
+	l2bmb $lc1024 $lb256
+	nop/24
+	# === acc = 0.0 ===
+	lxor $ls4 $ls4 $ls4
+	nop/4
+	# === 粒子 0, 1: l1bmp 1 命令で (x_0, m_0, x_1, m_1) を引き出す ===
+	l1bmp $lb256 $lr0v
+	nop/24
+	# -- 粒子 0: F_j += (x_i - x_j) * (m_i * m_j) --
+	dvadd $lr0 -$ln0 $lr8
+	nop/4
+	dvmulu $lr2 $ln2 $nowrite
+	dvfmad $lr2 $ln2 $mauf $ls6
+	nop/4
+	dvmulu $lr8 $ls6 $nowrite
+	dvfmad $lr8 $ls6 $mauf $lr8
+	nop/4
+	dvadd $lr8 $ls4 $ls4
+	nop/4
+	# -- 粒子 1: F_j += (x_i - x_j) * (m_i * m_j) --
+	dvadd $lr4 -$ln0 $lr8
+	nop/4
+	dvmulu $lr6 $ln2 $nowrite
+	dvfmad $lr6 $ln2 $mauf $ls6
+	nop/4
+	dvmulu $lr8 $ls6 $nowrite
+	dvfmad $lr8 $ls6 $mauf $lr8
+	nop/4
+	dvadd $lr8 $ls4 $ls4
+	nop/4
+	# === 粒子 2, 3: l1bmp 1 命令で (x_2, m_2, x_3, m_3) を引き出す ===
+	l1bmp $lb260 $lr0v
+	nop/24
+	# -- 粒子 2: F_j += (x_i - x_j) * (m_i * m_j) --
+	dvadd $lr0 -$ln0 $lr8
+	nop/4
+	dvmulu $lr2 $ln2 $nowrite
+	dvfmad $lr2 $ln2 $mauf $ls6
+	nop/4
+	dvmulu $lr8 $ls6 $nowrite
+	dvfmad $lr8 $ls6 $mauf $lr8
+	nop/4
+	dvadd $lr8 $ls4 $ls4
+	nop/4
+	# -- 粒子 3: F_j += (x_i - x_j) * (m_i * m_j) --
+	dvadd $lr4 -$ln0 $lr8
+	nop/4
+	dvmulu $lr6 $ln2 $nowrite
+	dvfmad $lr6 $ln2 $mauf $ls6
+	nop/4
+	dvmulu $lr8 $ls6 $nowrite
+	dvfmad $lr8 $ls6 $mauf $lr8
+	nop/4
+	dvadd $lr8 $ls4 $ls4
+	nop/4
+	# === 粒子 4, 5: l1bmp 1 命令で (x_4, m_4, x_5, m_5) を引き出す ===
+	l1bmp $lb264 $lr0v
+	nop/24
+	# -- 粒子 4: F_j += (x_i - x_j) * (m_i * m_j) --
+	dvadd $lr0 -$ln0 $lr8
+	nop/4
+	dvmulu $lr2 $ln2 $nowrite
+	dvfmad $lr2 $ln2 $mauf $ls6
+	nop/4
+	dvmulu $lr8 $ls6 $nowrite
+	dvfmad $lr8 $ls6 $mauf $lr8
+	nop/4
+	dvadd $lr8 $ls4 $ls4
+	nop/4
+	# -- 粒子 5: F_j += (x_i - x_j) * (m_i * m_j) --
+	dvadd $lr4 -$ln0 $lr8
+	nop/4
+	dvmulu $lr6 $ln2 $nowrite
+	dvfmad $lr6 $ln2 $mauf $ls6
+	nop/4
+	dvmulu $lr8 $ls6 $nowrite
+	dvfmad $lr8 $ls6 $mauf $lr8
+	nop/4
+	dvadd $lr8 $ls4 $ls4
+	nop/4
+	# === 粒子 6, 7: l1bmp 1 命令で (x_6, m_6, x_7, m_7) を引き出す ===
+	l1bmp $lb268 $lr0v
+	nop/24
+	# -- 粒子 6: F_j += (x_i - x_j) * (m_i * m_j) --
+	dvadd $lr0 -$ln0 $lr8
+	nop/4
+	dvmulu $lr2 $ln2 $nowrite
+	dvfmad $lr2 $ln2 $mauf $ls6
+	nop/4
+	dvmulu $lr8 $ls6 $nowrite
+	dvfmad $lr8 $ls6 $mauf $lr8
+	nop/4
+	dvadd $lr8 $ls4 $ls4
+	nop/4
+	# -- 粒子 7: F_j += (x_i - x_j) * (m_i * m_j) --
+	dvadd $lr4 -$ln0 $lr8
+	nop/4
+	dvmulu $lr6 $ln2 $nowrite
+	dvfmad $lr6 $ln2 $mauf $ls6
+	nop/4
+	dvmulu $lr8 $ls6 $nowrite
+	dvfmad $lr8 $ls6 $mauf $lr8
+	nop/4
+	dvadd $lr8 $ls4 $ls4
+	nop/4
+	# === 粒子 8, 9: l1bmp 1 命令で (x_8, m_8, x_9, m_9) を引き出す ===
+	l1bmp $lb272 $lr0v
+	nop/24
+	# -- 粒子 8: F_j += (x_i - x_j) * (m_i * m_j) --
+	dvadd $lr0 -$ln0 $lr8
+	nop/4
+	dvmulu $lr2 $ln2 $nowrite
+	dvfmad $lr2 $ln2 $mauf $ls6
+	nop/4
+	dvmulu $lr8 $ls6 $nowrite
+	dvfmad $lr8 $ls6 $mauf $lr8
+	nop/4
+	dvadd $lr8 $ls4 $ls4
+	nop/4
+	# -- 粒子 9: F_j += (x_i - x_j) * (m_i * m_j) --
+	dvadd $lr4 -$ln0 $lr8
+	nop/4
+	dvmulu $lr6 $ln2 $nowrite
+	dvfmad $lr6 $ln2 $mauf $ls6
+	nop/4
+	dvmulu $lr8 $ls6 $nowrite
+	dvfmad $lr8 $ls6 $mauf $lr8
+	nop/4
+	dvadd $lr8 $ls4 $ls4
+	nop/4
+	# === 粒子 10, 11: l1bmp 1 命令で (x_10, m_10, x_11, m_11) を引き出す ===
+	l1bmp $lb276 $lr0v
+	nop/24
+	# -- 粒子 10: F_j += (x_i - x_j) * (m_i * m_j) --
+	dvadd $lr0 -$ln0 $lr8
+	nop/4
+	dvmulu $lr2 $ln2 $nowrite
+	dvfmad $lr2 $ln2 $mauf $ls6
+	nop/4
+	dvmulu $lr8 $ls6 $nowrite
+	dvfmad $lr8 $ls6 $mauf $lr8
+	nop/4
+	dvadd $lr8 $ls4 $ls4
+	nop/4
+	# -- 粒子 11: F_j += (x_i - x_j) * (m_i * m_j) --
+	dvadd $lr4 -$ln0 $lr8
+	nop/4
+	dvmulu $lr6 $ln2 $nowrite
+	dvfmad $lr6 $ln2 $mauf $ls6
+	nop/4
+	dvmulu $lr8 $ls6 $nowrite
+	dvfmad $lr8 $ls6 $mauf $lr8
+	nop/4
+	dvadd $lr8 $ls4 $ls4
+	nop/4
+	# === 粒子 12, 13: l1bmp 1 命令で (x_12, m_12, x_13, m_13) を引き出す ===
+	l1bmp $lb280 $lr0v
+	nop/24
+	# -- 粒子 12: F_j += (x_i - x_j) * (m_i * m_j) --
+	dvadd $lr0 -$ln0 $lr8
+	nop/4
+	dvmulu $lr2 $ln2 $nowrite
+	dvfmad $lr2 $ln2 $mauf $ls6
+	nop/4
+	dvmulu $lr8 $ls6 $nowrite
+	dvfmad $lr8 $ls6 $mauf $lr8
+	nop/4
+	dvadd $lr8 $ls4 $ls4
+	nop/4
+	# -- 粒子 13: F_j += (x_i - x_j) * (m_i * m_j) --
+	dvadd $lr4 -$ln0 $lr8
+	nop/4
+	dvmulu $lr6 $ln2 $nowrite
+	dvfmad $lr6 $ln2 $mauf $ls6
+	nop/4
+	dvmulu $lr8 $ls6 $nowrite
+	dvfmad $lr8 $ls6 $mauf $lr8
+	nop/4
+	dvadd $lr8 $ls4 $ls4
+	nop/4
+	# === 粒子 14, 15: l1bmp 1 命令で (x_14, m_14, x_15, m_15) を引き出す ===
+	l1bmp $lb284 $lr0v
+	nop/24
+	# -- 粒子 14: F_j += (x_i - x_j) * (m_i * m_j) --
+	dvadd $lr0 -$ln0 $lr8
+	nop/4
+	dvmulu $lr2 $ln2 $nowrite
+	dvfmad $lr2 $ln2 $mauf $ls6
+	nop/4
+	dvmulu $lr8 $ls6 $nowrite
+	dvfmad $lr8 $ls6 $mauf $lr8
+	nop/4
+	dvadd $lr8 $ls4 $ls4
+	nop/4
+	# -- 粒子 15: F_j += (x_i - x_j) * (m_i * m_j) --
+	dvadd $lr4 -$ln0 $lr8
+	nop/4
+	dvmulu $lr6 $ln2 $nowrite
+	dvfmad $lr6 $ln2 $mauf $ls6
+	nop/4
+	dvmulu $lr8 $ls6 $nowrite
+	dvfmad $lr8 $ls6 $mauf $lr8
+	nop/4
+	dvadd $lr8 $ls4 $ls4
+	nop/4
+	# === 粒子 16, 17: l1bmp 1 命令で (x_16, m_16, x_17, m_17) を引き出す ===
+	l1bmp $lb288 $lr0v
+	nop/24
+	# -- 粒子 16: F_j += (x_i - x_j) * (m_i * m_j) --
+	dvadd $lr0 -$ln0 $lr8
+	nop/4
+	dvmulu $lr2 $ln2 $nowrite
+	dvfmad $lr2 $ln2 $mauf $ls6
+	nop/4
+	dvmulu $lr8 $ls6 $nowrite
+	dvfmad $lr8 $ls6 $mauf $lr8
+	nop/4
+	dvadd $lr8 $ls4 $ls4
+	nop/4
+	# -- 粒子 17: F_j += (x_i - x_j) * (m_i * m_j) --
+	dvadd $lr4 -$ln0 $lr8
+	nop/4
+	dvmulu $lr6 $ln2 $nowrite
+	dvfmad $lr6 $ln2 $mauf $ls6
+	nop/4
+	dvmulu $lr8 $ls6 $nowrite
+	dvfmad $lr8 $ls6 $mauf $lr8
+	nop/4
+	dvadd $lr8 $ls4 $ls4
+	nop/4
+	# === 粒子 18, 19: l1bmp 1 命令で (x_18, m_18, x_19, m_19) を引き出す ===
+	l1bmp $lb292 $lr0v
+	nop/24
+	# -- 粒子 18: F_j += (x_i - x_j) * (m_i * m_j) --
+	dvadd $lr0 -$ln0 $lr8
+	nop/4
+	dvmulu $lr2 $ln2 $nowrite
+	dvfmad $lr2 $ln2 $mauf $ls6
+	nop/4
+	dvmulu $lr8 $ls6 $nowrite
+	dvfmad $lr8 $ls6 $mauf $lr8
+	nop/4
+	dvadd $lr8 $ls4 $ls4
+	nop/4
+	# -- 粒子 19: F_j += (x_i - x_j) * (m_i * m_j) --
+	dvadd $lr4 -$ln0 $lr8
+	nop/4
+	dvmulu $lr6 $ln2 $nowrite
+	dvfmad $lr6 $ln2 $mauf $ls6
+	nop/4
+	dvmulu $lr8 $ls6 $nowrite
+	dvfmad $lr8 $ls6 $mauf $lr8
+	nop/4
+	dvadd $lr8 $ls4 $ls4
+	nop/4
+	# === 粒子 20, 21: l1bmp 1 命令で (x_20, m_20, x_21, m_21) を引き出す ===
+	l1bmp $lb296 $lr0v
+	nop/24
+	# -- 粒子 20: F_j += (x_i - x_j) * (m_i * m_j) --
+	dvadd $lr0 -$ln0 $lr8
+	nop/4
+	dvmulu $lr2 $ln2 $nowrite
+	dvfmad $lr2 $ln2 $mauf $ls6
+	nop/4
+	dvmulu $lr8 $ls6 $nowrite
+	dvfmad $lr8 $ls6 $mauf $lr8
+	nop/4
+	dvadd $lr8 $ls4 $ls4
+	nop/4
+	# -- 粒子 21: F_j += (x_i - x_j) * (m_i * m_j) --
+	dvadd $lr4 -$ln0 $lr8
+	nop/4
+	dvmulu $lr6 $ln2 $nowrite
+	dvfmad $lr6 $ln2 $mauf $ls6
+	nop/4
+	dvmulu $lr8 $ls6 $nowrite
+	dvfmad $lr8 $ls6 $mauf $lr8
+	nop/4
+	dvadd $lr8 $ls4 $ls4
+	nop/4
+	# === 粒子 22, 23: l1bmp 1 命令で (x_22, m_22, x_23, m_23) を引き出す ===
+	l1bmp $lb300 $lr0v
+	nop/24
+	# -- 粒子 22: F_j += (x_i - x_j) * (m_i * m_j) --
+	dvadd $lr0 -$ln0 $lr8
+	nop/4
+	dvmulu $lr2 $ln2 $nowrite
+	dvfmad $lr2 $ln2 $mauf $ls6
+	nop/4
+	dvmulu $lr8 $ls6 $nowrite
+	dvfmad $lr8 $ls6 $mauf $lr8
+	nop/4
+	dvadd $lr8 $ls4 $ls4
+	nop/4
+	# -- 粒子 23: F_j += (x_i - x_j) * (m_i * m_j) --
+	dvadd $lr4 -$ln0 $lr8
+	nop/4
+	dvmulu $lr6 $ln2 $nowrite
+	dvfmad $lr6 $ln2 $mauf $ls6
+	nop/4
+	dvmulu $lr8 $ls6 $nowrite
+	dvfmad $lr8 $ls6 $mauf $lr8
+	nop/4
+	dvadd $lr8 $ls4 $ls4
+	nop/4
+	# === 粒子 24, 25: l1bmp 1 命令で (x_24, m_24, x_25, m_25) を引き出す ===
+	l1bmp $lb304 $lr0v
+	nop/24
+	# -- 粒子 24: F_j += (x_i - x_j) * (m_i * m_j) --
+	dvadd $lr0 -$ln0 $lr8
+	nop/4
+	dvmulu $lr2 $ln2 $nowrite
+	dvfmad $lr2 $ln2 $mauf $ls6
+	nop/4
+	dvmulu $lr8 $ls6 $nowrite
+	dvfmad $lr8 $ls6 $mauf $lr8
+	nop/4
+	dvadd $lr8 $ls4 $ls4
+	nop/4
+	# -- 粒子 25: F_j += (x_i - x_j) * (m_i * m_j) --
+	dvadd $lr4 -$ln0 $lr8
+	nop/4
+	dvmulu $lr6 $ln2 $nowrite
+	dvfmad $lr6 $ln2 $mauf $ls6
+	nop/4
+	dvmulu $lr8 $ls6 $nowrite
+	dvfmad $lr8 $ls6 $mauf $lr8
+	nop/4
+	dvadd $lr8 $ls4 $ls4
+	nop/4
+	# === 粒子 26, 27: l1bmp 1 命令で (x_26, m_26, x_27, m_27) を引き出す ===
+	l1bmp $lb308 $lr0v
+	nop/24
+	# -- 粒子 26: F_j += (x_i - x_j) * (m_i * m_j) --
+	dvadd $lr0 -$ln0 $lr8
+	nop/4
+	dvmulu $lr2 $ln2 $nowrite
+	dvfmad $lr2 $ln2 $mauf $ls6
+	nop/4
+	dvmulu $lr8 $ls6 $nowrite
+	dvfmad $lr8 $ls6 $mauf $lr8
+	nop/4
+	dvadd $lr8 $ls4 $ls4
+	nop/4
+	# -- 粒子 27: F_j += (x_i - x_j) * (m_i * m_j) --
+	dvadd $lr4 -$ln0 $lr8
+	nop/4
+	dvmulu $lr6 $ln2 $nowrite
+	dvfmad $lr6 $ln2 $mauf $ls6
+	nop/4
+	dvmulu $lr8 $ls6 $nowrite
+	dvfmad $lr8 $ls6 $mauf $lr8
+	nop/4
+	dvadd $lr8 $ls4 $ls4
+	nop/4
+	# === 粒子 28, 29: l1bmp 1 命令で (x_28, m_28, x_29, m_29) を引き出す ===
+	l1bmp $lb312 $lr0v
+	nop/24
+	# -- 粒子 28: F_j += (x_i - x_j) * (m_i * m_j) --
+	dvadd $lr0 -$ln0 $lr8
+	nop/4
+	dvmulu $lr2 $ln2 $nowrite
+	dvfmad $lr2 $ln2 $mauf $ls6
+	nop/4
+	dvmulu $lr8 $ls6 $nowrite
+	dvfmad $lr8 $ls6 $mauf $lr8
+	nop/4
+	dvadd $lr8 $ls4 $ls4
+	nop/4
+	# -- 粒子 29: F_j += (x_i - x_j) * (m_i * m_j) --
+	dvadd $lr4 -$ln0 $lr8
+	nop/4
+	dvmulu $lr6 $ln2 $nowrite
+	dvfmad $lr6 $ln2 $mauf $ls6
+	nop/4
+	dvmulu $lr8 $ls6 $nowrite
+	dvfmad $lr8 $ls6 $mauf $lr8
+	nop/4
+	dvadd $lr8 $ls4 $ls4
+	nop/4
+	# === 粒子 30, 31: l1bmp 1 命令で (x_30, m_30, x_31, m_31) を引き出す ===
+	l1bmp $lb316 $lr0v
+	nop/24
+	# -- 粒子 30: F_j += (x_i - x_j) * (m_i * m_j) --
+	dvadd $lr0 -$ln0 $lr8
+	nop/4
+	dvmulu $lr2 $ln2 $nowrite
+	dvfmad $lr2 $ln2 $mauf $ls6
+	nop/4
+	dvmulu $lr8 $ls6 $nowrite
+	dvfmad $lr8 $ls6 $mauf $lr8
+	nop/4
+	dvadd $lr8 $ls4 $ls4
+	nop/4
+	# -- 粒子 31: F_j += (x_i - x_j) * (m_i * m_j) --
+	dvadd $lr4 -$ln0 $lr8
+	nop/4
+	dvmulu $lr6 $ln2 $nowrite
+	dvfmad $lr6 $ln2 $mauf $ls6
+	nop/4
+	dvmulu $lr8 $ls6 $nowrite
+	dvfmad $lr8 $ls6 $mauf $lr8
+	nop/4
+	dvadd $lr8 $ls4 $ls4
+	nop/4
+	# === acc ($ls4) -> LM0[0]、 collect -> PDM[0..4095] ===
+	lpassa $ls4 $lm0
+	nop/24
+	# 占有 L1BM [512, 768)。 結合方向にはマスクが効かないため、
+	# 4 cycle 分 256 u64 すべてが上書きされる。
+	# 回収するのは cycle 0 の [512, 576) のみ。
+	l1bmd $lm0v $lb512
+	nop/24
+	nop/24
+	l2bm@0 $lb512 $lc2048
+	l2bm@1 $lb512 $lc2112
+	l2bm@2 $lb512 $lc2176
+	l2bm@3 $lb512 $lc2240
+	l2bm@4 $lb512 $lc2304
+	l2bm@5 $lb512 $lc2368
+	l2bm@6 $lb512 $lc2432
+	l2bm@7 $lb512 $lc2496
+	nop/5
+	mvp/n512 $lc2048@0.0 $p0@0
+	mvp/n512i19 $lc2048@0.1 $p512@0
+	nop/3
+	nop; wait i19
+	mvp/n512 $lc2048@1.0 $p1024@0
+	mvp/n512i1a $lc2048@1.1 $p1536@0
+	nop/3
+	nop; wait i1a
+	mvp/n512 $lc2048@2.0 $p2048@0
+	mvp/n512i1c $lc2048@2.1 $p2560@0
+	nop/3
+	nop; wait i1c
+	mvp/n512 $lc2048@3.0 $p3072@0
+	mvp/n512i1e $lc2048@3.1 $p3584@0
+	nop/3
+	nop; wait i1e
+	nop/4
+	# pseudo ret

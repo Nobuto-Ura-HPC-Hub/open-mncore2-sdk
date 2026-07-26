@@ -1,0 +1,2 @@
+# RUN: ninja -C %examples/02-vecadd-2d build-e2e
+# RUN: ninja -C %examples/02-vecadd-2d test-emu-lib

@@ -1,0 +1,6 @@
+;; stencil1d: left + self + right (neighbor(-1), neighbor(+1))
+((:version :0.0)
+ (:ndim 1)
+ (:pe_shape (4096))
+ (:pe_local (1))
+ (:boundary (:clamp)))

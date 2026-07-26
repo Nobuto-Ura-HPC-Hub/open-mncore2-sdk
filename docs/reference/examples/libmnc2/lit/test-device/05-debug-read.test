@@ -1,0 +1,3 @@
+# 05-debug-read: device 非対応 (mnc2_debug_read/write は emu-only API、HW 対応機構なし)
+# UNSUPPORTED: true
+# RUN: ninja -C %examples/05-debug-read test-device

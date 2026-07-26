@@ -1,0 +1,39 @@
+# 15-mask-safety-T4: @stencil in nested if-if — mask safety E2E test
+#
+# ninja              → vsmlink: _vsm + .param + .stparam → .vsm
+# ninja build-e2e    → + assemble3 + host C ビルド (emu:lib)
+# ninja test         → + emu:lib で実行・検証
+#
+# 前提: SDK activate 済み (vsmlink, assemble3, mnc2.h が利用可能)
+
+include ../../scripts/sdk.ninja
+include ../scripts/vsmlink.ninja
+builddir = _build
+
+# --- default: vsmlink only ---
+build $builddir/T4.vsm: vsmlink T4._vsm T4.param T4.stparam
+  vsm = T4._vsm
+  param = T4.param
+  stparam = T4.stparam
+
+# --- build-e2e: assemble + host C ---
+build $builddir/T4.asm: asm3 $builddir/T4.vsm
+build $builddir/T4.idma.dat: asm3_loader $builddir/T4.vsm
+  stem = $builddir/T4
+
+build $builddir/test_T4.o: cc test_T4.c
+build $builddir/test_T4: link_exe $builddir/test_T4.o
+
+build build-e2e: phony $builddir/T4.asm $builddir/T4.idma.dat $builddir/test_T4
+
+build $builddir/57b42dea.bin: fetch_data
+  bin = 57b42dea.bin
+
+# --- test: run E2E ---
+build test: test_usage
+build test-emu-lib: test_emu_lib $builddir/test_T4 | $builddir/T4.idma.dat $builddir/57b42dea.bin
+build test-device: test_device $builddir/test_T4 | $builddir/T4.idma.dat $builddir/57b42dea.bin
+
+build clean: clean
+
+default $builddir/T4.vsm

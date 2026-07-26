@@ -1,0 +1,2 @@
+# l1bmp の 1 u64 版 / 2 u64 版の対応を emu:process で観察する。 emu:lib と同じ結果になるか。
+# RUN: ninja -C %examples/67-l1bmp-2u64 test-emu

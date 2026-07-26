@@ -1,0 +1,25 @@
+# get_l2bm: L2BM -> PDM (collect: mvp のみ)
+#
+# put_l2bm 実行後に使用。L2BM $lc0 の内容を PDM word 131072 に書き戻す。
+# emu:lib ではカーネル間で状態が保持されるため、put → get のペアで動作する。
+#
+# recv: recv_wait_tag=0x1e (最終 mvp done flag)
+
+	mvp/n512 $lc0@0.0 $p131072@0
+	mvp/n512i19 $lc0@0.1 $p131584@0
+	nop/3
+	nop; wait i19
+	mvp/n512 $lc0@1.0 $p132096@0
+	mvp/n512i1a $lc0@1.1 $p132608@0
+	nop/3
+	nop; wait i1a
+	mvp/n512 $lc0@2.0 $p133120@0
+	mvp/n512i1c $lc0@2.1 $p133632@0
+	nop/3
+	nop; wait i1c
+	mvp/n512 $lc0@3.0 $p134144@0
+	mvp/n512i1e $lc0@3.1 $p134656@0
+	nop/3
+	nop; wait i1e
+	nop/4
+	# pseudo ret

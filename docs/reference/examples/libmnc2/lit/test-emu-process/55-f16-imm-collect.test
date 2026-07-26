@@ -1,0 +1,1 @@
+# RUN: ninja -C %examples/55-f16-imm-collect test-emu

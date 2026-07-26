@@ -1,0 +1,1 @@
+# RUN: ninja -C %examples/17-get-grf0 test-emu-lib

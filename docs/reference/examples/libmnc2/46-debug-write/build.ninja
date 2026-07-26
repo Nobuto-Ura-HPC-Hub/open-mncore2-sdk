@@ -1,0 +1,18 @@
+# build.ninja — 46-debug-write
+include ../../scripts/sdk.ninja
+include ../../scripts/examples.ninja
+
+# カーネル
+build $builddir/nop.asm: asm3_text data/nop.vsm
+build $builddir/nop.idma.dat: asm3_loader data/nop.vsm
+  stem = $builddir/nop
+
+# test driver
+build $builddir/test_debug_write.o: cc test_debug_write.c
+build $builddir/test_debug_write: link $builddir/test_debug_write.o | ${sdk_root}/lib/libmnc2.a
+
+# test targets (emu:lib 専用 example: debug_write API が emu:lib のみ対応)
+build test-emu-lib: test_emu_lib     $builddir/test_debug_write | $builddir/nop.asm $builddir/nop.idma.dat
+build test:         test_usage_emu_lib_only
+
+default $builddir/test_debug_write $builddir/nop.asm $builddir/nop.idma.dat

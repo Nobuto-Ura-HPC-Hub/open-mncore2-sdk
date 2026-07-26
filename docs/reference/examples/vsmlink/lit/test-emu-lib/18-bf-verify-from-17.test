@@ -1,0 +1,2 @@
+# 18-bf-verify: example 17 の collected_flags.bin によるクロスバリデーション
+# RUN: ninja -C %root/examples/18-bf-verify test-from-17

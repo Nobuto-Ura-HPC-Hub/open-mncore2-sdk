@@ -1,0 +1,3 @@
+((:version :0.1)
+ (:reserved_wait_tag #x3f)
+ (:slot 8 :place :pdm0 :addr 131072 :send_wait_tag #x10 :recv_wait_tag #x1e))  ; 8bit 境界フラグ出力バッファ (4096 LW)

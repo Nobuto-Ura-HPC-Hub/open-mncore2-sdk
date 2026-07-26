@@ -1,0 +1,13 @@
+# ABI PFN3_SBY64
+#
+# 段階3b collect: LM 常駐の accumulator ax,ay を PDM へ回収する。ホストが 1 回実行する。
+# LM0 常駐: ax=$lm4, ay=$lm6
+#
+# size 2 の 1 回で回収する。l1bmd 結合は size によらず $ln4088 から 4 サイクル読むので、
+# 基点は $ln4088 とし、成分は $ln4088 (ax) と $ln4090 (ay) に置く。
+#
+	lpassa $lm4 $ln4088     # ax -> collect reg 成分 0
+	nop/2
+	lpassa $lm6 $ln4090     # ay -> collect reg 成分 1
+	nop/2
+	@collect _a to_param 8 size 2 $ln4088

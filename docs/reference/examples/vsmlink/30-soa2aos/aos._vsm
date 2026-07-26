@@ -1,0 +1,17 @@
+# ABI PFN3_SBY64
+#
+# SoA -> AoS 変換カーネル。collect の成分ごと (SoA) 出力を、device 上で粒子ごと (AoS) に
+# 並べ替える。distribute size 4 で各 PE に struct {x,y,z,m} を載せ、MAB 内 4x4 転置
+# (dmwrite/dmread) を挟み、collect size 4 で書き戻すと AoS で出る (粒子順は順列)。
+# 設計は docs/broadcast-collect-layout.md。
+#
+# 転置のミソ: dmwrite/dmread は src/dst 両方に v (サイクルインクリメント) が要る。
+# 無いと全サイクル同番地に上書きで壊れる (dev manual 3.6.1.6)。
+#
+	@distribute _a from_param 8 size 4 $lm0    # SoA を読み、各 PE に {x,y,z,m} ($lm0,2,4,6)
+	nop/24
+	dmwrite $lm0v $lx0                          # MAB 内 4x4 転置 (書き込み、v 必須)
+	nop/24
+	dmread  $lx0 $lm8v                          # 転置読み出し (dst も v 必須)
+	nop/24
+	@collect _b to_param 16 size 4 $lm8         # AoS で PDM へ

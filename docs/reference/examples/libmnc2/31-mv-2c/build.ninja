@@ -1,0 +1,20 @@
+# build.ninja — 31-mv-2c
+include ../../scripts/sdk.ninja
+include ../../scripts/examples.ninja
+
+# カーネル
+build $builddir/mv-p2c.asm: asm3_text data/mv-p2c.vsm
+build $builddir/mv-p2c.idma.dat: asm3_loader data/mv-p2c.vsm
+  stem = $builddir/mv-p2c
+
+# test driver
+build $builddir/ex_mv_2c.o: cc ex_mv_2c.c
+build $builddir/ex_mv_2c: link $builddir/ex_mv_2c.o | ${sdk_root}/lib/libmnc2.a
+
+# test targets
+build test-emu:     test_emu_process $builddir/ex_mv_2c | $builddir/mv-p2c.asm $builddir/mv-p2c.idma.dat
+build test-emu-lib: test_emu_lib     $builddir/ex_mv_2c | $builddir/mv-p2c.asm $builddir/mv-p2c.idma.dat
+build test-device:  test_device      $builddir/ex_mv_2c | $builddir/mv-p2c.asm $builddir/mv-p2c.idma.dat
+build test:         test_usage
+
+default $builddir/ex_mv_2c $builddir/mv-p2c.asm $builddir/mv-p2c.idma.dat

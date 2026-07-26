@@ -1,0 +1,2 @@
+# REQUIRES: device, assemble3
+# RUN: ninja -C %examples/22-t4-l1bmd-minus1 test-device

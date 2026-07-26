@@ -1,0 +1,2 @@
+# REQUIRES: device, assemble3
+# RUN: ninja -C %examples/59-pdm0-single-add test-device

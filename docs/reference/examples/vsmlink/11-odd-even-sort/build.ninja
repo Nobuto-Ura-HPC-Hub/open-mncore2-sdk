@@ -1,0 +1,73 @@
+# 11-odd-even-sort: Odd-Even Transposition Sort on 4096 PEs
+#
+# ninja              → vsmlink: _vsm + .param + .stparam → .vsm
+# ninja build-e2e    → + assemble3 + C ホストビルド
+# ninja test-emu-lib → + emu:lib で実行・検証
+# ninja test-device  → + 実機で実行・検証
+#
+# 前提: SDK activate 済み (vsmlink, assemble3, mnc2.h が利用可能)
+
+include ../../scripts/sdk.ninja
+include ../scripts/vsmlink.ninja
+builddir = _build
+
+# --- default: vsmlink only ---
+build $builddir/sort_even.vsm: vsmlink sort_even._vsm sort.param sort.stparam
+  vsm    = sort_even._vsm
+  param  = sort.param
+  stparam = sort.stparam
+
+build $builddir/sort_odd.vsm: vsmlink sort_odd._vsm sort.param sort.stparam
+  vsm    = sort_odd._vsm
+  param  = sort.param
+  stparam = sort.stparam
+
+# --- build-e2e: assemble + host C ---
+build $builddir/sort_even.asm: asm3 $builddir/sort_even.vsm
+build $builddir/sort_odd.asm:  asm3 $builddir/sort_odd.vsm
+
+build $builddir/sort_even.idma.dat: asm3_loader $builddir/sort_even.vsm
+  stem = $builddir/sort_even
+build $builddir/sort_odd.idma.dat: asm3_loader $builddir/sort_odd.vsm
+  stem = $builddir/sort_odd
+
+build $builddir/sort_host.o: cc sort_host.c
+build $builddir/sort_host: link_exe $builddir/sort_host.o
+
+build build-e2e: phony $
+    $builddir/sort_even.asm $builddir/sort_even.idma.dat $
+    $builddir/sort_odd.asm  $builddir/sort_odd.idma.dat  $
+    $builddir/sort_host
+
+# --- data fetch (../data/<sha256>.bin → _build/<sha256>.bin) ---
+build $builddir/57b42dea.bin: fetch_data
+  bin = 57b42dea.bin
+build $builddir/d382fbf4.bin: fetch_data
+  bin = d382fbf4.bin
+build $builddir/d5575075.bin: fetch_data
+  bin = d5575075.bin
+build $builddir/1d5f9c66.bin: fetch_data
+  bin = 1d5f9c66.bin
+build $builddir/1720baa2.bin: fetch_data
+  bin = 1720baa2.bin
+build $builddir/75c24047.bin: fetch_data
+  bin = 75c24047.bin
+build $builddir/7353c2c6.bin: fetch_data
+  bin = 7353c2c6.bin
+
+# --- test targets ---
+build test: test_usage
+
+build test-emu-lib: test_emu_lib $builddir/sort_host | $
+    $builddir/sort_even.idma.dat $builddir/sort_odd.idma.dat $
+    $builddir/57b42dea.bin $builddir/d382fbf4.bin
+  args = _build/d382fbf4.bin
+
+build test-device: test_device $builddir/sort_host | $
+    $builddir/sort_even.idma.dat $builddir/sort_odd.idma.dat $
+    $builddir/57b42dea.bin $builddir/d382fbf4.bin
+  args = _build/d382fbf4.bin
+
+build clean: clean
+
+default $builddir/sort_even.vsm $builddir/sort_odd.vsm

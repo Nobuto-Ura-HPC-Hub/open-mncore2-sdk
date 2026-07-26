@@ -1,0 +1,2 @@
+# RUN: ninja -C %examples/09-abs build-e2e
+# RUN: ninja -C %examples/09-abs test-emu-lib

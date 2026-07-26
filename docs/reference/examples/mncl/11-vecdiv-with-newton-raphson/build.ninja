@@ -1,0 +1,33 @@
+# 11-vecdiv-with-newton-raphson: c[i] = a[i] / b[i] (4096 PE, fp64, Newton-Raphson 5 反復)
+
+include ../scripts/mncl.ninja
+include ../../scripts/sdk.ninja
+builddir = _build
+
+# --- kernel ---
+build $builddir/vecdiv-with-newton-raphson._vsm: emit-vsm vecdiv-with-newton-raphson.cl
+
+build $builddir/vecdiv-with-newton-raphson.vsm: vsmlink $builddir/vecdiv-with-newton-raphson._vsm vecdiv-with-newton-raphson.param vecdiv-with-newton-raphson.stparam
+  vsm = $builddir/vecdiv-with-newton-raphson._vsm
+  param = vecdiv-with-newton-raphson.param
+  stparam = vecdiv-with-newton-raphson.stparam
+
+build $builddir/vecdiv-with-newton-raphson.asm: asm3 $builddir/vecdiv-with-newton-raphson.vsm
+build $builddir/vecdiv-with-newton-raphson.idma.dat: asm3_loader $builddir/vecdiv-with-newton-raphson.vsm
+  stem = $builddir/vecdiv-with-newton-raphson
+
+# --- host driver ---
+build $builddir/test_vecdiv-with-newton-raphson.o: cc test_vecdiv-with-newton-raphson.c
+build $builddir/test_vecdiv-with-newton-raphson: link $builddir/test_vecdiv-with-newton-raphson.o
+
+# --- ビルド段階 phony ---
+build build-e2e: phony $builddir/vecdiv-with-newton-raphson.asm $builddir/vecdiv-with-newton-raphson.idma.dat $builddir/test_vecdiv-with-newton-raphson
+
+# --- test 3 種 ---
+build test-emu-lib: test_emu_lib $builddir/test_vecdiv-with-newton-raphson | $builddir/vecdiv-with-newton-raphson.asm $builddir/vecdiv-with-newton-raphson.idma.dat
+build test-device:  test_device  $builddir/test_vecdiv-with-newton-raphson | $builddir/vecdiv-with-newton-raphson.asm $builddir/vecdiv-with-newton-raphson.idma.dat
+build test:         test_usage
+
+build clean: clean
+
+default $builddir/vecdiv-with-newton-raphson.asm $builddir/vecdiv-with-newton-raphson.idma.dat

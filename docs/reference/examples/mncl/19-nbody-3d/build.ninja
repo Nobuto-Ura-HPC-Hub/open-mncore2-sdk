@@ -1,0 +1,75 @@
+# 19-nbody-3d: 3D 重力多体 (f64)。size 3 / v4f64 / broadcast size 3 と時間積分を実機で検証する。
+#
+# 2 カーネル構成（14-odd-even-sort-full と同形）:
+#   nbody3d_force  力フェーズ（加速度 accumulator に積む）
+#   nbody3d_integ  積分フェーズ（semi-implicit Euler の 1 ステップ）
+# stparam は 2 カーネル共通（nbody3d.stparam）。
+#
+# ninja build-e2e        -> .cl -> ._vsm -> .vsm + vsmlink + assemble3 + host C
+# ninja test-emu-lib     -> emu:lib backend で実行・検証 (CI: N=128 / STEPS=2)
+# ninja test-emu-full    -> emu:lib backend で N=4096 の full を実行・検証 (手動)
+# ninja test-device      -> 実機 backend で実行・検証 (N=128)
+# ninja test-device-full -> 実機 backend で N=4096 の full を実行・検証
+#
+# N と STEPS は driver が環境変数 NBODY_N / NBODY_STEPS で受ける。default は N=128 / STEPS=2（CI 用）。
+# full 版ターゲットは NBODY_N=4096 を渡す。共有 mncl.ninja は触らず、full 用ルールは局所に置く。
+
+include ../scripts/mncl.ninja
+include ../../scripts/sdk.ninja
+builddir = _build
+
+# --- N=4096 full 用の局所ルール（CI は driver default の N=128） ---
+rule test_emu_full
+  command = NBODY_N=4096 LD_LIBRARY_PATH=${sdk_root}/lib/emu-lib ./$in
+  description = TEST [emu:lib full N=4096] $in
+  pool = console
+rule test_device_full
+  command = NBODY_N=4096 LD_LIBRARY_PATH=${sdk_root}/lib ./$in
+  description = TEST [device full N=4096] $in
+  pool = console
+
+# --- force kernel ---
+build $builddir/nbody3d_force._vsm: emit-vsm nbody3d_force.cl
+build $builddir/nbody3d_force.vsm: vsmlink $builddir/nbody3d_force._vsm nbody3d_force.param nbody3d.stparam
+  vsm = $builddir/nbody3d_force._vsm
+  param = nbody3d_force.param
+  stparam = nbody3d.stparam
+build $builddir/nbody3d_force.asm: asm3 $builddir/nbody3d_force.vsm
+build $builddir/nbody3d_force.idma.dat: asm3_loader $builddir/nbody3d_force.vsm
+  stem = $builddir/nbody3d_force
+
+# --- integ kernel ---
+build $builddir/nbody3d_integ._vsm: emit-vsm nbody3d_integ.cl
+build $builddir/nbody3d_integ.vsm: vsmlink $builddir/nbody3d_integ._vsm nbody3d_integ.param nbody3d.stparam
+  vsm = $builddir/nbody3d_integ._vsm
+  param = nbody3d_integ.param
+  stparam = nbody3d.stparam
+build $builddir/nbody3d_integ.asm: asm3 $builddir/nbody3d_integ.vsm
+build $builddir/nbody3d_integ.idma.dat: asm3_loader $builddir/nbody3d_integ.vsm
+  stem = $builddir/nbody3d_integ
+
+# --- host driver ---
+build $builddir/test_nbody3d.o: cc test_nbody3d.c
+build $builddir/test_nbody3d: link $builddir/test_nbody3d.o
+
+# --- ビルド段階 phony ---
+build build-e2e: phony $
+    $builddir/nbody3d_force.asm $builddir/nbody3d_force.idma.dat $
+    $builddir/nbody3d_integ.asm $builddir/nbody3d_integ.idma.dat $
+    $builddir/test_nbody3d
+
+# --- test ---
+build test-emu-lib:     test_emu_lib     $builddir/test_nbody3d | $
+    $builddir/nbody3d_force.idma.dat $builddir/nbody3d_integ.idma.dat
+build test-emu-full:    test_emu_full    $builddir/test_nbody3d | $
+    $builddir/nbody3d_force.idma.dat $builddir/nbody3d_integ.idma.dat
+build test-device:      test_device      $builddir/test_nbody3d | $
+    $builddir/nbody3d_force.idma.dat $builddir/nbody3d_integ.idma.dat
+build test-device-full: test_device_full $builddir/test_nbody3d | $
+    $builddir/nbody3d_force.idma.dat $builddir/nbody3d_integ.idma.dat
+build test:             test_usage
+
+build clean: clean
+
+default $builddir/nbody3d_force.asm $builddir/nbody3d_force.idma.dat $
+    $builddir/nbody3d_integ.asm $builddir/nbody3d_integ.idma.dat

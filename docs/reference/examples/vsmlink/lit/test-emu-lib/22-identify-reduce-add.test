@@ -1,0 +1,1 @@
+# RUN: ninja -C %root/examples/22-identify-reduce-add test-emu-lib

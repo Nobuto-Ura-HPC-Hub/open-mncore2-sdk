@@ -1,0 +1,17 @@
+;; 19-nbody-3d 力フェーズ: 加速度 accumulator に寄与を積む（double3, size 3）
+;;
+;; **PDM レイアウトは積分カーネル（nbody3d_integ.param）とアドレスを揃える。**
+;; 共有 buffer: pos=0, acc=32768（両カーネルで一致）。各 vec3 は 3×4096 = 12288 u64。
+;;
+;; slot 8  = distribute 入力 (pos)。自粒子の位置 (x, y, z)。積分カーネルが更新するので PDM 常駐。
+;;           「成分が外側、PE が内側」（x 4096, y 4096, z 4096）。並べるのはホストの責務。
+;; slot 16 = broadcast 入力 (bpos)。粒子 k の位置 (x, y, z) を size 3 で配る。先頭 3 u64。
+;; slot 24 = broadcast 入力 (bmass)。粒子 k の質量。size 1。**この送信 (#x10) が力カーネルの起動トリガ**。
+;; slot 32 = 加速度 accumulator (acc)。size 3 の in-place 積算（distribute で読み collect で書く）。
+;;           host が各タイムステップの頭で 0 埋めし、力フェーズの各 exec 後に recv して drain（同期）。
+((:version :0.1)
+ (:reserved_wait_tag #x3f)
+ (:slot 8  :place :pdm0 :addr 0     :send_wait_tag #x10)
+ (:slot 16 :place :pdm0 :addr 49152 :send_wait_tag #x10)
+ (:slot 24 :place :pdm0 :addr 49216 :send_wait_tag #x10)
+ (:slot 32 :place :pdm0 :addr 32768 :recv_wait_tag #x1e))

@@ -1,0 +1,88 @@
+# 63-broadcast-lm-cycle — l1bmm の 4 cycle が PE LM のどの位置に書くかの切り分け
+#
+# broadcast (mvb + l2bmb + l1bmm) 後、 l1bmd 結合 1 命令で PE LM0[0..3] を
+# L1BM[128/192/256/320] に集める (l1bmd は 4 cycle 動作で refer_pemem(lm0, cycle)
+# = LM0[cycle] を L1BM[addr_b + cycle*64] に書く)。 そのうち L1BM[128]=LM0[0] と
+# L1BM[192]=LM0[1] を PDM に回収して観察する。
+# l1bmm が LM0[0] を上書きするなら LM0[1]=0、 LM0[0..3] に別々に書くなら LM0[1] は
+# cycle 1 の値になる。
+#
+# 入力 (host send): PDM[0..511] = 連番 [0, 1, ..., 511]、 send_wait_tag=0x10
+# 出力 (host recv): PDM[0..4095]    = 全 4096 PE の LM0[0]
+#                   PDM[4096..8191] = 全 4096 PE の LM0[1]
+#                   recv_wait_tag=0x26
+
+	nop; wait i10
+	nop/3
+	# === broadcast: PDM[0..511] → 全 4096 PE LM0 ===
+	mvb/n512i23 $p0@0 $lc0
+	nop/2
+	nop; wait i23
+	nop/5
+	l2bmb $lc0 $lb0
+	nop/5
+	l1bmm $lb0 $lm0
+	nop/24
+	# === l1bmd 結合 1 命令で LM0[0..3] → L1BM[128/192/256/320] ===
+	# 注意: このファイルは L1BM の 256 u64 グリッド規約の対象外。
+	# 下の $lb128 と、後段で読む $lb192 は同一 l1bmd 命令の cycle 0 と cycle 1 の
+	# 出力であって独立した 2 領域ではない。この example は l1bmd の 4 cycle
+	# レイアウト (L1BM[addr_b + cycle*64]) そのものを検証している。
+	# アドレスの一括置換や /1000 の付与を行うと検証内容が失われる。
+	l1bmd $lm0v $lb128
+	nop/24
+	nop/24
+	# === collect LM0[0] (L1BM[128]) → PDM[0..4095] ===
+	l2bm@0 $lb128 $lc1024
+	l2bm@1 $lb128 $lc1088
+	l2bm@2 $lb128 $lc1152
+	l2bm@3 $lb128 $lc1216
+	l2bm@4 $lb128 $lc1280
+	l2bm@5 $lb128 $lc1344
+	l2bm@6 $lb128 $lc1408
+	l2bm@7 $lb128 $lc1472
+	nop/5
+	mvp/n512 $lc1024@0.0 $p0@0
+	mvp/n512i19 $lc1024@0.1 $p512@0
+	nop/3
+	nop; wait i19
+	mvp/n512 $lc1024@1.0 $p1024@0
+	mvp/n512i1a $lc1024@1.1 $p1536@0
+	nop/3
+	nop; wait i1a
+	mvp/n512 $lc1024@2.0 $p2048@0
+	mvp/n512i1c $lc1024@2.1 $p2560@0
+	nop/3
+	nop; wait i1c
+	mvp/n512 $lc1024@3.0 $p3072@0
+	mvp/n512i1e $lc1024@3.1 $p3584@0
+	nop/3
+	nop; wait i1e
+	# === collect LM0[1] (L1BM[192]) → PDM[4096..8191] ===
+	l2bm@0 $lb192 $lc1024
+	l2bm@1 $lb192 $lc1088
+	l2bm@2 $lb192 $lc1152
+	l2bm@3 $lb192 $lc1216
+	l2bm@4 $lb192 $lc1280
+	l2bm@5 $lb192 $lc1344
+	l2bm@6 $lb192 $lc1408
+	l2bm@7 $lb192 $lc1472
+	nop/5
+	mvp/n512 $lc1024@0.0 $p4096@0
+	mvp/n512i21 $lc1024@0.1 $p4608@0
+	nop/3
+	nop; wait i21
+	mvp/n512 $lc1024@1.0 $p5120@0
+	mvp/n512i22 $lc1024@1.1 $p5632@0
+	nop/3
+	nop; wait i22
+	mvp/n512 $lc1024@2.0 $p6144@0
+	mvp/n512i24 $lc1024@2.1 $p6656@0
+	nop/3
+	nop; wait i24
+	mvp/n512 $lc1024@3.0 $p7168@0
+	mvp/n512i26 $lc1024@3.1 $p7680@0
+	nop/3
+	nop; wait i26
+	nop/4
+	# pseudo ret

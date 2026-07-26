@@ -1,0 +1,2 @@
+# broadcast (全 PE 同値) を l1bmp + v + /1000 で。 全 4096 PE が v (周期なしの完全同値) を assert。
+# RUN: ninja -C %examples/66-broadcast-l1bmp test-emu-lib

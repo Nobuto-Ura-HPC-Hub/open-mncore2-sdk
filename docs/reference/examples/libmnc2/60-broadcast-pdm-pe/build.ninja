@@ -1,0 +1,20 @@
+# build.ninja — 60-broadcast-pdm-pe
+include ../../scripts/sdk.ninja
+include ../../scripts/examples.ninja
+
+# カーネル
+build $builddir/broadcast.asm:      asm3_text   data/broadcast.vsm
+build $builddir/broadcast.idma.dat: asm3_loader data/broadcast.vsm
+  stem = $builddir/broadcast
+
+# test driver
+build $builddir/ex_broadcast.o: cc ex_broadcast.c
+build $builddir/ex_broadcast:   link $builddir/ex_broadcast.o | ${sdk_root}/lib/libmnc2.a
+
+# test targets (全 backend 対応)
+build test:         test_usage
+build test-emu:     test_emu_process $builddir/ex_broadcast | $builddir/broadcast.asm $builddir/broadcast.idma.dat
+build test-emu-lib: test_emu_lib     $builddir/ex_broadcast | $builddir/broadcast.asm $builddir/broadcast.idma.dat
+build test-device:  test_device      $builddir/ex_broadcast | $builddir/broadcast.asm $builddir/broadcast.idma.dat
+
+default $builddir/ex_broadcast $builddir/broadcast.asm $builddir/broadcast.idma.dat

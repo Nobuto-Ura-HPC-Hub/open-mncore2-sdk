@@ -1,0 +1,15 @@
+# ABI PFN3_SBY64
+#
+# 段階1: distribute と broadcast の辻褄確認
+#
+# 各 PE に自粒子 (distribute, PE ごとに異なる) と他粒子 (broadcast, 全 PE 同値) を配り、
+# self + other を計算して回収する。distribute と broadcast が両立して正しく届くかの確認。
+# 力計算はまだ入れない。
+#
+	@distribute _self  from_param 8  size 1 $lm0     # 自粒子を LM0 へ (各 PE 異なる)
+	@broadcast  _other from_param 16 size 1 $lr16    # 他粒子を GRF0 へ (全 PE 同値)
+	dvadd $lr16 $lm0 $lr32                            # other(GRF0) + self(LM0) を $lr32 へ
+	nop/2
+	lpassa $lr32 $ln4090
+	nop/2
+	@collect _result to_param 24 size 1 $ln4090

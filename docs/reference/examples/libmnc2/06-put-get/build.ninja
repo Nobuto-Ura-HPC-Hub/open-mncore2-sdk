@@ -1,0 +1,60 @@
+# build.ninja — put-get example (emu:lib 専用 — emu:process は kernel 間で状態が保持されない)
+include ../../scripts/sdk.ninja
+include ../../scripts/examples.ninja
+
+# カーネル群 (put/get の各 memory region)
+build $builddir/put_l2bm.asm: asm3_text data/put_l2bm.vsm
+build $builddir/put_l2bm.idma.dat: asm3_loader data/put_l2bm.vsm
+  stem = $builddir/put_l2bm
+build $builddir/put_l1bm.asm: asm3_text data/put_l1bm.vsm
+build $builddir/put_l1bm.idma.dat: asm3_loader data/put_l1bm.vsm
+  stem = $builddir/put_l1bm
+build $builddir/put_lm.asm: asm3_text data/put_lm.vsm
+build $builddir/put_lm.idma.dat: asm3_loader data/put_lm.vsm
+  stem = $builddir/put_lm
+build $builddir/put_grf.asm: asm3_text data/put_grf.vsm
+build $builddir/put_grf.idma.dat: asm3_loader data/put_grf.vsm
+  stem = $builddir/put_grf
+build $builddir/get_l2bm.asm: asm3_text data/get_l2bm.vsm
+build $builddir/get_l2bm.idma.dat: asm3_loader data/get_l2bm.vsm
+  stem = $builddir/get_l2bm
+build $builddir/get_l1bm.asm: asm3_text data/get_l1bm.vsm
+build $builddir/get_l1bm.idma.dat: asm3_loader data/get_l1bm.vsm
+  stem = $builddir/get_l1bm
+build $builddir/get_lm.asm: asm3_text data/get_lm.vsm
+build $builddir/get_lm.idma.dat: asm3_loader data/get_lm.vsm
+  stem = $builddir/get_lm
+build $builddir/get_grf.asm: asm3_text data/get_grf.vsm
+build $builddir/get_grf.idma.dat: asm3_loader data/get_grf.vsm
+  stem = $builddir/get_grf
+
+# test driver
+build $builddir/test_put_get.o: cc test_put_get.c
+build $builddir/test_put_get: link $builddir/test_put_get.o | ${sdk_root}/lib/libmnc2.a
+
+# test targets — put+get ペアは kernel 間の memory 保持が必要、emu:process は非対応
+build test-emu-lib: test_emu_lib $builddir/test_put_get | $
+    $builddir/put_l2bm.asm $builddir/put_l2bm.idma.dat $
+    $builddir/put_l1bm.asm $builddir/put_l1bm.idma.dat $
+    $builddir/put_lm.asm $builddir/put_lm.idma.dat $
+    $builddir/put_grf.asm $builddir/put_grf.idma.dat $
+    $builddir/get_l2bm.asm $builddir/get_l2bm.idma.dat $
+    $builddir/get_l1bm.asm $builddir/get_l1bm.idma.dat $
+    $builddir/get_lm.asm $builddir/get_lm.idma.dat $
+    $builddir/get_grf.asm $builddir/get_grf.idma.dat
+build test-device:  test_device $builddir/test_put_get | $
+    $builddir/put_l2bm.asm $builddir/put_l2bm.idma.dat $
+    $builddir/put_l1bm.asm $builddir/put_l1bm.idma.dat $
+    $builddir/put_lm.asm $builddir/put_lm.idma.dat $
+    $builddir/put_grf.asm $builddir/put_grf.idma.dat $
+    $builddir/get_l2bm.asm $builddir/get_l2bm.idma.dat $
+    $builddir/get_l1bm.asm $builddir/get_l1bm.idma.dat $
+    $builddir/get_lm.asm $builddir/get_lm.idma.dat $
+    $builddir/get_grf.asm $builddir/get_grf.idma.dat
+build test:         test_usage_no_emu
+
+default $builddir/test_put_get $
+    $builddir/put_l2bm.idma.dat $builddir/put_l1bm.idma.dat $
+    $builddir/put_lm.idma.dat $builddir/put_grf.idma.dat $
+    $builddir/get_l2bm.idma.dat $builddir/get_l1bm.idma.dat $
+    $builddir/get_lm.idma.dat $builddir/get_grf.idma.dat

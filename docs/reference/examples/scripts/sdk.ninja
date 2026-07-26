@@ -1,0 +1,3 @@
+# scripts/sdk.ninja — libmnc2-kit install.sh が配置
+# sdk_root を相対パスで指定 (SDK install 位置に依存しない、移動耐性あり)
+sdk_root = ../../../..

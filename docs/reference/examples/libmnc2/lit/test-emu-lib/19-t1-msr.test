@@ -1,0 +1,1 @@
+# RUN: ninja -C %examples/19-t1-msr test-emu-lib

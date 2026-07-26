@@ -1,0 +1,2 @@
+# RUN: ninja -C %examples/04-vecadd-3d-batch build-e2e
+# RUN: ninja -C %examples/04-vecadd-3d-batch test-device

@@ -1,0 +1,43 @@
+# 05-stencil1d: c[i] = neighbor(-1) + self + neighbor(+1) (4096 PE)
+#
+# ninja              -> .cl -> ._vsm -> .vsm
+# ninja build-e2e    -> + vsmlink + assemble3 + host C + boundary_flags fetch
+# ninja test         -> usage 表示
+# ninja test-emu-lib -> emu:lib backend で実行・検証
+# ninja test-device  -> 実機 backend で実行・検証
+
+include ../scripts/mncl.ninja
+include ../../scripts/sdk.ninja
+builddir = _build
+
+# --- kernel ---
+build $builddir/stencil1d._vsm: emit-vsm stencil1d.cl
+
+build $builddir/stencil1d.vsm: vsmlink $builddir/stencil1d._vsm stencil1d.param stencil1d.stparam
+  vsm = $builddir/stencil1d._vsm
+  param = stencil1d.param
+  stparam = stencil1d.stparam
+
+build $builddir/stencil1d.asm: asm3 $builddir/stencil1d.vsm
+build $builddir/stencil1d.idma.dat: asm3_loader $builddir/stencil1d.vsm
+  stem = $builddir/stencil1d
+
+# --- host driver ---
+build $builddir/test_stencil1d.o: cc test_stencil1d.c
+build $builddir/test_stencil1d: link $builddir/test_stencil1d.o
+
+# --- boundary flags (../../data/<sha>.bin から fetch) ---
+build $builddir/collected_flags.bin: fetch_data
+  bin = 75c77b0f.bin
+
+# --- ビルド段階 phony ---
+build build-e2e: phony $builddir/stencil1d.asm $builddir/stencil1d.idma.dat $builddir/test_stencil1d $builddir/collected_flags.bin
+
+# --- test 3 種 ---
+build test-emu-lib: test_emu_lib $builddir/test_stencil1d | $builddir/stencil1d.asm $builddir/stencil1d.idma.dat $builddir/collected_flags.bin
+build test-device:  test_device  $builddir/test_stencil1d | $builddir/stencil1d.asm $builddir/stencil1d.idma.dat $builddir/collected_flags.bin
+build test:         test_usage
+
+build clean: clean
+
+default $builddir/stencil1d.asm $builddir/stencil1d.idma.dat

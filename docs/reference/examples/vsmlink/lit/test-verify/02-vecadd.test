@@ -1,0 +1,5 @@
+# examples の 3 段階検証の 1 段目: vsmlink が正しい VSM を生成すること
+#
+# expected.vsm との diff。 golden が古くなると FAIL する。
+#
+# RUN: ninja -C %examples/02-vecadd verify

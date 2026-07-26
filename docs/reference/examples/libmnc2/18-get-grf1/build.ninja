@@ -1,0 +1,22 @@
+# build.ninja — 18-get-grf1
+# put+get ペアは kernel 間の memory 保持が必要なため emu:lib / device でのみ効果があり、
+# emu:process では test 内で SKIP される。
+
+include ../../scripts/sdk.ninja
+include ../../scripts/examples.ninja
+
+build $builddir/put_grf1.asm: asm3_text data/put_grf1.vsm
+build $builddir/put_grf1.idma.dat: asm3_loader data/put_grf1.vsm
+  stem = $builddir/put_grf1
+build $builddir/get_grf1.asm: asm3_text data/get_grf1.vsm
+build $builddir/get_grf1.idma.dat: asm3_loader data/get_grf1.vsm
+  stem = $builddir/get_grf1
+
+build $builddir/ex_get_grf1.o: cc ex_get_grf1.c
+build $builddir/ex_get_grf1: link $builddir/ex_get_grf1.o | ${sdk_root}/lib/libmnc2.a
+
+build test:         test_usage_no_emu
+build test-emu-lib: test_emu_lib     $builddir/ex_get_grf1 | $builddir/put_grf1.asm $builddir/put_grf1.idma.dat $builddir/get_grf1.asm $builddir/get_grf1.idma.dat
+build test-device:  test_device      $builddir/ex_get_grf1 | $builddir/put_grf1.asm $builddir/put_grf1.idma.dat $builddir/get_grf1.asm $builddir/get_grf1.idma.dat
+
+default $builddir/ex_get_grf1 $builddir/put_grf1.idma.dat $builddir/get_grf1.idma.dat

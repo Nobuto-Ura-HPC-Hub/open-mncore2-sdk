@@ -1,0 +1,516 @@
+# ** 自動生成: gen_chunks_ninja.py。手で編集しない **
+# accumulate を CHUNK=128 粒子ずつの分割カーネルにする。
+# build.ninja が include する。$builddir / $newton は build.ninja 側で定義。
+
+build $builddir/accumulate_n32_g0._vsm $builddir/accumulate_n32_g0.param: gen_acc gen_accumulate.py
+  start = 0
+  count = 32
+  first = 1
+  out_vsm = $builddir/accumulate_n32_g0._vsm
+  out_param = $builddir/accumulate_n32_g0.param
+build $builddir/accumulate_n32_g0.vsm: vsmlink $builddir/accumulate_n32_g0._vsm $builddir/accumulate_n32_g0.param nbody3d.stparam
+  vsm = $builddir/accumulate_n32_g0._vsm
+  param = $builddir/accumulate_n32_g0.param
+  stparam = nbody3d.stparam
+build $builddir/accumulate_n32_g0.idma.dat: asm3_loader $builddir/accumulate_n32_g0.vsm
+  stem = $builddir/accumulate_n32_g0
+build accum-n32: phony $builddir/accumulate_n32_g0.idma.dat
+
+build $builddir/accumulate_n128_g0._vsm $builddir/accumulate_n128_g0.param: gen_acc gen_accumulate.py
+  start = 0
+  count = 128
+  first = 1
+  out_vsm = $builddir/accumulate_n128_g0._vsm
+  out_param = $builddir/accumulate_n128_g0.param
+build $builddir/accumulate_n128_g0.vsm: vsmlink $builddir/accumulate_n128_g0._vsm $builddir/accumulate_n128_g0.param nbody3d.stparam
+  vsm = $builddir/accumulate_n128_g0._vsm
+  param = $builddir/accumulate_n128_g0.param
+  stparam = nbody3d.stparam
+build $builddir/accumulate_n128_g0.idma.dat: asm3_loader $builddir/accumulate_n128_g0.vsm
+  stem = $builddir/accumulate_n128_g0
+build accum-n128: phony $builddir/accumulate_n128_g0.idma.dat
+
+build $builddir/accumulate_n1024_g0._vsm $builddir/accumulate_n1024_g0.param: gen_acc gen_accumulate.py
+  start = 0
+  count = 128
+  first = 1
+  out_vsm = $builddir/accumulate_n1024_g0._vsm
+  out_param = $builddir/accumulate_n1024_g0.param
+build $builddir/accumulate_n1024_g0.vsm: vsmlink $builddir/accumulate_n1024_g0._vsm $builddir/accumulate_n1024_g0.param nbody3d.stparam
+  vsm = $builddir/accumulate_n1024_g0._vsm
+  param = $builddir/accumulate_n1024_g0.param
+  stparam = nbody3d.stparam
+build $builddir/accumulate_n1024_g0.idma.dat: asm3_loader $builddir/accumulate_n1024_g0.vsm
+  stem = $builddir/accumulate_n1024_g0
+build $builddir/accumulate_n1024_g1._vsm $builddir/accumulate_n1024_g1.param: gen_acc gen_accumulate.py
+  start = 128
+  count = 128
+  first = 0
+  out_vsm = $builddir/accumulate_n1024_g1._vsm
+  out_param = $builddir/accumulate_n1024_g1.param
+build $builddir/accumulate_n1024_g1.vsm: vsmlink $builddir/accumulate_n1024_g1._vsm $builddir/accumulate_n1024_g1.param nbody3d.stparam
+  vsm = $builddir/accumulate_n1024_g1._vsm
+  param = $builddir/accumulate_n1024_g1.param
+  stparam = nbody3d.stparam
+build $builddir/accumulate_n1024_g1.idma.dat: asm3_loader $builddir/accumulate_n1024_g1.vsm
+  stem = $builddir/accumulate_n1024_g1
+build $builddir/accumulate_n1024_g2._vsm $builddir/accumulate_n1024_g2.param: gen_acc gen_accumulate.py
+  start = 256
+  count = 128
+  first = 0
+  out_vsm = $builddir/accumulate_n1024_g2._vsm
+  out_param = $builddir/accumulate_n1024_g2.param
+build $builddir/accumulate_n1024_g2.vsm: vsmlink $builddir/accumulate_n1024_g2._vsm $builddir/accumulate_n1024_g2.param nbody3d.stparam
+  vsm = $builddir/accumulate_n1024_g2._vsm
+  param = $builddir/accumulate_n1024_g2.param
+  stparam = nbody3d.stparam
+build $builddir/accumulate_n1024_g2.idma.dat: asm3_loader $builddir/accumulate_n1024_g2.vsm
+  stem = $builddir/accumulate_n1024_g2
+build $builddir/accumulate_n1024_g3._vsm $builddir/accumulate_n1024_g3.param: gen_acc gen_accumulate.py
+  start = 384
+  count = 128
+  first = 0
+  out_vsm = $builddir/accumulate_n1024_g3._vsm
+  out_param = $builddir/accumulate_n1024_g3.param
+build $builddir/accumulate_n1024_g3.vsm: vsmlink $builddir/accumulate_n1024_g3._vsm $builddir/accumulate_n1024_g3.param nbody3d.stparam
+  vsm = $builddir/accumulate_n1024_g3._vsm
+  param = $builddir/accumulate_n1024_g3.param
+  stparam = nbody3d.stparam
+build $builddir/accumulate_n1024_g3.idma.dat: asm3_loader $builddir/accumulate_n1024_g3.vsm
+  stem = $builddir/accumulate_n1024_g3
+build $builddir/accumulate_n1024_g4._vsm $builddir/accumulate_n1024_g4.param: gen_acc gen_accumulate.py
+  start = 512
+  count = 128
+  first = 0
+  out_vsm = $builddir/accumulate_n1024_g4._vsm
+  out_param = $builddir/accumulate_n1024_g4.param
+build $builddir/accumulate_n1024_g4.vsm: vsmlink $builddir/accumulate_n1024_g4._vsm $builddir/accumulate_n1024_g4.param nbody3d.stparam
+  vsm = $builddir/accumulate_n1024_g4._vsm
+  param = $builddir/accumulate_n1024_g4.param
+  stparam = nbody3d.stparam
+build $builddir/accumulate_n1024_g4.idma.dat: asm3_loader $builddir/accumulate_n1024_g4.vsm
+  stem = $builddir/accumulate_n1024_g4
+build $builddir/accumulate_n1024_g5._vsm $builddir/accumulate_n1024_g5.param: gen_acc gen_accumulate.py
+  start = 640
+  count = 128
+  first = 0
+  out_vsm = $builddir/accumulate_n1024_g5._vsm
+  out_param = $builddir/accumulate_n1024_g5.param
+build $builddir/accumulate_n1024_g5.vsm: vsmlink $builddir/accumulate_n1024_g5._vsm $builddir/accumulate_n1024_g5.param nbody3d.stparam
+  vsm = $builddir/accumulate_n1024_g5._vsm
+  param = $builddir/accumulate_n1024_g5.param
+  stparam = nbody3d.stparam
+build $builddir/accumulate_n1024_g5.idma.dat: asm3_loader $builddir/accumulate_n1024_g5.vsm
+  stem = $builddir/accumulate_n1024_g5
+build $builddir/accumulate_n1024_g6._vsm $builddir/accumulate_n1024_g6.param: gen_acc gen_accumulate.py
+  start = 768
+  count = 128
+  first = 0
+  out_vsm = $builddir/accumulate_n1024_g6._vsm
+  out_param = $builddir/accumulate_n1024_g6.param
+build $builddir/accumulate_n1024_g6.vsm: vsmlink $builddir/accumulate_n1024_g6._vsm $builddir/accumulate_n1024_g6.param nbody3d.stparam
+  vsm = $builddir/accumulate_n1024_g6._vsm
+  param = $builddir/accumulate_n1024_g6.param
+  stparam = nbody3d.stparam
+build $builddir/accumulate_n1024_g6.idma.dat: asm3_loader $builddir/accumulate_n1024_g6.vsm
+  stem = $builddir/accumulate_n1024_g6
+build $builddir/accumulate_n1024_g7._vsm $builddir/accumulate_n1024_g7.param: gen_acc gen_accumulate.py
+  start = 896
+  count = 128
+  first = 0
+  out_vsm = $builddir/accumulate_n1024_g7._vsm
+  out_param = $builddir/accumulate_n1024_g7.param
+build $builddir/accumulate_n1024_g7.vsm: vsmlink $builddir/accumulate_n1024_g7._vsm $builddir/accumulate_n1024_g7.param nbody3d.stparam
+  vsm = $builddir/accumulate_n1024_g7._vsm
+  param = $builddir/accumulate_n1024_g7.param
+  stparam = nbody3d.stparam
+build $builddir/accumulate_n1024_g7.idma.dat: asm3_loader $builddir/accumulate_n1024_g7.vsm
+  stem = $builddir/accumulate_n1024_g7
+build accum-n1024: phony $builddir/accumulate_n1024_g0.idma.dat $builddir/accumulate_n1024_g1.idma.dat $builddir/accumulate_n1024_g2.idma.dat $builddir/accumulate_n1024_g3.idma.dat $builddir/accumulate_n1024_g4.idma.dat $builddir/accumulate_n1024_g5.idma.dat $builddir/accumulate_n1024_g6.idma.dat $builddir/accumulate_n1024_g7.idma.dat
+
+build $builddir/accumulate_n4096_g0._vsm $builddir/accumulate_n4096_g0.param: gen_acc gen_accumulate.py
+  start = 0
+  count = 128
+  first = 1
+  out_vsm = $builddir/accumulate_n4096_g0._vsm
+  out_param = $builddir/accumulate_n4096_g0.param
+build $builddir/accumulate_n4096_g0.vsm: vsmlink $builddir/accumulate_n4096_g0._vsm $builddir/accumulate_n4096_g0.param nbody3d.stparam
+  vsm = $builddir/accumulate_n4096_g0._vsm
+  param = $builddir/accumulate_n4096_g0.param
+  stparam = nbody3d.stparam
+build $builddir/accumulate_n4096_g0.idma.dat: asm3_loader $builddir/accumulate_n4096_g0.vsm
+  stem = $builddir/accumulate_n4096_g0
+build $builddir/accumulate_n4096_g1._vsm $builddir/accumulate_n4096_g1.param: gen_acc gen_accumulate.py
+  start = 128
+  count = 128
+  first = 0
+  out_vsm = $builddir/accumulate_n4096_g1._vsm
+  out_param = $builddir/accumulate_n4096_g1.param
+build $builddir/accumulate_n4096_g1.vsm: vsmlink $builddir/accumulate_n4096_g1._vsm $builddir/accumulate_n4096_g1.param nbody3d.stparam
+  vsm = $builddir/accumulate_n4096_g1._vsm
+  param = $builddir/accumulate_n4096_g1.param
+  stparam = nbody3d.stparam
+build $builddir/accumulate_n4096_g1.idma.dat: asm3_loader $builddir/accumulate_n4096_g1.vsm
+  stem = $builddir/accumulate_n4096_g1
+build $builddir/accumulate_n4096_g2._vsm $builddir/accumulate_n4096_g2.param: gen_acc gen_accumulate.py
+  start = 256
+  count = 128
+  first = 0
+  out_vsm = $builddir/accumulate_n4096_g2._vsm
+  out_param = $builddir/accumulate_n4096_g2.param
+build $builddir/accumulate_n4096_g2.vsm: vsmlink $builddir/accumulate_n4096_g2._vsm $builddir/accumulate_n4096_g2.param nbody3d.stparam
+  vsm = $builddir/accumulate_n4096_g2._vsm
+  param = $builddir/accumulate_n4096_g2.param
+  stparam = nbody3d.stparam
+build $builddir/accumulate_n4096_g2.idma.dat: asm3_loader $builddir/accumulate_n4096_g2.vsm
+  stem = $builddir/accumulate_n4096_g2
+build $builddir/accumulate_n4096_g3._vsm $builddir/accumulate_n4096_g3.param: gen_acc gen_accumulate.py
+  start = 384
+  count = 128
+  first = 0
+  out_vsm = $builddir/accumulate_n4096_g3._vsm
+  out_param = $builddir/accumulate_n4096_g3.param
+build $builddir/accumulate_n4096_g3.vsm: vsmlink $builddir/accumulate_n4096_g3._vsm $builddir/accumulate_n4096_g3.param nbody3d.stparam
+  vsm = $builddir/accumulate_n4096_g3._vsm
+  param = $builddir/accumulate_n4096_g3.param
+  stparam = nbody3d.stparam
+build $builddir/accumulate_n4096_g3.idma.dat: asm3_loader $builddir/accumulate_n4096_g3.vsm
+  stem = $builddir/accumulate_n4096_g3
+build $builddir/accumulate_n4096_g4._vsm $builddir/accumulate_n4096_g4.param: gen_acc gen_accumulate.py
+  start = 512
+  count = 128
+  first = 0
+  out_vsm = $builddir/accumulate_n4096_g4._vsm
+  out_param = $builddir/accumulate_n4096_g4.param
+build $builddir/accumulate_n4096_g4.vsm: vsmlink $builddir/accumulate_n4096_g4._vsm $builddir/accumulate_n4096_g4.param nbody3d.stparam
+  vsm = $builddir/accumulate_n4096_g4._vsm
+  param = $builddir/accumulate_n4096_g4.param
+  stparam = nbody3d.stparam
+build $builddir/accumulate_n4096_g4.idma.dat: asm3_loader $builddir/accumulate_n4096_g4.vsm
+  stem = $builddir/accumulate_n4096_g4
+build $builddir/accumulate_n4096_g5._vsm $builddir/accumulate_n4096_g5.param: gen_acc gen_accumulate.py
+  start = 640
+  count = 128
+  first = 0
+  out_vsm = $builddir/accumulate_n4096_g5._vsm
+  out_param = $builddir/accumulate_n4096_g5.param
+build $builddir/accumulate_n4096_g5.vsm: vsmlink $builddir/accumulate_n4096_g5._vsm $builddir/accumulate_n4096_g5.param nbody3d.stparam
+  vsm = $builddir/accumulate_n4096_g5._vsm
+  param = $builddir/accumulate_n4096_g5.param
+  stparam = nbody3d.stparam
+build $builddir/accumulate_n4096_g5.idma.dat: asm3_loader $builddir/accumulate_n4096_g5.vsm
+  stem = $builddir/accumulate_n4096_g5
+build $builddir/accumulate_n4096_g6._vsm $builddir/accumulate_n4096_g6.param: gen_acc gen_accumulate.py
+  start = 768
+  count = 128
+  first = 0
+  out_vsm = $builddir/accumulate_n4096_g6._vsm
+  out_param = $builddir/accumulate_n4096_g6.param
+build $builddir/accumulate_n4096_g6.vsm: vsmlink $builddir/accumulate_n4096_g6._vsm $builddir/accumulate_n4096_g6.param nbody3d.stparam
+  vsm = $builddir/accumulate_n4096_g6._vsm
+  param = $builddir/accumulate_n4096_g6.param
+  stparam = nbody3d.stparam
+build $builddir/accumulate_n4096_g6.idma.dat: asm3_loader $builddir/accumulate_n4096_g6.vsm
+  stem = $builddir/accumulate_n4096_g6
+build $builddir/accumulate_n4096_g7._vsm $builddir/accumulate_n4096_g7.param: gen_acc gen_accumulate.py
+  start = 896
+  count = 128
+  first = 0
+  out_vsm = $builddir/accumulate_n4096_g7._vsm
+  out_param = $builddir/accumulate_n4096_g7.param
+build $builddir/accumulate_n4096_g7.vsm: vsmlink $builddir/accumulate_n4096_g7._vsm $builddir/accumulate_n4096_g7.param nbody3d.stparam
+  vsm = $builddir/accumulate_n4096_g7._vsm
+  param = $builddir/accumulate_n4096_g7.param
+  stparam = nbody3d.stparam
+build $builddir/accumulate_n4096_g7.idma.dat: asm3_loader $builddir/accumulate_n4096_g7.vsm
+  stem = $builddir/accumulate_n4096_g7
+build $builddir/accumulate_n4096_g8._vsm $builddir/accumulate_n4096_g8.param: gen_acc gen_accumulate.py
+  start = 1024
+  count = 128
+  first = 0
+  out_vsm = $builddir/accumulate_n4096_g8._vsm
+  out_param = $builddir/accumulate_n4096_g8.param
+build $builddir/accumulate_n4096_g8.vsm: vsmlink $builddir/accumulate_n4096_g8._vsm $builddir/accumulate_n4096_g8.param nbody3d.stparam
+  vsm = $builddir/accumulate_n4096_g8._vsm
+  param = $builddir/accumulate_n4096_g8.param
+  stparam = nbody3d.stparam
+build $builddir/accumulate_n4096_g8.idma.dat: asm3_loader $builddir/accumulate_n4096_g8.vsm
+  stem = $builddir/accumulate_n4096_g8
+build $builddir/accumulate_n4096_g9._vsm $builddir/accumulate_n4096_g9.param: gen_acc gen_accumulate.py
+  start = 1152
+  count = 128
+  first = 0
+  out_vsm = $builddir/accumulate_n4096_g9._vsm
+  out_param = $builddir/accumulate_n4096_g9.param
+build $builddir/accumulate_n4096_g9.vsm: vsmlink $builddir/accumulate_n4096_g9._vsm $builddir/accumulate_n4096_g9.param nbody3d.stparam
+  vsm = $builddir/accumulate_n4096_g9._vsm
+  param = $builddir/accumulate_n4096_g9.param
+  stparam = nbody3d.stparam
+build $builddir/accumulate_n4096_g9.idma.dat: asm3_loader $builddir/accumulate_n4096_g9.vsm
+  stem = $builddir/accumulate_n4096_g9
+build $builddir/accumulate_n4096_g10._vsm $builddir/accumulate_n4096_g10.param: gen_acc gen_accumulate.py
+  start = 1280
+  count = 128
+  first = 0
+  out_vsm = $builddir/accumulate_n4096_g10._vsm
+  out_param = $builddir/accumulate_n4096_g10.param
+build $builddir/accumulate_n4096_g10.vsm: vsmlink $builddir/accumulate_n4096_g10._vsm $builddir/accumulate_n4096_g10.param nbody3d.stparam
+  vsm = $builddir/accumulate_n4096_g10._vsm
+  param = $builddir/accumulate_n4096_g10.param
+  stparam = nbody3d.stparam
+build $builddir/accumulate_n4096_g10.idma.dat: asm3_loader $builddir/accumulate_n4096_g10.vsm
+  stem = $builddir/accumulate_n4096_g10
+build $builddir/accumulate_n4096_g11._vsm $builddir/accumulate_n4096_g11.param: gen_acc gen_accumulate.py
+  start = 1408
+  count = 128
+  first = 0
+  out_vsm = $builddir/accumulate_n4096_g11._vsm
+  out_param = $builddir/accumulate_n4096_g11.param
+build $builddir/accumulate_n4096_g11.vsm: vsmlink $builddir/accumulate_n4096_g11._vsm $builddir/accumulate_n4096_g11.param nbody3d.stparam
+  vsm = $builddir/accumulate_n4096_g11._vsm
+  param = $builddir/accumulate_n4096_g11.param
+  stparam = nbody3d.stparam
+build $builddir/accumulate_n4096_g11.idma.dat: asm3_loader $builddir/accumulate_n4096_g11.vsm
+  stem = $builddir/accumulate_n4096_g11
+build $builddir/accumulate_n4096_g12._vsm $builddir/accumulate_n4096_g12.param: gen_acc gen_accumulate.py
+  start = 1536
+  count = 128
+  first = 0
+  out_vsm = $builddir/accumulate_n4096_g12._vsm
+  out_param = $builddir/accumulate_n4096_g12.param
+build $builddir/accumulate_n4096_g12.vsm: vsmlink $builddir/accumulate_n4096_g12._vsm $builddir/accumulate_n4096_g12.param nbody3d.stparam
+  vsm = $builddir/accumulate_n4096_g12._vsm
+  param = $builddir/accumulate_n4096_g12.param
+  stparam = nbody3d.stparam
+build $builddir/accumulate_n4096_g12.idma.dat: asm3_loader $builddir/accumulate_n4096_g12.vsm
+  stem = $builddir/accumulate_n4096_g12
+build $builddir/accumulate_n4096_g13._vsm $builddir/accumulate_n4096_g13.param: gen_acc gen_accumulate.py
+  start = 1664
+  count = 128
+  first = 0
+  out_vsm = $builddir/accumulate_n4096_g13._vsm
+  out_param = $builddir/accumulate_n4096_g13.param
+build $builddir/accumulate_n4096_g13.vsm: vsmlink $builddir/accumulate_n4096_g13._vsm $builddir/accumulate_n4096_g13.param nbody3d.stparam
+  vsm = $builddir/accumulate_n4096_g13._vsm
+  param = $builddir/accumulate_n4096_g13.param
+  stparam = nbody3d.stparam
+build $builddir/accumulate_n4096_g13.idma.dat: asm3_loader $builddir/accumulate_n4096_g13.vsm
+  stem = $builddir/accumulate_n4096_g13
+build $builddir/accumulate_n4096_g14._vsm $builddir/accumulate_n4096_g14.param: gen_acc gen_accumulate.py
+  start = 1792
+  count = 128
+  first = 0
+  out_vsm = $builddir/accumulate_n4096_g14._vsm
+  out_param = $builddir/accumulate_n4096_g14.param
+build $builddir/accumulate_n4096_g14.vsm: vsmlink $builddir/accumulate_n4096_g14._vsm $builddir/accumulate_n4096_g14.param nbody3d.stparam
+  vsm = $builddir/accumulate_n4096_g14._vsm
+  param = $builddir/accumulate_n4096_g14.param
+  stparam = nbody3d.stparam
+build $builddir/accumulate_n4096_g14.idma.dat: asm3_loader $builddir/accumulate_n4096_g14.vsm
+  stem = $builddir/accumulate_n4096_g14
+build $builddir/accumulate_n4096_g15._vsm $builddir/accumulate_n4096_g15.param: gen_acc gen_accumulate.py
+  start = 1920
+  count = 128
+  first = 0
+  out_vsm = $builddir/accumulate_n4096_g15._vsm
+  out_param = $builddir/accumulate_n4096_g15.param
+build $builddir/accumulate_n4096_g15.vsm: vsmlink $builddir/accumulate_n4096_g15._vsm $builddir/accumulate_n4096_g15.param nbody3d.stparam
+  vsm = $builddir/accumulate_n4096_g15._vsm
+  param = $builddir/accumulate_n4096_g15.param
+  stparam = nbody3d.stparam
+build $builddir/accumulate_n4096_g15.idma.dat: asm3_loader $builddir/accumulate_n4096_g15.vsm
+  stem = $builddir/accumulate_n4096_g15
+build $builddir/accumulate_n4096_g16._vsm $builddir/accumulate_n4096_g16.param: gen_acc gen_accumulate.py
+  start = 2048
+  count = 128
+  first = 0
+  out_vsm = $builddir/accumulate_n4096_g16._vsm
+  out_param = $builddir/accumulate_n4096_g16.param
+build $builddir/accumulate_n4096_g16.vsm: vsmlink $builddir/accumulate_n4096_g16._vsm $builddir/accumulate_n4096_g16.param nbody3d.stparam
+  vsm = $builddir/accumulate_n4096_g16._vsm
+  param = $builddir/accumulate_n4096_g16.param
+  stparam = nbody3d.stparam
+build $builddir/accumulate_n4096_g16.idma.dat: asm3_loader $builddir/accumulate_n4096_g16.vsm
+  stem = $builddir/accumulate_n4096_g16
+build $builddir/accumulate_n4096_g17._vsm $builddir/accumulate_n4096_g17.param: gen_acc gen_accumulate.py
+  start = 2176
+  count = 128
+  first = 0
+  out_vsm = $builddir/accumulate_n4096_g17._vsm
+  out_param = $builddir/accumulate_n4096_g17.param
+build $builddir/accumulate_n4096_g17.vsm: vsmlink $builddir/accumulate_n4096_g17._vsm $builddir/accumulate_n4096_g17.param nbody3d.stparam
+  vsm = $builddir/accumulate_n4096_g17._vsm
+  param = $builddir/accumulate_n4096_g17.param
+  stparam = nbody3d.stparam
+build $builddir/accumulate_n4096_g17.idma.dat: asm3_loader $builddir/accumulate_n4096_g17.vsm
+  stem = $builddir/accumulate_n4096_g17
+build $builddir/accumulate_n4096_g18._vsm $builddir/accumulate_n4096_g18.param: gen_acc gen_accumulate.py
+  start = 2304
+  count = 128
+  first = 0
+  out_vsm = $builddir/accumulate_n4096_g18._vsm
+  out_param = $builddir/accumulate_n4096_g18.param
+build $builddir/accumulate_n4096_g18.vsm: vsmlink $builddir/accumulate_n4096_g18._vsm $builddir/accumulate_n4096_g18.param nbody3d.stparam
+  vsm = $builddir/accumulate_n4096_g18._vsm
+  param = $builddir/accumulate_n4096_g18.param
+  stparam = nbody3d.stparam
+build $builddir/accumulate_n4096_g18.idma.dat: asm3_loader $builddir/accumulate_n4096_g18.vsm
+  stem = $builddir/accumulate_n4096_g18
+build $builddir/accumulate_n4096_g19._vsm $builddir/accumulate_n4096_g19.param: gen_acc gen_accumulate.py
+  start = 2432
+  count = 128
+  first = 0
+  out_vsm = $builddir/accumulate_n4096_g19._vsm
+  out_param = $builddir/accumulate_n4096_g19.param
+build $builddir/accumulate_n4096_g19.vsm: vsmlink $builddir/accumulate_n4096_g19._vsm $builddir/accumulate_n4096_g19.param nbody3d.stparam
+  vsm = $builddir/accumulate_n4096_g19._vsm
+  param = $builddir/accumulate_n4096_g19.param
+  stparam = nbody3d.stparam
+build $builddir/accumulate_n4096_g19.idma.dat: asm3_loader $builddir/accumulate_n4096_g19.vsm
+  stem = $builddir/accumulate_n4096_g19
+build $builddir/accumulate_n4096_g20._vsm $builddir/accumulate_n4096_g20.param: gen_acc gen_accumulate.py
+  start = 2560
+  count = 128
+  first = 0
+  out_vsm = $builddir/accumulate_n4096_g20._vsm
+  out_param = $builddir/accumulate_n4096_g20.param
+build $builddir/accumulate_n4096_g20.vsm: vsmlink $builddir/accumulate_n4096_g20._vsm $builddir/accumulate_n4096_g20.param nbody3d.stparam
+  vsm = $builddir/accumulate_n4096_g20._vsm
+  param = $builddir/accumulate_n4096_g20.param
+  stparam = nbody3d.stparam
+build $builddir/accumulate_n4096_g20.idma.dat: asm3_loader $builddir/accumulate_n4096_g20.vsm
+  stem = $builddir/accumulate_n4096_g20
+build $builddir/accumulate_n4096_g21._vsm $builddir/accumulate_n4096_g21.param: gen_acc gen_accumulate.py
+  start = 2688
+  count = 128
+  first = 0
+  out_vsm = $builddir/accumulate_n4096_g21._vsm
+  out_param = $builddir/accumulate_n4096_g21.param
+build $builddir/accumulate_n4096_g21.vsm: vsmlink $builddir/accumulate_n4096_g21._vsm $builddir/accumulate_n4096_g21.param nbody3d.stparam
+  vsm = $builddir/accumulate_n4096_g21._vsm
+  param = $builddir/accumulate_n4096_g21.param
+  stparam = nbody3d.stparam
+build $builddir/accumulate_n4096_g21.idma.dat: asm3_loader $builddir/accumulate_n4096_g21.vsm
+  stem = $builddir/accumulate_n4096_g21
+build $builddir/accumulate_n4096_g22._vsm $builddir/accumulate_n4096_g22.param: gen_acc gen_accumulate.py
+  start = 2816
+  count = 128
+  first = 0
+  out_vsm = $builddir/accumulate_n4096_g22._vsm
+  out_param = $builddir/accumulate_n4096_g22.param
+build $builddir/accumulate_n4096_g22.vsm: vsmlink $builddir/accumulate_n4096_g22._vsm $builddir/accumulate_n4096_g22.param nbody3d.stparam
+  vsm = $builddir/accumulate_n4096_g22._vsm
+  param = $builddir/accumulate_n4096_g22.param
+  stparam = nbody3d.stparam
+build $builddir/accumulate_n4096_g22.idma.dat: asm3_loader $builddir/accumulate_n4096_g22.vsm
+  stem = $builddir/accumulate_n4096_g22
+build $builddir/accumulate_n4096_g23._vsm $builddir/accumulate_n4096_g23.param: gen_acc gen_accumulate.py
+  start = 2944
+  count = 128
+  first = 0
+  out_vsm = $builddir/accumulate_n4096_g23._vsm
+  out_param = $builddir/accumulate_n4096_g23.param
+build $builddir/accumulate_n4096_g23.vsm: vsmlink $builddir/accumulate_n4096_g23._vsm $builddir/accumulate_n4096_g23.param nbody3d.stparam
+  vsm = $builddir/accumulate_n4096_g23._vsm
+  param = $builddir/accumulate_n4096_g23.param
+  stparam = nbody3d.stparam
+build $builddir/accumulate_n4096_g23.idma.dat: asm3_loader $builddir/accumulate_n4096_g23.vsm
+  stem = $builddir/accumulate_n4096_g23
+build $builddir/accumulate_n4096_g24._vsm $builddir/accumulate_n4096_g24.param: gen_acc gen_accumulate.py
+  start = 3072
+  count = 128
+  first = 0
+  out_vsm = $builddir/accumulate_n4096_g24._vsm
+  out_param = $builddir/accumulate_n4096_g24.param
+build $builddir/accumulate_n4096_g24.vsm: vsmlink $builddir/accumulate_n4096_g24._vsm $builddir/accumulate_n4096_g24.param nbody3d.stparam
+  vsm = $builddir/accumulate_n4096_g24._vsm
+  param = $builddir/accumulate_n4096_g24.param
+  stparam = nbody3d.stparam
+build $builddir/accumulate_n4096_g24.idma.dat: asm3_loader $builddir/accumulate_n4096_g24.vsm
+  stem = $builddir/accumulate_n4096_g24
+build $builddir/accumulate_n4096_g25._vsm $builddir/accumulate_n4096_g25.param: gen_acc gen_accumulate.py
+  start = 3200
+  count = 128
+  first = 0
+  out_vsm = $builddir/accumulate_n4096_g25._vsm
+  out_param = $builddir/accumulate_n4096_g25.param
+build $builddir/accumulate_n4096_g25.vsm: vsmlink $builddir/accumulate_n4096_g25._vsm $builddir/accumulate_n4096_g25.param nbody3d.stparam
+  vsm = $builddir/accumulate_n4096_g25._vsm
+  param = $builddir/accumulate_n4096_g25.param
+  stparam = nbody3d.stparam
+build $builddir/accumulate_n4096_g25.idma.dat: asm3_loader $builddir/accumulate_n4096_g25.vsm
+  stem = $builddir/accumulate_n4096_g25
+build $builddir/accumulate_n4096_g26._vsm $builddir/accumulate_n4096_g26.param: gen_acc gen_accumulate.py
+  start = 3328
+  count = 128
+  first = 0
+  out_vsm = $builddir/accumulate_n4096_g26._vsm
+  out_param = $builddir/accumulate_n4096_g26.param
+build $builddir/accumulate_n4096_g26.vsm: vsmlink $builddir/accumulate_n4096_g26._vsm $builddir/accumulate_n4096_g26.param nbody3d.stparam
+  vsm = $builddir/accumulate_n4096_g26._vsm
+  param = $builddir/accumulate_n4096_g26.param
+  stparam = nbody3d.stparam
+build $builddir/accumulate_n4096_g26.idma.dat: asm3_loader $builddir/accumulate_n4096_g26.vsm
+  stem = $builddir/accumulate_n4096_g26
+build $builddir/accumulate_n4096_g27._vsm $builddir/accumulate_n4096_g27.param: gen_acc gen_accumulate.py
+  start = 3456
+  count = 128
+  first = 0
+  out_vsm = $builddir/accumulate_n4096_g27._vsm
+  out_param = $builddir/accumulate_n4096_g27.param
+build $builddir/accumulate_n4096_g27.vsm: vsmlink $builddir/accumulate_n4096_g27._vsm $builddir/accumulate_n4096_g27.param nbody3d.stparam
+  vsm = $builddir/accumulate_n4096_g27._vsm
+  param = $builddir/accumulate_n4096_g27.param
+  stparam = nbody3d.stparam
+build $builddir/accumulate_n4096_g27.idma.dat: asm3_loader $builddir/accumulate_n4096_g27.vsm
+  stem = $builddir/accumulate_n4096_g27
+build $builddir/accumulate_n4096_g28._vsm $builddir/accumulate_n4096_g28.param: gen_acc gen_accumulate.py
+  start = 3584
+  count = 128
+  first = 0
+  out_vsm = $builddir/accumulate_n4096_g28._vsm
+  out_param = $builddir/accumulate_n4096_g28.param
+build $builddir/accumulate_n4096_g28.vsm: vsmlink $builddir/accumulate_n4096_g28._vsm $builddir/accumulate_n4096_g28.param nbody3d.stparam
+  vsm = $builddir/accumulate_n4096_g28._vsm
+  param = $builddir/accumulate_n4096_g28.param
+  stparam = nbody3d.stparam
+build $builddir/accumulate_n4096_g28.idma.dat: asm3_loader $builddir/accumulate_n4096_g28.vsm
+  stem = $builddir/accumulate_n4096_g28
+build $builddir/accumulate_n4096_g29._vsm $builddir/accumulate_n4096_g29.param: gen_acc gen_accumulate.py
+  start = 3712
+  count = 128
+  first = 0
+  out_vsm = $builddir/accumulate_n4096_g29._vsm
+  out_param = $builddir/accumulate_n4096_g29.param
+build $builddir/accumulate_n4096_g29.vsm: vsmlink $builddir/accumulate_n4096_g29._vsm $builddir/accumulate_n4096_g29.param nbody3d.stparam
+  vsm = $builddir/accumulate_n4096_g29._vsm
+  param = $builddir/accumulate_n4096_g29.param
+  stparam = nbody3d.stparam
+build $builddir/accumulate_n4096_g29.idma.dat: asm3_loader $builddir/accumulate_n4096_g29.vsm
+  stem = $builddir/accumulate_n4096_g29
+build $builddir/accumulate_n4096_g30._vsm $builddir/accumulate_n4096_g30.param: gen_acc gen_accumulate.py
+  start = 3840
+  count = 128
+  first = 0
+  out_vsm = $builddir/accumulate_n4096_g30._vsm
+  out_param = $builddir/accumulate_n4096_g30.param
+build $builddir/accumulate_n4096_g30.vsm: vsmlink $builddir/accumulate_n4096_g30._vsm $builddir/accumulate_n4096_g30.param nbody3d.stparam
+  vsm = $builddir/accumulate_n4096_g30._vsm
+  param = $builddir/accumulate_n4096_g30.param
+  stparam = nbody3d.stparam
+build $builddir/accumulate_n4096_g30.idma.dat: asm3_loader $builddir/accumulate_n4096_g30.vsm
+  stem = $builddir/accumulate_n4096_g30
+build $builddir/accumulate_n4096_g31._vsm $builddir/accumulate_n4096_g31.param: gen_acc gen_accumulate.py
+  start = 3968
+  count = 128
+  first = 0
+  out_vsm = $builddir/accumulate_n4096_g31._vsm
+  out_param = $builddir/accumulate_n4096_g31.param
+build $builddir/accumulate_n4096_g31.vsm: vsmlink $builddir/accumulate_n4096_g31._vsm $builddir/accumulate_n4096_g31.param nbody3d.stparam
+  vsm = $builddir/accumulate_n4096_g31._vsm
+  param = $builddir/accumulate_n4096_g31.param
+  stparam = nbody3d.stparam
+build $builddir/accumulate_n4096_g31.idma.dat: asm3_loader $builddir/accumulate_n4096_g31.vsm
+  stem = $builddir/accumulate_n4096_g31
+build accum-n4096: phony $builddir/accumulate_n4096_g0.idma.dat $builddir/accumulate_n4096_g1.idma.dat $builddir/accumulate_n4096_g2.idma.dat $builddir/accumulate_n4096_g3.idma.dat $builddir/accumulate_n4096_g4.idma.dat $builddir/accumulate_n4096_g5.idma.dat $builddir/accumulate_n4096_g6.idma.dat $builddir/accumulate_n4096_g7.idma.dat $builddir/accumulate_n4096_g8.idma.dat $builddir/accumulate_n4096_g9.idma.dat $builddir/accumulate_n4096_g10.idma.dat $builddir/accumulate_n4096_g11.idma.dat $builddir/accumulate_n4096_g12.idma.dat $builddir/accumulate_n4096_g13.idma.dat $builddir/accumulate_n4096_g14.idma.dat $builddir/accumulate_n4096_g15.idma.dat $builddir/accumulate_n4096_g16.idma.dat $builddir/accumulate_n4096_g17.idma.dat $builddir/accumulate_n4096_g18.idma.dat $builddir/accumulate_n4096_g19.idma.dat $builddir/accumulate_n4096_g20.idma.dat $builddir/accumulate_n4096_g21.idma.dat $builddir/accumulate_n4096_g22.idma.dat $builddir/accumulate_n4096_g23.idma.dat $builddir/accumulate_n4096_g24.idma.dat $builddir/accumulate_n4096_g25.idma.dat $builddir/accumulate_n4096_g26.idma.dat $builddir/accumulate_n4096_g27.idma.dat $builddir/accumulate_n4096_g28.idma.dat $builddir/accumulate_n4096_g29.idma.dat $builddir/accumulate_n4096_g30.idma.dat $builddir/accumulate_n4096_g31.idma.dat
+

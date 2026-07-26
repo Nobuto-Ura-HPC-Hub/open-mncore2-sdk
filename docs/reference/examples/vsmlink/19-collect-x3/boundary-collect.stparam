@@ -1,0 +1,6 @@
+;; boundary-collect: 各 PE の位置情報をホストに回収する（@boundary_flags distribute 準備バイナリ）
+((:version :0.0)
+ (:ndim 1)
+ (:pe_shape (4096))
+ (:pe_local (1))
+ (:data_layout :any))

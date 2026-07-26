@@ -1,0 +1,20 @@
+# build.ninja — 28-mv-1b
+include ../../scripts/sdk.ninja
+include ../../scripts/examples.ninja
+
+# カーネル
+build $builddir/mv-p1b.asm: asm3_text data/mv-p1b.vsm
+build $builddir/mv-p1b.idma.dat: asm3_loader data/mv-p1b.vsm
+  stem = $builddir/mv-p1b
+
+# test driver
+build $builddir/ex_mv_1b.o: cc ex_mv_1b.c
+build $builddir/ex_mv_1b: link $builddir/ex_mv_1b.o | ${sdk_root}/lib/libmnc2.a
+
+# test targets
+build test-emu:     test_emu_process $builddir/ex_mv_1b | $builddir/mv-p1b.asm $builddir/mv-p1b.idma.dat
+build test-emu-lib: test_emu_lib     $builddir/ex_mv_1b | $builddir/mv-p1b.asm $builddir/mv-p1b.idma.dat
+build test-device:  test_device      $builddir/ex_mv_1b | $builddir/mv-p1b.asm $builddir/mv-p1b.idma.dat
+build test:         test_usage
+
+default $builddir/ex_mv_1b $builddir/mv-p1b.asm $builddir/mv-p1b.idma.dat

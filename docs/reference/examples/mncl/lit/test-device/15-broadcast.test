@@ -1,0 +1,2 @@
+# RUN: ninja -C %examples/15-broadcast build-e2e
+# RUN: ninja -C %examples/15-broadcast test-device

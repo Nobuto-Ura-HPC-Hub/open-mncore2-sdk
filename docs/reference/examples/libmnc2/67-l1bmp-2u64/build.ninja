@@ -1,0 +1,20 @@
+# build.ninja — 67-l1bmp-2u64
+include ../../scripts/sdk.ninja
+include ../../scripts/examples.ninja
+
+# カーネル
+build $builddir/l1bmp_map.asm:      asm3_text   data/l1bmp_map.vsm
+build $builddir/l1bmp_map.idma.dat: asm3_loader data/l1bmp_map.vsm
+  stem = $builddir/l1bmp_map
+
+# test driver
+build $builddir/ex_l1bmp_2u64.o: cc ex_l1bmp_2u64.c
+build $builddir/ex_l1bmp_2u64:   link $builddir/ex_l1bmp_2u64.o | ${sdk_root}/lib/libmnc2.a
+
+# test targets (全 backend 対応: 回収は collect 経路なので device でも走る)
+build test:         test_usage
+build test-emu:     test_emu_process $builddir/ex_l1bmp_2u64 | $builddir/l1bmp_map.asm $builddir/l1bmp_map.idma.dat
+build test-emu-lib: test_emu_lib     $builddir/ex_l1bmp_2u64 | $builddir/l1bmp_map.asm $builddir/l1bmp_map.idma.dat
+build test-device:  test_device      $builddir/ex_l1bmp_2u64 | $builddir/l1bmp_map.asm $builddir/l1bmp_map.idma.dat
+
+default $builddir/ex_l1bmp_2u64 $builddir/l1bmp_map.asm $builddir/l1bmp_map.idma.dat

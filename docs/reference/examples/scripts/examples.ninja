@@ -1,0 +1,62 @@
+# share/examples/scripts/examples.ninja —
+# libmnc2 examples 共通 rule + 変数。
+# 各 example の build.ninja から
+#   include ../../scripts/sdk.ninja
+#   include ../../scripts/examples.ninja
+# の順で include する (sdk.ninja で sdk_root が定義される、それに依存)。
+
+builddir = _build
+
+# ---- C コンパイル / リンク ----
+
+rule cc
+  command = gcc -Wall -Wextra -I${sdk_root}/include -c $in -o $out
+  description = CC $out
+
+# link rule:
+# - -L${sdk_root}/lib + ${sdk_root}/lib/libmnc2.a の直指定
+# - -L${sdk_root}/lib で libgpfn3.so (dev checkout 時は emu 版、
+#   実行時は LD_LIBRARY_PATH で variant 切替)
+# - -lgpfn3 -lmnc2 の順: 先に libgpfn3.so (shared、未解決 symbol lazy 解決)、
+#   後に libmnc2.a (archive selective extraction)
+rule link
+  command = g++ -L${sdk_root}/lib/emu-lib -L${sdk_root}/lib $in ${sdk_root}/lib/libmnc2.a -o $out -lrt -lm -fopenmp -lgpfn3 -lmnc2
+  description = LINK $out
+
+# ---- assemble3 (VSM → .asm / .idma.dat) ----
+
+rule asm3_text
+  command = assemble3 $in --output-file $out
+  description = ASM3 $out
+
+rule asm3_loader
+  command = assemble3 $in --output-file $stem --loader
+  description = ASM3 [loader] $stem
+
+# ---- test rule (backend ごとに env var + LD_LIBRARY_PATH 切替) ----
+
+rule test_emu_process
+  command = MNC2_EMU_CONFIG=data/config_pdm0.json LD_LIBRARY_PATH=${sdk_root}/lib/emu-process ./$in
+  description = TEST [emu:process] $in
+
+rule test_emu_lib
+  command = LD_LIBRARY_PATH=${sdk_root}/lib/emu-lib ./$in
+  description = TEST [emu:lib] $in
+
+rule test_device
+  command = LD_LIBRARY_PATH=${sdk_root}/lib ./$in
+  description = TEST [device] $in
+
+rule test_usage
+  command = echo "使い方: ninja test-emu / test-emu-lib / test-device"
+  description = INFO
+
+# emu:process 非対応 example 用 (56-59): test-emu target を持たない
+rule test_usage_no_emu
+  command = echo "使い方: ninja test-emu-lib / test-device (このサンプルは emu:process 非対応)"
+  description = INFO
+
+# emu:lib 専用 example 用 (05/46/47): test-emu / test-device を持たない
+rule test_usage_emu_lib_only
+  command = echo "使い方: ninja test-emu-lib (このサンプルは emu:lib 専用)"
+  description = INFO

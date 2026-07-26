@@ -1,0 +1,54 @@
+# ABI PFN3_SBY64
+#
+# soa2aos の --use-global-id 版。SoA -> AoS 並べ替えに加え、各 PE が自分の global_id
+# (flat_id 0..4095) を on-device で計算し、m ($lm6) を上書きする (distribute を使わない)。
+# 出力 struct の m は「その粒子を処理した PE の flat_id」になる。
+# 設計は docs/broadcast-collect-layout.md。
+#
+# flat_id = peid + (l1bid<<6) + (l2bid<<9)   ($peid = mabid*4 + subpeid)
+# 固定値オペランドは ALU 第 1 入力専用なので lpassa 退避。ilsl の shift 量と iadd は別バンク(LM1)経由。
+# int -> double は専用命令 (itof) が無いのでマジックナンバー法: immu f"176" (=0x43300000 を xoxo で
+# 2^52 に) + lor + dvadd。id <= 4095 は仮数部に収まり誤差なし。
+#
+	@distribute _a from_param 8 size 4 $lm0    # PE p: {x,y,z,m} を $lm0,2,4,6
+	nop/24
+	# --- flat_id を GRF0/LM1 で計算 (LM0 の x,y,z は触らない) ---
+	lpassa $peid  $lr0
+	nop/4
+	lpassa $l1bid $lr8
+	nop/4
+	lpassa $l2bid $lr16
+	nop/4
+	imm i"6" $lr24
+	nop/4
+	lpassa $lr24 $ln0
+	nop/24
+	ilsl $lr8 $ln0 $lr8        # l1bid << 6
+	nop/4
+	imm i"9" $lr24
+	nop/4
+	lpassa $lr24 $ln0
+	nop/24
+	ilsl $lr16 $ln0 $lr16      # l2bid << 9
+	nop/4
+	lpassa $lr8 $ln0
+	nop/24
+	iadd $ln0 $lr0 $lr0        # peid + (l1bid<<6)
+	nop/4
+	lpassa $lr16 $ln0
+	nop/24
+	iadd $ln0 $lr0 $lr0        # + (l2bid<<9) => flat_id in $lr0
+	nop/4
+	# --- int -> double (magic number 2^52) して m ($lm6) を上書き ---
+	immu f"176" $ls0           # 176.0(f32)=0x43300000, immu の xoxo で 2^52(f64)
+	nop/4
+	lor $lr0 $ls0 $lr4         # 2^52 | flat_id (double bits of 2^52+id)
+	nop/4
+	dvadd $lr4 -$ls0 $lm6      # (2^52+id) - 2^52 = (double)id => m を上書き
+	nop/24
+	# --- SoA -> AoS 転置 (aos._vsm と同じ) ---
+	dmwrite $lm0v $lx0
+	nop/24
+	dmread  $lx0 $lm8v
+	nop/24
+	@collect _b to_param 16 size 4 $lm8

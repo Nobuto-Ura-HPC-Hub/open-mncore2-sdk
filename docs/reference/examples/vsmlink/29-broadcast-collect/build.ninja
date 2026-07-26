@@ -1,0 +1,35 @@
+# 29-broadcast-collect: @broadcast + @collect の往復 (成分ごと出力)
+#
+# struct {x,y,z,m} を broadcast size 4 で全 PE に配り、m を distribute した per-PE id で
+# 差し替え、collect size 4 で PDM (成分ごと SoA) に集めて回収する。
+# 設計とレイアウトは docs/broadcast-collect-layout.md を参照。
+#
+# ninja              vsmlink (.vsm 生成)
+# ninja build-e2e    + assemble3 + host C ビルド
+# ninja test-emu-lib + emu:lib で実行・検証
+# ninja test-device  + 実機で実行・検証
+
+include ../../scripts/sdk.ninja
+include ../scripts/vsmlink.ninja
+builddir = _build
+
+build $builddir/broadcast_collect.vsm: vsmlink broadcast_collect._vsm broadcast_collect.param broadcast_collect.stparam
+  vsm = broadcast_collect._vsm
+  param = broadcast_collect.param
+  stparam = broadcast_collect.stparam
+build $builddir/broadcast_collect.asm: asm3 $builddir/broadcast_collect.vsm
+build $builddir/broadcast_collect.idma.dat: asm3_loader $builddir/broadcast_collect.vsm
+  stem = $builddir/broadcast_collect
+
+build $builddir/test_broadcast_collect.o: cc test_broadcast_collect.c
+build $builddir/test_broadcast_collect: link_exe $builddir/test_broadcast_collect.o
+
+build build-e2e: phony $builddir/broadcast_collect.asm $builddir/broadcast_collect.idma.dat $builddir/test_broadcast_collect
+
+build test: test_usage
+build test-emu-lib: test_emu_lib $builddir/test_broadcast_collect | $builddir/broadcast_collect.idma.dat
+build test-device: test_device $builddir/test_broadcast_collect | $builddir/broadcast_collect.idma.dat
+
+build clean: clean
+
+default $builddir/broadcast_collect.vsm

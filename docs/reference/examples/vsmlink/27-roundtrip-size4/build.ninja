@@ -1,0 +1,79 @@
+# 27-roundtrip-size4: @distribute と @collect が対で往復すること
+#
+# size 2 / 3 / 4 を回す。size 4 は l1bmd のマスクが無い経路、size 2 / 3 は
+# マスク (/1100 /1110) が効く経路なので、両方を実データで通す。
+#
+# ninja              → vsmlink: _vsm + .param + .stparam → .vsm
+# ninja build-e2e    → + assemble3 + host C ビルド
+# ninja test-emu-lib → + emu:lib で実行・検証
+# ninja test-device  → + 実機で実行・検証
+#
+# 前提: SDK activate 済み (vsmlink, assemble3, mnc2.h が利用可能)
+
+include ../../scripts/sdk.ninja
+include ../scripts/vsmlink.ninja
+builddir = _build
+
+# 実機は 1 台しかない共有資源なので、device テストは深さ 1 の pool で直列化する。
+# これが無いと ninja test-device が size 2 / 3 / 4 を並列で起動し、実機の DMA が
+# 衝突して exec / recv が非決定的に失敗する (emu:lib はプロセスごとに独立なので不要)。
+pool device_serial
+  depth = 1
+
+# --- default: vsmlink only ---
+build $builddir/roundtrip4.vsm: vsmlink roundtrip4._vsm roundtrip4.param roundtrip4.stparam
+  vsm = roundtrip4._vsm
+  param = roundtrip4.param
+  stparam = roundtrip4.stparam
+
+# --- build-e2e: assemble + host C ---
+build $builddir/roundtrip4.asm: asm3 $builddir/roundtrip4.vsm
+build $builddir/roundtrip4.idma.dat: asm3_loader $builddir/roundtrip4.vsm
+  stem = $builddir/roundtrip4
+
+build $builddir/test_roundtrip4.o: cc test_roundtrip4.c
+build $builddir/test_roundtrip4: link_exe $builddir/test_roundtrip4.o
+
+
+build $builddir/roundtrip2.vsm: vsmlink roundtrip2._vsm roundtrip2.param roundtrip2.stparam
+  vsm = roundtrip2._vsm
+  param = roundtrip2.param
+  stparam = roundtrip2.stparam
+build $builddir/roundtrip2.asm: asm3 $builddir/roundtrip2.vsm
+build $builddir/roundtrip2.idma.dat: asm3_loader $builddir/roundtrip2.vsm
+  stem = $builddir/roundtrip2
+build test-emu-lib-size2: test_emu_lib $builddir/test_roundtrip4 | $builddir/roundtrip2.idma.dat
+  args = 2 $builddir/roundtrip2.idma.dat
+build test-device-size2:  test_device  $builddir/test_roundtrip4 | $builddir/roundtrip2.idma.dat
+  args = 2 $builddir/roundtrip2.idma.dat
+  pool = device_serial
+
+build $builddir/roundtrip3.vsm: vsmlink roundtrip3._vsm roundtrip3.param roundtrip3.stparam
+  vsm = roundtrip3._vsm
+  param = roundtrip3.param
+  stparam = roundtrip3.stparam
+build $builddir/roundtrip3.asm: asm3 $builddir/roundtrip3.vsm
+build $builddir/roundtrip3.idma.dat: asm3_loader $builddir/roundtrip3.vsm
+  stem = $builddir/roundtrip3
+build test-emu-lib-size3: test_emu_lib $builddir/test_roundtrip4 | $builddir/roundtrip3.idma.dat
+  args = 3 $builddir/roundtrip3.idma.dat
+build test-device-size3:  test_device  $builddir/test_roundtrip4 | $builddir/roundtrip3.idma.dat
+  args = 3 $builddir/roundtrip3.idma.dat
+  pool = device_serial
+
+build build-e2e: phony $builddir/roundtrip4.asm $builddir/roundtrip4.idma.dat $builddir/roundtrip3.idma.dat $builddir/roundtrip2.idma.dat $builddir/test_roundtrip4
+
+# --- test targets ---
+build test: test_usage
+build test-emu-lib-size4: test_emu_lib $builddir/test_roundtrip4 | $builddir/roundtrip4.idma.dat
+  args = 4 $builddir/roundtrip4.idma.dat
+build test-device-size4:  test_device  $builddir/test_roundtrip4 | $builddir/roundtrip4.idma.dat
+  args = 4 $builddir/roundtrip4.idma.dat
+  pool = device_serial
+
+build test-emu-lib: phony test-emu-lib-size2 test-emu-lib-size3 test-emu-lib-size4
+build test-device:  phony test-device-size2 test-device-size3 test-device-size4
+
+build clean: clean
+
+default $builddir/roundtrip4.vsm $builddir/roundtrip3.vsm $builddir/roundtrip2.vsm

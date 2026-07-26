@@ -1,0 +1,20 @@
+# build.ninja — roundtrip example
+include ../../scripts/sdk.ninja
+include ../../scripts/examples.ninja
+
+# カーネル (data/roundtrip.vsm → _build/)
+build $builddir/roundtrip.asm: asm3_text data/roundtrip.vsm
+build $builddir/roundtrip.idma.dat: asm3_loader data/roundtrip.vsm
+  stem = $builddir/roundtrip
+
+# test driver
+build $builddir/test_roundtrip.o: cc test_roundtrip.c
+build $builddir/test_roundtrip: link $builddir/test_roundtrip.o | ${sdk_root}/lib/libmnc2.a
+
+# test targets
+build test-emu:     test_emu_process $builddir/test_roundtrip | $builddir/roundtrip.asm $builddir/roundtrip.idma.dat
+build test-emu-lib: test_emu_lib     $builddir/test_roundtrip | $builddir/roundtrip.asm $builddir/roundtrip.idma.dat
+build test-device:  test_device      $builddir/test_roundtrip | $builddir/roundtrip.asm $builddir/roundtrip.idma.dat
+build test:         test_usage
+
+default $builddir/test_roundtrip $builddir/roundtrip.asm $builddir/roundtrip.idma.dat

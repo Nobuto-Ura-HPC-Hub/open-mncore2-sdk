@@ -1,0 +1,6 @@
+;; vecadd 3D: c[i][j][k] = a[i][j][k] + b[i][j][k] (16x16x16)
+((:version :0.0)
+ (:ndim 3)
+ (:pe_shape (16 16 16))
+ (:pe_local (1 1 1))
+ (:data_layout :any))

@@ -1,0 +1,1 @@
+# RUN: ninja -C %examples/54-f32-imm-collect test-emu-lib

@@ -1,0 +1,1 @@
+# RUN: ninja -C %examples/08-put-l1bm test-emu

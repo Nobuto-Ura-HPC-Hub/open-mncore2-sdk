@@ -1,0 +1,2 @@
+# RUN: make -C %examples/02-vecadd-1d-8192 build-e2e
+# RUN: make -C %examples/02-vecadd-1d-8192 test-emu-lib

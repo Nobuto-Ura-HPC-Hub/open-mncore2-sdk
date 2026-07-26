@@ -1,0 +1,1 @@
+# RUN: ninja -C %root/examples/20-stencil1d-distribute test-emu-lib

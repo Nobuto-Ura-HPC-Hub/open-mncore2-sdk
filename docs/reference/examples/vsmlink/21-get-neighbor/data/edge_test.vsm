@@ -1,0 +1,45 @@
+# edge_test.vsm — cross L2B get(-1) を @0.0 込みで実行
+#
+# 【手書きの .vsm】このファイルは vsmlink を通さず assemble3 に直接渡す。
+# したがって vsmlink の守備範囲ではない。wait tag は数値で直接書いてあり、
+# .param の :reserved_wait_tag による管理の外にある。.param のタグを
+# デフォルト (#x3f) から変えると衝突しうるが、vsmlink は関知しないので
+# 警告も出ない。変えるときは手で確認すること。
+# 前提: config で PDM0 addr 0〜16383 に連番
+# collect + redistribute + l2bmb + l1bmd+1 + msl で get(-1) を実現
+# @0.0 を含めて全セクションにデータを送る
+
+nop
+nop
+
+# collect: 全 PE のデータを PDM に書く（L1B7 のみ、minimal）
+# ただし今回は PDM に既にデータがあるので collect は不要。
+# redistribute だけ行う。
+
+# redistribute: Section N → Section N+1（left 方向）+ @0.0 追加
+mvp/n64 $p4032@0 $lc1472@0.0
+mvp/n64 $p4096@0 $lc1472@0.1
+mvp/n64 $p4160@0 $lc1472@1.0
+mvp/n64 $p4224@0 $lc1472@1.1
+mvp/n64 $p4288@0 $lc1472@2.0
+mvp/n64 $p4352@0 $lc1472@2.1
+mvp/n64 $p4416@0 $lc1472@3.0
+mvp/n64i2c $p4480@0 $lc1472@3.1
+nop/2
+nop; wait i2c
+nop/5
+
+# L2BM → L1BM → PE
+l2bmb@0 $lc1472 $lb128
+nop/6
+l1bmd+1 $lb128 $lr80v
+nop/2
+msl $lr80 $lr80
+nop/2
+
+lpassa $lr80 $lm8
+nop/24
+
+# 確認: PE 0 と Section 1 PE 0
+d get $lm8n0c0b0m0 1
+d get $lm8n0c1b0m0 1

@@ -1,0 +1,37 @@
+# 17-nbody-2d: 2D 重力多体 (f64)。段階的に育てる。
+#
+# ninja build-e2e    -> .cl -> ._vsm -> .vsm + vsmlink + assemble3 + host C
+# ninja test-emu-lib -> emu:lib backend で実行・検証
+# ninja test-device  -> 実機 backend で実行・検証
+
+include ../scripts/mncl.ninja
+include ../../scripts/sdk.ninja
+builddir = _build
+
+# --- kernel ---
+build $builddir/nbody2d._vsm: emit-vsm nbody2d.cl
+
+build $builddir/nbody2d.vsm: vsmlink $builddir/nbody2d._vsm nbody2d.param nbody2d.stparam
+  vsm = $builddir/nbody2d._vsm
+  param = nbody2d.param
+  stparam = nbody2d.stparam
+
+build $builddir/nbody2d.asm: asm3 $builddir/nbody2d.vsm
+build $builddir/nbody2d.idma.dat: asm3_loader $builddir/nbody2d.vsm
+  stem = $builddir/nbody2d
+
+# --- host driver ---
+build $builddir/test_nbody2d.o: cc test_nbody2d.c
+build $builddir/test_nbody2d: link $builddir/test_nbody2d.o
+
+# --- ビルド段階 phony ---
+build build-e2e: phony $builddir/nbody2d.asm $builddir/nbody2d.idma.dat $builddir/test_nbody2d
+
+# --- test 3 種 ---
+build test-emu-lib: test_emu_lib $builddir/test_nbody2d | $builddir/nbody2d.asm $builddir/nbody2d.idma.dat
+build test-device:  test_device  $builddir/test_nbody2d | $builddir/nbody2d.asm $builddir/nbody2d.idma.dat
+build test:         test_usage
+
+build clean: clean
+
+default $builddir/nbody2d.asm $builddir/nbody2d.idma.dat

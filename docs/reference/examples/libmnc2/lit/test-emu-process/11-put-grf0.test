@@ -1,0 +1,1 @@
+# RUN: ninja -C %examples/11-put-grf0 test-emu

@@ -1,0 +1,1 @@
+# RUN: ninja -C %examples/24-odd-even-sort-reduce test-emu-lib

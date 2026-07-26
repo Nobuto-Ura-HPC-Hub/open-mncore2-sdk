@@ -1,0 +1,20 @@
+# build.ninja — 51-wd-zero
+include ../../scripts/sdk.ninja
+include ../../scripts/examples.ninja
+
+# カーネル
+build $builddir/nop.asm: asm3_text data/nop.vsm
+build $builddir/nop.idma.dat: asm3_loader data/nop.vsm
+  stem = $builddir/nop
+
+# test driver
+build $builddir/ex_wd_zero.o: cc ex_wd_zero.c
+build $builddir/ex_wd_zero: link $builddir/ex_wd_zero.o | ${sdk_root}/lib/libmnc2.a
+
+# test targets
+build test-emu:     test_emu_process $builddir/ex_wd_zero | $builddir/nop.asm $builddir/nop.idma.dat
+build test-emu-lib: test_emu_lib     $builddir/ex_wd_zero | $builddir/nop.asm $builddir/nop.idma.dat
+build test-device:  test_device      $builddir/ex_wd_zero | $builddir/nop.asm $builddir/nop.idma.dat
+build test:         test_usage
+
+default $builddir/ex_wd_zero $builddir/nop.asm $builddir/nop.idma.dat

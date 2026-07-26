@@ -1,0 +1,168 @@
+# build.ninja — 52-all-id-collect
+include ../../scripts/sdk.ninja
+include ../../scripts/examples.ninja
+
+# 52 独自の host-side decoder (decode_id) 用 rule
+rule cc_host
+  command = gcc -Wall -Wextra -O2 -c $in -o $out
+  description = CC [host] $out
+
+rule link_host
+  command = gcc $in -o $out
+  description = LINK [host] $out
+
+# ENDIAN_CTRL=0..4 別の検証 rule
+rule check_emu_ec
+  command = MNC2_EMU_CONFIG=data/config_pdm0.json LD_LIBRARY_PATH=${sdk_root}/lib/emu-process ./$bin $ec -o $out && echo "$expected_sha256  $out" | sha256sum -c
+  description = CHECK [emu:process ec=$ec] $bin
+  pool = console
+
+rule check_emu_lib_ec
+  command = LD_LIBRARY_PATH=${sdk_root}/lib/emu-lib ./$bin $ec -o $out && echo "$expected_sha256  $out" | sha256sum -c
+  description = CHECK [emu:lib ec=$ec] $bin
+  pool = console
+
+rule check_device_ec
+  command = LD_LIBRARY_PATH=${sdk_root}/lib ./$bin $ec -o $out && echo "$expected_sha256  $out" | sha256sum -c
+  description = CHECK [device ec=$ec] $bin
+  pool = console
+
+# golden capture (手動 target)
+rule capture_golden
+  command = ./capture-golden-endian.sh
+  description = CAPTURE golden ENDIAN_CTRL=0..4
+  pool = console
+
+# カーネル
+build $builddir/all_id_collect.asm: asm3_text data/all_id_collect.vsm
+build $builddir/all_id_collect.idma.dat: asm3_loader data/all_id_collect.vsm
+  stem = $builddir/all_id_collect
+
+# test driver
+build $builddir/ex_all_id_collect.o: cc ex_all_id_collect.c
+build $builddir/ex_all_id_collect: link $builddir/ex_all_id_collect.o | ${sdk_root}/lib/libmnc2.a
+
+# host-side decoder
+build $builddir/decode_id.o: cc_host decode_id.c
+build $builddir/decode_id: link_host $builddir/decode_id.o
+
+# test targets
+build test:         test_usage
+build test-emu:     test_emu_process $builddir/ex_all_id_collect | $builddir/all_id_collect.asm $builddir/all_id_collect.idma.dat
+build test-emu-lib: test_emu_lib     $builddir/ex_all_id_collect | $builddir/all_id_collect.asm $builddir/all_id_collect.idma.dat
+build test-device:  test_device      $builddir/ex_all_id_collect | $builddir/all_id_collect.asm $builddir/all_id_collect.idma.dat
+
+# view ヘルパ
+rule view
+  command = $builddir/decode_id $args --text < $builddir/all_id_collect.bin | head -64
+  pool = console
+
+build view: view $builddir/decode_id
+  args = --peid
+build view-subpeid: view $builddir/decode_id
+  args = --subpeid
+build view-mabid: view $builddir/decode_id
+  args = --mabid
+build view-l1bid: view $builddir/decode_id
+  args = --l1bid
+build view-l2bid: view $builddir/decode_id
+  args = --l2bid
+build view-flat: view $builddir/decode_id
+  args = --flat
+
+build capture-golden: capture_golden | capture-golden-endian.sh
+
+# check-emu-ec{0..4}
+build $builddir/check-emu-ec0.bin: check_emu_ec | $builddir/ex_all_id_collect $builddir/all_id_collect.asm $builddir/all_id_collect.idma.dat
+  ec = 0
+  bin = $builddir/ex_all_id_collect
+  expected_sha256 = 067bde3216bf24c16b1fc5336114ea06621fb73bb4b9b484b5e0032542c27825
+build check-emu-ec0: phony $builddir/check-emu-ec0.bin
+
+build $builddir/check-emu-ec1.bin: check_emu_ec | $builddir/ex_all_id_collect $builddir/all_id_collect.asm $builddir/all_id_collect.idma.dat
+  ec = 1
+  bin = $builddir/ex_all_id_collect
+  expected_sha256 = e680f27675430b3aa6881bf4779a1762f1f779b6e2865b28bad9edf3ee4061f3
+build check-emu-ec1: phony $builddir/check-emu-ec1.bin
+
+build $builddir/check-emu-ec2.bin: check_emu_ec | $builddir/ex_all_id_collect $builddir/all_id_collect.asm $builddir/all_id_collect.idma.dat
+  ec = 2
+  bin = $builddir/ex_all_id_collect
+  expected_sha256 = a22dc3d36ecdecafb9c3ecf0c940424e32ebaa02a8a0137f564246dcd4585245
+build check-emu-ec2: phony $builddir/check-emu-ec2.bin
+
+build $builddir/check-emu-ec3.bin: check_emu_ec | $builddir/ex_all_id_collect $builddir/all_id_collect.asm $builddir/all_id_collect.idma.dat
+  ec = 3
+  bin = $builddir/ex_all_id_collect
+  expected_sha256 = d361499257ff175ec1de938034a5366ee7ae78652407df084c8d8eac16bfe48b
+build check-emu-ec3: phony $builddir/check-emu-ec3.bin
+
+build $builddir/check-emu-ec4.bin: check_emu_ec | $builddir/ex_all_id_collect $builddir/all_id_collect.asm $builddir/all_id_collect.idma.dat
+  ec = 4
+  bin = $builddir/ex_all_id_collect
+  expected_sha256 = 151dd98c053341f80fe1057caddb58fde74a77e9f769219703f3d473899a4eb8
+build check-emu-ec4: phony $builddir/check-emu-ec4.bin
+
+# check-emu-lib-ec{0..4}
+build $builddir/check-emu-lib-ec0.bin: check_emu_lib_ec | $builddir/ex_all_id_collect $builddir/all_id_collect.asm $builddir/all_id_collect.idma.dat
+  ec = 0
+  bin = $builddir/ex_all_id_collect
+  expected_sha256 = 067bde3216bf24c16b1fc5336114ea06621fb73bb4b9b484b5e0032542c27825
+build check-emu-lib-ec0: phony $builddir/check-emu-lib-ec0.bin
+
+build $builddir/check-emu-lib-ec1.bin: check_emu_lib_ec | $builddir/ex_all_id_collect $builddir/all_id_collect.asm $builddir/all_id_collect.idma.dat
+  ec = 1
+  bin = $builddir/ex_all_id_collect
+  expected_sha256 = e680f27675430b3aa6881bf4779a1762f1f779b6e2865b28bad9edf3ee4061f3
+build check-emu-lib-ec1: phony $builddir/check-emu-lib-ec1.bin
+
+build $builddir/check-emu-lib-ec2.bin: check_emu_lib_ec | $builddir/ex_all_id_collect $builddir/all_id_collect.asm $builddir/all_id_collect.idma.dat
+  ec = 2
+  bin = $builddir/ex_all_id_collect
+  expected_sha256 = a22dc3d36ecdecafb9c3ecf0c940424e32ebaa02a8a0137f564246dcd4585245
+build check-emu-lib-ec2: phony $builddir/check-emu-lib-ec2.bin
+
+build $builddir/check-emu-lib-ec3.bin: check_emu_lib_ec | $builddir/ex_all_id_collect $builddir/all_id_collect.asm $builddir/all_id_collect.idma.dat
+  ec = 3
+  bin = $builddir/ex_all_id_collect
+  expected_sha256 = d361499257ff175ec1de938034a5366ee7ae78652407df084c8d8eac16bfe48b
+build check-emu-lib-ec3: phony $builddir/check-emu-lib-ec3.bin
+
+build $builddir/check-emu-lib-ec4.bin: check_emu_lib_ec | $builddir/ex_all_id_collect $builddir/all_id_collect.asm $builddir/all_id_collect.idma.dat
+  ec = 4
+  bin = $builddir/ex_all_id_collect
+  expected_sha256 = 151dd98c053341f80fe1057caddb58fde74a77e9f769219703f3d473899a4eb8
+build check-emu-lib-ec4: phony $builddir/check-emu-lib-ec4.bin
+
+# check-device-ec{0..4}
+build $builddir/check-device-ec0.bin: check_device_ec | $builddir/ex_all_id_collect $builddir/all_id_collect.asm $builddir/all_id_collect.idma.dat
+  ec = 0
+  bin = $builddir/ex_all_id_collect
+  expected_sha256 = 067bde3216bf24c16b1fc5336114ea06621fb73bb4b9b484b5e0032542c27825
+build check-device-ec0: phony $builddir/check-device-ec0.bin
+
+build $builddir/check-device-ec1.bin: check_device_ec | $builddir/ex_all_id_collect $builddir/all_id_collect.asm $builddir/all_id_collect.idma.dat
+  ec = 1
+  bin = $builddir/ex_all_id_collect
+  expected_sha256 = e680f27675430b3aa6881bf4779a1762f1f779b6e2865b28bad9edf3ee4061f3
+build check-device-ec1: phony $builddir/check-device-ec1.bin
+
+build $builddir/check-device-ec2.bin: check_device_ec | $builddir/ex_all_id_collect $builddir/all_id_collect.asm $builddir/all_id_collect.idma.dat
+  ec = 2
+  bin = $builddir/ex_all_id_collect
+  expected_sha256 = a22dc3d36ecdecafb9c3ecf0c940424e32ebaa02a8a0137f564246dcd4585245
+build check-device-ec2: phony $builddir/check-device-ec2.bin
+
+build $builddir/check-device-ec3.bin: check_device_ec | $builddir/ex_all_id_collect $builddir/all_id_collect.asm $builddir/all_id_collect.idma.dat
+  ec = 3
+  bin = $builddir/ex_all_id_collect
+  expected_sha256 = d361499257ff175ec1de938034a5366ee7ae78652407df084c8d8eac16bfe48b
+build check-device-ec3: phony $builddir/check-device-ec3.bin
+
+build $builddir/check-device-ec4.bin: check_device_ec | $builddir/ex_all_id_collect $builddir/all_id_collect.asm $builddir/all_id_collect.idma.dat
+  ec = 4
+  bin = $builddir/ex_all_id_collect
+  expected_sha256 = 151dd98c053341f80fe1057caddb58fde74a77e9f769219703f3d473899a4eb8
+build check-device-ec4: phony $builddir/check-device-ec4.bin
+
+default $builddir/ex_all_id_collect $builddir/all_id_collect.asm $builddir/all_id_collect.idma.dat $builddir/decode_id

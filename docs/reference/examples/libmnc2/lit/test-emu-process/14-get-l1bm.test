@@ -1,0 +1,3 @@
+# 14-get-l1bm: emu:process 非対応 (state 継承不可 / .test 未整備)
+# UNSUPPORTED: true
+# RUN: ninja -C %examples/14-get-l1bm test-emu

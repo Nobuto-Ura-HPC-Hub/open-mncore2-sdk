@@ -1,0 +1,30 @@
+# ABI PFN3_SBY64
+#
+# 段階1: l1bmp vector dst の着地レジスタ確定
+#
+# GRF0 は偶数アライン必須 ($lr17 等は addressable でない) ので、着地は +2 偶数刻みしか
+# ありえない。size 4 (マスク無し) の l1bmp が放送値を $lr16/$lr18/$lr20/$lr22 の 4 レジスタ
+# すべてに書くか、また PDM のどの u64 が各レジスタに対応するかを emu:lib で確認する。
+#
+# 事前に 4 レジスタを sentinel 7777 で埋め、broadcast 後に上書きされたかを collect で回収する。
+#   書かれた:   放送された値 (host が入れた 1000+idx)
+#   書かれない: sentinel 7777 が残る
+#
+	imm i"7777" $r16
+	imm i"7777" $r18
+	imm i"7777" $r20
+	imm i"7777" $r22
+	nop/4
+	@broadcast _v from_param 8 size 4 $lr16
+	lpassa $lr16 $ln4080
+	nop/2
+	lpassa $lr18 $ln4082
+	nop/2
+	lpassa $lr20 $ln4084
+	nop/2
+	lpassa $lr22 $ln4086
+	nop/2
+	@collect _r16 to_param 16 size 1 $ln4080
+	@collect _r18 to_param 24 size 1 $ln4082
+	@collect _r20 to_param 32 size 1 $ln4084
+	@collect _r22 to_param 40 size 1 $ln4086

@@ -1,0 +1,8 @@
+;; data_edge 00: left=0, right=0 (左端でも右端でもない)
+((:version :0.0)
+ (:ndim 1)
+ (:pe_shape (4096))
+ (:pe_local (1))
+ (:data_layout :any)
+ (:data_size (12288))
+ (:data_offset (4096)))

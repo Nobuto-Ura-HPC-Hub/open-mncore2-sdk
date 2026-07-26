@@ -1,0 +1,20 @@
+# build.ninja — long-vsm example
+include ../../scripts/sdk.ninja
+include ../../scripts/examples.ninja
+
+# カーネル (data/long.vsm を assemble)
+build $builddir/long.asm:      asm3_text   data/long.vsm
+build $builddir/long.idma.dat: asm3_loader data/long.vsm
+  stem = $builddir/long
+
+# test driver
+build $builddir/ex_long.o: cc ex_long.c
+build $builddir/ex_long:   link $builddir/ex_long.o | ${sdk_root}/lib/libmnc2.a
+
+# test targets
+build test-emu:     test_emu_process $builddir/ex_long | $builddir/long.asm $builddir/long.idma.dat
+build test-emu-lib: test_emu_lib     $builddir/ex_long | $builddir/long.asm $builddir/long.idma.dat
+build test-device:  test_device      $builddir/ex_long | $builddir/long.asm $builddir/long.idma.dat
+build test:         test_usage
+
+default $builddir/ex_long $builddir/long.asm $builddir/long.idma.dat

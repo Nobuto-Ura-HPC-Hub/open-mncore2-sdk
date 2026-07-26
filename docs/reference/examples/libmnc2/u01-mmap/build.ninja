@@ -1,0 +1,51 @@
+include ../../scripts/sdk.ninja
+builddir = _build
+
+cc = gcc
+cflags = -Wall -Wextra -O2 -I../ulib -I${sdk_root}/libgpfn3-emu/include
+ldflags = -L${sdk_root}/lib -lgpfn3
+
+rule cc
+  command = $cc $cflags -c $in -o $out
+
+rule link
+  command = $cc $in $ldflags -o $out
+
+build $builddir/pio-read.o: cc pio_read.c
+build $builddir/pio-read: link $builddir/pio-read.o
+
+build $builddir/pio-write.o: cc pio_write.c
+build $builddir/pio-write: link $builddir/pio-write.o
+
+build $builddir/pio.o: cc pio.c
+build $builddir/pio: link $builddir/pio.o
+
+build $builddir/send-dma.o: cc send_dma.c
+build $builddir/send-dma: link $builddir/send-dma.o
+
+build $builddir/read-pdm.o: cc read_pdm.c
+build $builddir/read-pdm: link $builddir/read-pdm.o
+
+build $builddir/write-pdm.o: cc write_pdm.c
+build $builddir/write-pdm: link $builddir/write-pdm.o
+
+build $builddir/recv-dma.o: cc recv_dma.c
+build $builddir/recv-dma: link $builddir/recv-dma.o
+
+default $builddir/pio-read $builddir/pio-write $builddir/pio $builddir/send-dma $builddir/read-pdm $builddir/write-pdm $builddir/recv-dma
+
+bindir = ../bin
+
+rule install_bin
+  command = mkdir -p $bindir && cp $in $bindir/
+  description = INSTALL $in -> $bindir/
+
+build install: phony install-bins
+build install-bins: install_bin $builddir/pio-read $builddir/pio-write $builddir/pio $builddir/send-dma $builddir/read-pdm $builddir/write-pdm
+
+rule test
+  command = $cmd
+  pool = console
+
+build test-u64: test $builddir/send-dma
+  cmd = scripts/test-u64.sh

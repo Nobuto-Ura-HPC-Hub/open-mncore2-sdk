@@ -1,0 +1,10 @@
+# distribute.vsm — 59 Kernel A: PDM@0 を外部メモリとして使うので何もしない
+#
+# データは host send で PDM@0[0..4095] に既に置かれている。
+# このカーネルは host send tag (i02) の同期だけ取る (no-op kernel)。
+# add1 が PDM@0 → 8 L2BMs を 8 mvp 単独個別で読み込むので、ここでは何もしない。
+
+	nop; wait i02
+	nop/3
+	nop/5
+	# pseudo ret

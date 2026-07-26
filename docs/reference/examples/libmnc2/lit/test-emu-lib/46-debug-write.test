@@ -1,0 +1,1 @@
+# RUN: ninja -C %examples/46-debug-write test-emu-lib

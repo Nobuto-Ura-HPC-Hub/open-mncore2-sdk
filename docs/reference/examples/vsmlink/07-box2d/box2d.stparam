@@ -1,0 +1,12 @@
+;; 2D 9-point stencil (box / diagonal included)
+;;
+;; 箱型パターン:   * * *
+;;                * o *
+;;                * * *
+;;
+;; 十字型に対角 4 点を追加。offsets は辞書順ソート。
+((:version :0.0)
+ (:ndim 2)
+ (:pe_shape (64 64))
+ (:pe_local (1 1))
+ (:boundary (:clamp :clamp)))

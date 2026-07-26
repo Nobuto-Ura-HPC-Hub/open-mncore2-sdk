@@ -1,0 +1,37 @@
+# 18-broadcast-vec: out[i] = v.x + v.y * 2 + v.z * 4 + x[i] (broadcast size 3 + distribute)
+#
+# ninja build-e2e    -> .cl -> ._vsm -> .vsm + vsmlink + assemble3 + host C
+# ninja test-emu-lib -> emu:lib backend で実行・検証
+# ninja test-device  -> 実機 backend で実行・検証
+
+include ../scripts/mncl.ninja
+include ../../scripts/sdk.ninja
+builddir = _build
+
+# --- kernel ---
+build $builddir/bcast_vec._vsm: emit-vsm bcast_vec.cl
+
+build $builddir/bcast_vec.vsm: vsmlink $builddir/bcast_vec._vsm bcast_vec.param bcast_vec.stparam
+  vsm = $builddir/bcast_vec._vsm
+  param = bcast_vec.param
+  stparam = bcast_vec.stparam
+
+build $builddir/bcast_vec.asm: asm3 $builddir/bcast_vec.vsm
+build $builddir/bcast_vec.idma.dat: asm3_loader $builddir/bcast_vec.vsm
+  stem = $builddir/bcast_vec
+
+# --- host driver ---
+build $builddir/test_bcast_vec.o: cc test_bcast_vec.c
+build $builddir/test_bcast_vec: link $builddir/test_bcast_vec.o
+
+# --- ビルド段階 phony ---
+build build-e2e: phony $builddir/bcast_vec.asm $builddir/bcast_vec.idma.dat $builddir/test_bcast_vec
+
+# --- test 3 種 ---
+build test-emu-lib: test_emu_lib $builddir/test_bcast_vec | $builddir/bcast_vec.asm $builddir/bcast_vec.idma.dat
+build test-device:  test_device  $builddir/test_bcast_vec | $builddir/bcast_vec.asm $builddir/bcast_vec.idma.dat
+build test:         test_usage
+
+build clean: clean
+
+default $builddir/bcast_vec.asm $builddir/bcast_vec.idma.dat

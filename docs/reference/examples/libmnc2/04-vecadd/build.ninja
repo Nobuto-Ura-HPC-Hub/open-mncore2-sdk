@@ -1,0 +1,20 @@
+# build.ninja — vecadd example (double-precision)
+include ../../scripts/sdk.ninja
+include ../../scripts/examples.ninja
+
+# カーネル (data/double-vecadd.vsm → _build/)
+build $builddir/double-vecadd.asm: asm3_text data/double-vecadd.vsm
+build $builddir/double-vecadd.idma.dat: asm3_loader data/double-vecadd.vsm
+  stem = $builddir/double-vecadd
+
+# test driver
+build $builddir/test_vecadd.o: cc test_vecadd.c
+build $builddir/test_vecadd: link $builddir/test_vecadd.o | ${sdk_root}/lib/libmnc2.a
+
+# test targets
+build test-emu:     test_emu_process $builddir/test_vecadd | $builddir/double-vecadd.asm $builddir/double-vecadd.idma.dat
+build test-emu-lib: test_emu_lib     $builddir/test_vecadd | $builddir/double-vecadd.asm $builddir/double-vecadd.idma.dat
+build test-device:  test_device      $builddir/test_vecadd | $builddir/double-vecadd.asm $builddir/double-vecadd.idma.dat
+build test:         test_usage
+
+default $builddir/test_vecadd $builddir/double-vecadd.asm $builddir/double-vecadd.idma.dat

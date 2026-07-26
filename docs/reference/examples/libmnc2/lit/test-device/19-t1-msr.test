@@ -1,0 +1,2 @@
+# REQUIRES: device, assemble3
+# RUN: ninja -C %examples/19-t1-msr test-device

@@ -1,0 +1,12 @@
+;; odd kernel (get_global_id 版): even と同一 signature。 ping-pong の向きだけ逆にする。
+;; data_in @ 24576 (even の data_out) を読み、 data_out @ 0 へ書く。
+;; swap_flags @ 32768 は even と同じ (reduce.param と一致必須)。
+;; id 配列は even と同じ addr 4096 (:identify)。
+((:version :0.1)
+ (:reserved_wait_tag #x3f)
+ (:slot 8  :place :pdm0 :addr 24576  :send_wait_tag #x10)
+ (:slot 16 :place :pdm0 :addr 0      :recv_wait_tag #x1e)
+ (:slot 24 :place :pdm0 :addr 32768  :recv_wait_tag #x1c)
+ (:identify 0 :place :pdm0 :addr 4096 :send_wait_tag #x10)
+ (:boundary_flags bf0 :place :pdm0 :addr 8192 :send_wait_tag #x10)
+ (:buffer nbuf0 :place :pdm0 :addr 16384 :buf_size 4160))

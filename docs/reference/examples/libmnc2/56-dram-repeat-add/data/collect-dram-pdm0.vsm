@@ -1,0 +1,16 @@
+# collect-dram-pdm0.vsm — 56 Kernel C2: DRAM → PDM@0 mvd 結合
+#
+# 前提: 直前の collect-dram が DRAM に「(high: id, low: data)」レイアウトで
+# 書き込んだ状態。
+#
+# 動作: mvd/n4096 で DRAM 4 group → PDM@0 を 1 発で結合。distribute と
+# 逆順なので、PDM@0[0..4095] に 4096 u64 が並ぶ。
+#
+# recv_wait_tag = 0x06 (host 側 mnc2_recv の RECV_TAG と一致)。
+
+	nop/3
+	mvd/n4096i06 $d0 $p0@0
+	nop/2
+	nop; wait i06
+	nop/5
+	# pseudo ret

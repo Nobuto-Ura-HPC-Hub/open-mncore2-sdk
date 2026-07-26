@@ -1,0 +1,1 @@
+# RUN: ninja -C %examples/27-mv-1a test-emu-lib

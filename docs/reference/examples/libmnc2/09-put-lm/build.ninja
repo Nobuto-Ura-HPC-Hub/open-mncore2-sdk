@@ -1,0 +1,39 @@
+# build.ninja — 09-put-lm
+# device テストは peek pipeline 方式 (07-put-l2bm/build.ninja のコメント参照)
+
+include ../../scripts/sdk.ninja
+include ../../scripts/examples.ninja
+
+rule run_put_device
+  command = LD_LIBRARY_PATH=${sdk_root}/lib ./$in
+  description = RUN [device] put $in
+
+rule run_peek_device
+  command = ${sdk_root}/bin/run-idma $in --no-reset
+  description = RUN [device] peek $in --no-reset
+
+rule peek_check_device
+  command = ${sdk_root}/bin/read-pdm 0 32 | od -An -v -tx8 --endian=little | diff - data/expected-peek.txt && echo "PASS: LM0[0..3] matches expected"
+  description = CHECK [device] peek vs data/expected-peek.txt
+
+build $builddir/put_lm.asm: asm3_text data/put_lm.vsm
+build $builddir/put_lm.idma.dat: asm3_loader data/put_lm.vsm
+  stem = $builddir/put_lm
+
+build $builddir/peek_lm.asm: asm3_text data/peek_lm.vsm
+build $builddir/peek_lm.idma.dat: asm3_loader data/peek_lm.vsm
+  stem = $builddir/peek_lm
+
+build $builddir/ex_put_lm.o: cc ex_put_lm.c
+build $builddir/ex_put_lm: link $builddir/ex_put_lm.o | ${sdk_root}/lib/libmnc2.a
+
+build test:         test_usage
+build test-emu:     test_emu_process $builddir/ex_put_lm | $builddir/put_lm.asm $builddir/put_lm.idma.dat
+build test-emu-lib: test_emu_lib     $builddir/ex_put_lm | $builddir/put_lm.asm $builddir/put_lm.idma.dat
+
+build run-put-device: run_put_device $builddir/ex_put_lm | $builddir/put_lm.idma.dat
+build run-peek-device: run_peek_device $builddir/peek_lm.idma.dat | run-put-device
+build peek-check-device: peek_check_device | run-peek-device data/expected-peek.txt
+build test-device: phony peek-check-device
+
+default $builddir/ex_put_lm $builddir/put_lm.asm $builddir/put_lm.idma.dat $builddir/peek_lm.asm $builddir/peek_lm.idma.dat

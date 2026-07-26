@@ -1,0 +1,2 @@
+# broadcast (l1bmp + v + /1000) を emu:process で。 全 4096 PE が v (周期なし) を assert。
+# RUN: ninja -C %examples/66-broadcast-l1bmp test-emu

@@ -1,0 +1,31 @@
+# mv-p12.vsm — Pattern 12: DRAM → L2BM グループ間分配放送 (3.5.8.16, mvb4)
+#
+# mvb4/n64 $d0 $lc0 の動作:
+#   各グループの DRAM[0..n/4-1] (=16LW) を順に L2BM@全グループ[0..n-1] に結合
+#   つまり: G0 DRAM[0..15] || G1 DRAM[0..15] || G2 DRAM[0..15] || G3 DRAM[0..15]
+#             → 各グループの L2BM[0..63]
+#
+# roundtrip テスト:
+#   mvd distribute (#7): PDM@G0[0..63] → DRAM@G[0..15] each (16LW/group)
+#   mvb4 (#12): DRAM@G[0..15] → L2BM@全グループ[0..63] (元の64LW を復元)
+#   readback: L2BM@G0.0[0..63] → PDM@G0[0..63] → recv trigger
+# DMA: send_wait_tag=2, recv_wait_tag=6
+
+	nop; wait i02
+	nop/3
+	# Setup: PDM@G0[0..63] → DRAM@G[0..15] each (mvd distribute, #7)
+	mvd/n64i01 $p0@0 $d0
+	nop/2
+	nop; wait i01
+	nop/5
+	# Test: DRAM@G[0..15] → L2BM@全グループ[0..63] (mvb4)
+	mvb4/n64i04 $d0 $lc0
+	nop/2
+	nop; wait i04
+	nop/5
+	# Readback: L2BM@G0.0[0..63] → PDM@G0[0..63] → recv trigger
+	mvp/n64i06 $lc0@0.0 $p0@0
+	nop/2
+	nop; wait i06
+	nop/5
+	# pseudo ret

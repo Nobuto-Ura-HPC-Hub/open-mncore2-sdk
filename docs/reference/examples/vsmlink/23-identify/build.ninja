@@ -1,0 +1,54 @@
+# 23-identify: @identify directive のフィジビリティ検証サンプル
+#
+# ninja              → vsmlink のみ
+# ninja build-e2e    → + assemble3 + C ビルド
+# ninja test-emu-lib → + emu:lib で実行・検証
+# ninja test-device  → + 実機で実行・検証
+
+include ../../scripts/sdk.ninja
+include ../scripts/vsmlink.ninja
+builddir = _build
+
+# --- 独自 rule: test driver が kernel path を引数で取る ---
+rule test_emu_lib_k
+  command = LD_LIBRARY_PATH=${sdk_root}/lib/emu-lib ./$exe $kernel
+  description = TEST [emu:lib] $exe $kernel
+
+rule test_device_k
+  command = ./$exe $kernel
+  description = TEST [device] $exe $kernel
+
+# --- vsmlink ---
+build $builddir/test1_identify.vsm: vsmlink test1_identify._vsm | identify.param identify.stparam
+  vsm     = test1_identify._vsm
+  param   = identify.param
+  stparam = identify.stparam
+
+# --- assemble ---
+build $builddir/test1_identify.asm:      asm3 $builddir/test1_identify.vsm
+build $builddir/test1_identify.idma.dat: asm3_loader $builddir/test1_identify.vsm
+  stem = $builddir/test1_identify
+
+# --- host C ---
+build $builddir/test1_identify.o:   cc test1_identify.c
+build $builddir/test1_identify_exe: link_exe $builddir/test1_identify.o
+
+build build-e2e: phony $
+    $builddir/test1_identify.asm $
+    $builddir/test1_identify.idma.dat $
+    $builddir/test1_identify_exe
+
+# --- test targets ---
+build test: test_usage
+
+build test-emu-lib: test_emu_lib_k $builddir/test1_identify.idma.dat | $builddir/test1_identify_exe
+  exe    = $builddir/test1_identify_exe
+  kernel = $builddir/test1_identify.idma.dat
+
+build test-device: test_device_k $builddir/test1_identify.idma.dat | $builddir/test1_identify_exe
+  exe    = $builddir/test1_identify_exe
+  kernel = $builddir/test1_identify.idma.dat
+
+build clean: clean
+
+default $builddir/test1_identify.vsm

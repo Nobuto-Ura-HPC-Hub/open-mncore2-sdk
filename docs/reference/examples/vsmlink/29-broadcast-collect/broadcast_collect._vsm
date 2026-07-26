@@ -1,0 +1,23 @@
+# ABI PFN3_SBY64
+#
+# broadcast + collect の往復。
+# @broadcast size 4 で struct {x,y,z,m} を全 PE に同値で配り、m を @distribute した per-PE の
+# id で差し替え、@collect size 4 で PDM (成分ごと) に集める。
+# ホストが x,y,z = broadcast 値 (全 PE 同一)・m = per-PE id を確認する。
+# 設計とレイアウトは docs/broadcast-collect-layout.md を参照。
+#
+# broadcast は GRF0 の +2 刻みに着地: $lr16=x $lr18=y $lr20=z $lr22=m(未使用)
+# distribute は LM0 に着地: $lm0 = per-PE id
+# collect 源は LM1 の $ln4088 から 4 サイクル (+2 刻み): x,y,z,id を並べる
+#
+	@broadcast  _s  from_param 8  size 4 $lr16    # 全 PE 同値の x,y,z,m
+	@distribute _id from_param 16 size 1 $lm0     # per-PE の id
+	lpassa $lr16 $ln4088    # x  -> collect 成分 0
+	nop/2
+	lpassa $lr18 $ln4090    # y  -> collect 成分 1
+	nop/2
+	lpassa $lr20 $ln4092    # z  -> collect 成分 2
+	nop/2
+	lpassa $lm0  $ln4094    # id -> collect 成分 3 (broadcast の m を上書き)
+	nop/2
+	@collect _out to_param 24 size 4 $ln4088

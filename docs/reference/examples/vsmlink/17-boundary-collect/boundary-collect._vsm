@@ -1,0 +1,20 @@
+# boundary-collect: @boundary_flags_compute で生成した排他的 10bit フラグを PDM に回収する
+#
+# 排他的フラグ: 各 PE に最大 1 ビット (cross_group 廃止)
+#   bit[0] = cross_MAB_right   bit[1] = cross_MAB_left
+#   bit[2] = cross_L1B_right   bit[3] = cross_L1B_left
+#   bit[4] = cross_L2B_right   bit[5] = cross_L2B_left
+#   bit[6] = cross_chip_right  bit[7] = cross_chip_left
+#   bit[8] = data_edge_right   bit[9] = data_edge_left
+#
+# 出力:
+#   to_param 8: 10bit 境界フラグ (4096 PE × 1 LW)
+
+	@alloc bfcomp :omr 1 2 3 4 :grf0 200 32 34 40 42 44 46 :n 0
+	@boundary_flags_compute bf1 0 $lr416 bfcomp
+	@free bfcomp
+
+	# $lr416 → LM → @collect
+	lpassa $lr416 $lm0
+	nop/24
+	@collect _flags to_param 8 size 1 $lm0

@@ -1,0 +1,1 @@
+# RUN: ninja -C %examples/35-mv-5b test-emu

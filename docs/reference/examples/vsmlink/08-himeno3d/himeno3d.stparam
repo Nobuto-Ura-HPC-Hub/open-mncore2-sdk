@@ -1,0 +1,10 @@
+;; 3D 7-point stencil (Himeno benchmark)
+;;
+;; 各軸 ±1 の 6 点。16x16x16 の 3D 配置。
+;;
+;; 各軸 clamp 境界
+((:version :0.0)
+ (:ndim 3)
+ (:pe_shape (16 16 16))
+ (:pe_local (1 1 1))
+ (:boundary (:clamp :clamp :clamp)))

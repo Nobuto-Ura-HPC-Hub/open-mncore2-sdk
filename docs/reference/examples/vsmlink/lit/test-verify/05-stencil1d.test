@@ -1,0 +1,6 @@
+# examples の 3 段階検証の 1 段目: vsmlink が正しい VSM を生成すること
+#
+# expected.vsm との diff。 @get_neighbor の展開も含むので、
+# `@distribute4` の base ($lm0) が {{self}} に入っていることもここで固定される。
+#
+# RUN: ninja -C %examples/05-stencil1d verify

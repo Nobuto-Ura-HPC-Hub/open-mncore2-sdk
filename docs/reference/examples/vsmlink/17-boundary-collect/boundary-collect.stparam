@@ -1,0 +1,6 @@
+;; boundary-collect: @boundary_flags の 8bit フラグ回収
+((:version :0.0)
+ (:ndim 1)
+ (:pe_shape (4096))
+ (:pe_local (1))
+ (:data_layout :any))

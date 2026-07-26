@@ -1,0 +1,2 @@
+# REQUIRES: device, assemble3
+# RUN: ninja -C %examples/50-tag-interference test-device

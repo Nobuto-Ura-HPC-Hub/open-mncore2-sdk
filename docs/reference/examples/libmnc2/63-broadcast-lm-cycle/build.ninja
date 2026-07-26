@@ -1,0 +1,20 @@
+# build.ninja — 63-broadcast-lm-cycle
+include ../../scripts/sdk.ninja
+include ../../scripts/examples.ninja
+
+# カーネル
+build $builddir/lmcycle.asm:      asm3_text   data/lmcycle.vsm
+build $builddir/lmcycle.idma.dat: asm3_loader data/lmcycle.vsm
+  stem = $builddir/lmcycle
+
+# test driver
+build $builddir/ex_lmcycle.o: cc ex_lmcycle.c
+build $builddir/ex_lmcycle:   link $builddir/ex_lmcycle.o | ${sdk_root}/lib/libmnc2.a
+
+# test targets (全 backend 対応)
+build test:         test_usage
+build test-emu:     test_emu_process $builddir/ex_lmcycle | $builddir/lmcycle.asm $builddir/lmcycle.idma.dat
+build test-emu-lib: test_emu_lib     $builddir/ex_lmcycle | $builddir/lmcycle.asm $builddir/lmcycle.idma.dat
+build test-device:  test_device      $builddir/ex_lmcycle | $builddir/lmcycle.asm $builddir/lmcycle.idma.dat
+
+default $builddir/ex_lmcycle $builddir/lmcycle.asm $builddir/lmcycle.idma.dat

@@ -1,0 +1,34 @@
+# build.ninja — 50-tag-interference
+include ../../scripts/sdk.ninja
+include ../../scripts/examples.ninja
+
+# device は本 test の test 1 が TIMEOUT で queue に残留を出すため、試験後に
+# gpfn3-smi reset を呼ぶ独自 rule を用意する。共通 test_device だと reset が
+# 走らず、次 test 実行時に警告が出る。
+rule test_device_with_reset
+  command = LD_LIBRARY_PATH=${sdk_root}/lib ./$in; _rc=$$?; gpfn3-smi reset $$(gpfn3-smi list | head -1) 2>/dev/null; exit $$_rc
+  description = TEST [device] $in (+ reset)
+
+# カーネル
+build $builddir/imm_collect.asm: asm3_text data/imm_collect.vsm
+build $builddir/imm_collect.idma.dat: asm3_loader data/imm_collect.vsm
+  stem = $builddir/imm_collect
+
+build $builddir/imm_collect_nowait.asm: asm3_text data/imm_collect_nowait.vsm
+build $builddir/imm_collect_nowait.idma.dat: asm3_loader data/imm_collect_nowait.vsm
+  stem = $builddir/imm_collect_nowait
+
+build $builddir/nop.asm: asm3_text data/nop.vsm
+build $builddir/nop.idma.dat: asm3_loader data/nop.vsm
+  stem = $builddir/nop
+
+# test driver
+build $builddir/ex_tag_interference.o: cc ex_tag_interference.c
+build $builddir/ex_tag_interference: link $builddir/ex_tag_interference.o | ${sdk_root}/lib/libmnc2.a
+
+build test:         test_usage
+build test-emu:     test_emu_process        $builddir/ex_tag_interference | $builddir/imm_collect.asm $builddir/imm_collect.idma.dat $builddir/imm_collect_nowait.asm $builddir/imm_collect_nowait.idma.dat $builddir/nop.asm $builddir/nop.idma.dat
+build test-emu-lib: test_emu_lib            $builddir/ex_tag_interference | $builddir/imm_collect.asm $builddir/imm_collect.idma.dat $builddir/imm_collect_nowait.asm $builddir/imm_collect_nowait.idma.dat $builddir/nop.asm $builddir/nop.idma.dat
+build test-device:  test_device_with_reset  $builddir/ex_tag_interference | $builddir/imm_collect.asm $builddir/imm_collect.idma.dat $builddir/imm_collect_nowait.asm $builddir/imm_collect_nowait.idma.dat $builddir/nop.asm $builddir/nop.idma.dat
+
+default $builddir/ex_tag_interference $builddir/imm_collect.idma.dat $builddir/imm_collect_nowait.idma.dat $builddir/nop.idma.dat

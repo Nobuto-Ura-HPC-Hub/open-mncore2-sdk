@@ -1,0 +1,10 @@
+;; 2D 5-point stencil (cross / Jacobi)
+;;
+;; 十字型パターン:     *
+;;                   * o *
+;;                     *
+((:version :0.0)
+ (:ndim 2)
+ (:pe_shape (64 64))
+ (:pe_local (1 1))
+ (:boundary (:clamp :clamp)))

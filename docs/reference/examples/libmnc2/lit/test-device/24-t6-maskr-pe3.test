@@ -1,0 +1,2 @@
+# REQUIRES: device, assemble3
+# RUN: ninja -C %examples/24-t6-maskr-pe3 test-device

@@ -1,0 +1,22 @@
+;; 19-nbody-3d 積分フェーズ: semi-implicit Euler の 1 ステップ（double3, size 3）
+;;
+;; **PDM レイアウトは力カーネル（nbody3d_force.param）とアドレスを揃える。**
+;; 共有 buffer: pos=0, acc=32768（両カーネルで一致）。各 vec3 は 3×4096 = 12288 u64。
+;;
+;; **このカーネルは triggerless（send_wait_tag をどこにも付けない）。** 入力（pos/vel/acc/dt）は
+;; すべて PDM 常駐で、host から新しく送るデータが無い。send_wait_tag を付けないと vsm-linker は
+;; 先頭の起動ゲート wait を出さず、`mnc2_exec_kernel` 単独でカーネルが走る（10-odd-even-sort の
+;; reduce カーネルと同じ正攻法。ISS-213 参照）。**順序は host の sync recv で担保する**（力フェーズの
+;; recv acc が force 完了を保証し、その後に積分を exec する）。値として不要なダミー送信は要らない。
+;;
+;; slot 8  = 位置 (pos)。size 3 の in-place 更新（distribute で読み collect で書く）。
+;;           recv_wait_tag #x1e で host が更新後 pos を recv、次ステップの broadcast 元にする（伝播）。
+;; slot 16 = 速度 (vel)。in-place 更新。recv_wait_tag #x1d で host が recv、golden と照合。
+;; slot 24 = 加速度 (acc)。常駐 distribute で読むだけ（力フェーズが積んだ値）。タグ不要。
+;; slot 32 = dt。常駐 broadcast で読むだけ（host が init で 1 回だけ送る定数）。タグ不要。
+((:version :0.1)
+ (:reserved_wait_tag #x3f)
+ (:slot 8  :place :pdm0 :addr 0     :recv_wait_tag #x1e)
+ (:slot 16 :place :pdm0 :addr 16384 :recv_wait_tag #x1d)
+ (:slot 24 :place :pdm0 :addr 32768)
+ (:slot 32 :place :pdm0 :addr 49280))

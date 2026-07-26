@@ -1,0 +1,22 @@
+# build.ninja — 15-get-lm
+# put+get ペアは kernel 間の memory 保持が必要なため emu:lib / device でのみ効果があり、
+# emu:process では test 内で SKIP される。
+
+include ../../scripts/sdk.ninja
+include ../../scripts/examples.ninja
+
+build $builddir/put_lm.asm: asm3_text data/put_lm.vsm
+build $builddir/put_lm.idma.dat: asm3_loader data/put_lm.vsm
+  stem = $builddir/put_lm
+build $builddir/get_lm.asm: asm3_text data/get_lm.vsm
+build $builddir/get_lm.idma.dat: asm3_loader data/get_lm.vsm
+  stem = $builddir/get_lm
+
+build $builddir/ex_get_lm.o: cc ex_get_lm.c
+build $builddir/ex_get_lm: link $builddir/ex_get_lm.o | ${sdk_root}/lib/libmnc2.a
+
+build test:         test_usage_no_emu
+build test-emu-lib: test_emu_lib     $builddir/ex_get_lm | $builddir/put_lm.asm $builddir/put_lm.idma.dat $builddir/get_lm.asm $builddir/get_lm.idma.dat
+build test-device:  test_device      $builddir/ex_get_lm | $builddir/put_lm.asm $builddir/put_lm.idma.dat $builddir/get_lm.asm $builddir/get_lm.idma.dat
+
+default $builddir/ex_get_lm $builddir/put_lm.idma.dat $builddir/get_lm.idma.dat

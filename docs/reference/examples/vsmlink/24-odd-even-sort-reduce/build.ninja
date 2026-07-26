@@ -1,0 +1,70 @@
+# 24-odd-even-sort-reduce: Odd-Even Transposition Sort, @reduce で on-device 収束判定
+#
+# ninja              → vsmlink (.vsm 生成のみ)
+# ninja build-e2e    → + assemble3 + host C ビルド
+# ninja test-emu-lib → + bin fetch + emu:lib 実行
+# ninja test-device  → + bin fetch + 実機実行
+
+include ../../scripts/sdk.ninja
+include ../scripts/vsmlink.ninja
+builddir = _build
+
+# --- raw VSM (assemble3 のみ) ---
+build $builddir/init.idma.dat: asm3_loader init.vsm
+  stem = $builddir/init
+build $builddir/exec_even.idma.dat: asm3_loader exec_even.vsm
+  stem = $builddir/exec_even
+
+# --- exec_odd: vsmlink (.param の boundary_flags 必要) ---
+build $builddir/exec_odd.vsm: vsmlink exec_odd._vsm exec_odd.param sort.stparam
+  vsm = exec_odd._vsm
+  param = exec_odd.param
+  stparam = sort.stparam
+
+build $builddir/exec_odd.idma.dat: asm3_loader $builddir/exec_odd.vsm
+  stem = $builddir/exec_odd
+
+# --- reduce: vsmlink (@reduce directive 使用) ---
+build $builddir/reduce.vsm: vsmlink reduce._vsm reduce.param sort.stparam
+  vsm = reduce._vsm
+  param = reduce.param
+  stparam = sort.stparam
+
+build $builddir/reduce.idma.dat: asm3_loader $builddir/reduce.vsm
+  stem = $builddir/reduce
+
+# --- host C ---
+build $builddir/sort.o: cc sort.c
+build $builddir/sort: link_exe $builddir/sort.o
+
+# --- data fetch (../data/<sha256>.bin → _build/<descriptive>.bin) ---
+build $builddir/57b42dea.bin: fetch_data
+  bin = 57b42dea.bin
+build $builddir/d382fbf4.bin: fetch_data
+  bin = d382fbf4.bin
+build $builddir/d5575075.bin: fetch_data
+  bin = d5575075.bin
+
+# --- aggregate (kernels + host binary, bin fetch は test 側で) ---
+build build-e2e: phony $
+    $builddir/init.idma.dat $builddir/exec_even.idma.dat $
+    $builddir/exec_odd.idma.dat $builddir/reduce.idma.dat $
+    $builddir/sort
+
+# --- test targets (bin fetch を deps に置く) ---
+build test: test_usage
+build test-emu-lib: test_emu_lib $builddir/sort | $
+    $builddir/init.idma.dat $builddir/exec_even.idma.dat $
+    $builddir/exec_odd.idma.dat $builddir/reduce.idma.dat $
+    $builddir/57b42dea.bin $builddir/d382fbf4.bin
+  args = _build/d382fbf4.bin _build/out.bin
+
+build test-device: test_device $builddir/sort | $
+    $builddir/init.idma.dat $builddir/exec_even.idma.dat $
+    $builddir/exec_odd.idma.dat $builddir/reduce.idma.dat $
+    $builddir/57b42dea.bin $builddir/d382fbf4.bin
+  args = _build/d382fbf4.bin _build/out.bin
+
+build clean: clean
+
+default $builddir/exec_odd.vsm $builddir/reduce.vsm

@@ -1,0 +1,3 @@
+((:version :0.1)
+ (:reserved_wait_tags #x3f #x28 #x29 #x2a #x2b #x2c #x2d)
+ (:boundary_flags bf1 :place :pdm0 :addr 4096 :send_wait_tag #x10))

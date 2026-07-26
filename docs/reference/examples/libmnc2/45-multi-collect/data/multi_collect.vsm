@@ -1,0 +1,90 @@
+# multi_collect: collect 2 回、同一 wait タグ再利用
+#
+# 同一 wait タグ (i19, i1a, i1c, i1e) を 2 回の collect で再利用する。
+# ワークアラウンドがないと emu:lib / gpfn3_package_main で失敗する。
+#
+# 出力 PDM レイアウト (PDM 先頭 1 MiB の mmap 制約に合わせ先頭に配置):
+#   word     0..4095:  値 A = 0x00003039_00010932  (12345/67890)
+#   word  4096..8191:  値 B = 0x00002b67_000056ce  (11111/22222)
+#
+# recv: recv_wait_tag=0x1e (最終 mvp done flag) × 2 回 (emu:lib / emu:process 用)
+# device: recv を使わず read-pdm で直接確認 (build.ninja の peek pipeline 参照)
+
+# === collect 1: imm 12345/67890 → PDM word 0 ===
+	imm i"12345" $r0
+	imm i"67890" $r1
+	nop/4
+	lpassa $lr0 $lm0
+	nop/24
+	# 占有 L1BM [256, 512)。結合方向にはマスクが効かないため、
+	# 4 cycle 分 256 u64 すべてが上書きされる。
+	# 回収するのは cycle 0 の [256, 320) のみ。
+	l1bmd $lm0v $lb256
+	nop/24
+	nop/24
+	l2bm@0 $lb256 $lc1024
+	l2bm@1 $lb256 $lc1088
+	l2bm@2 $lb256 $lc1152
+	l2bm@3 $lb256 $lc1216
+	l2bm@4 $lb256 $lc1280
+	l2bm@5 $lb256 $lc1344
+	l2bm@6 $lb256 $lc1408
+	l2bm@7 $lb256 $lc1472
+	nop/5
+	mvp/n512 $lc1024@0.0 $p0@0
+	mvp/n512i19 $lc1024@0.1 $p512@0
+	nop/3
+	nop; wait i19
+	mvp/n512 $lc1024@1.0 $p1024@0
+	mvp/n512i1a $lc1024@1.1 $p1536@0
+	nop/3
+	nop; wait i1a
+	mvp/n512 $lc1024@2.0 $p2048@0
+	mvp/n512i1c $lc1024@2.1 $p2560@0
+	nop/3
+	nop; wait i1c
+	mvp/n512 $lc1024@3.0 $p3072@0
+	mvp/n512i1e $lc1024@3.1 $p3584@0
+	nop/3
+	nop; wait i1e
+	nop/4
+
+# === collect 2: imm 11111/22222 → PDM word 4096 ===
+	imm i"11111" $r0
+	imm i"22222" $r1
+	nop/4
+	lpassa $lr0 $lm8
+	nop/24
+	# 占有 L1BM [512, 768)。結合方向にはマスクが効かないため、
+	# 4 cycle 分 256 u64 すべてが上書きされる。
+	# 回収するのは cycle 0 の [512, 576) のみ。
+	l1bmd $lm8v $lb512
+	nop/24
+	nop/24
+	l2bm@0 $lb512 $lc2048
+	l2bm@1 $lb512 $lc2112
+	l2bm@2 $lb512 $lc2176
+	l2bm@3 $lb512 $lc2240
+	l2bm@4 $lb512 $lc2304
+	l2bm@5 $lb512 $lc2368
+	l2bm@6 $lb512 $lc2432
+	l2bm@7 $lb512 $lc2496
+	nop/5
+	mvp/n512 $lc2048@0.0 $p4096@0
+	mvp/n512i19 $lc2048@0.1 $p4608@0
+	nop/3
+	nop; wait i19
+	mvp/n512 $lc2048@1.0 $p5120@0
+	mvp/n512i1a $lc2048@1.1 $p5632@0
+	nop/3
+	nop; wait i1a
+	mvp/n512 $lc2048@2.0 $p6144@0
+	mvp/n512i1c $lc2048@2.1 $p6656@0
+	nop/3
+	nop; wait i1c
+	mvp/n512 $lc2048@3.0 $p7168@0
+	mvp/n512i1e $lc2048@3.1 $p7680@0
+	nop/3
+	nop; wait i1e
+	nop/4
+	# pseudo ret

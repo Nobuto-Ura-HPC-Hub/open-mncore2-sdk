@@ -1,0 +1,10 @@
+;; 18-broadcast-vec: out[i] = v.x + v.y * 2 + v.z * 4 + x[i]
+;; slot 8  = broadcast 入力 (bc)。double3 を 1 回で配る。host が先頭 3 u64 を埋める。
+;;           領域は 64 u64 確保する（mvb の最小転送単位。先頭 3 個以外は読まれない）。
+;; slot 16 = distribute 入力 (x)。
+;; slot 24 = collect 出力 (out)。
+((:version :0.1)
+ (:reserved_wait_tag #x3f)
+ (:slot 8  :place :pdm0 :addr 0    :send_wait_tag #x10)
+ (:slot 16 :place :pdm0 :addr 4096 :send_wait_tag #x10)
+ (:slot 24 :place :pdm0 :addr 8192 :recv_wait_tag #x1e))

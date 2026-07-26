@@ -1,0 +1,13 @@
+;; even kernel (get_global_id 版): (data_in, data_out, swap_flags) を slot 8 / 16 / 24 に割り当てる。
+;; 例 10 と違い flag スロットは無い。 代わりに @identify で id 配列 [0..4095] を配る
+;; (:identify。 @distribute と同じく host が PDM へ事前送信する。 addr は解放された flag スロット 4096 を再利用)。
+;; ping-pong: data_in @ 0 を読み、 data_out @ 24576 へ書く (odd はこの 2 つを入れ替える)。
+;; swap_flags @ 32768 は reduce kernel が distribute で読み直す (addr は reduce.param と一致必須)。
+((:version :0.1)
+ (:reserved_wait_tag #x3f)
+ (:slot 8  :place :pdm0 :addr 0      :send_wait_tag #x10)
+ (:slot 16 :place :pdm0 :addr 24576  :recv_wait_tag #x1e)
+ (:slot 24 :place :pdm0 :addr 32768  :recv_wait_tag #x1c)
+ (:identify 0 :place :pdm0 :addr 4096 :send_wait_tag #x10)
+ (:boundary_flags bf0 :place :pdm0 :addr 8192 :send_wait_tag #x10)
+ (:buffer nbuf0 :place :pdm0 :addr 16384 :buf_size 4160))

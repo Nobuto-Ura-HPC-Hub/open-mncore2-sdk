@@ -1,0 +1,7 @@
+;; 24-odd-even-sort-reduce: 4096 PE 1 列の odd-even sort
+;; @boundary_flags は PDM からロード、@boundary_flags_compute は未使用
+((:version :0.0)
+ (:ndim 1)
+ (:pe_shape (4096))
+ (:pe_local (1))
+ (:data_layout :any))

@@ -1,0 +1,23 @@
+;; 17-nbody-2d [Step 5]: 位置と力を double2 にまとめてベクタのまま計算する
+;;
+;; slot 8  = distribute 入力 (pos)。size 2 で (x, y) を 1 回に配る。
+;;           **PDM 上は「成分が外側、PE が内側」。** x が先頭 4096 u64、その後ろに y が 4096 u64。
+;;           OpenCL の double2 配列（PE ごとに x,y が隣接）とは違う。並べるのはホストの責務。
+;;           初回のみ送信して PDM 常駐（send_wait_tag は broadcast のトリガ #x10 で満たす。
+;;           14-odd-even-sort-full と同じ常駐パターン）。
+;; slot 16 = broadcast 入力 (bpos)。粒子 k の位置 (x, y) を size 2 で配る。
+;;           host が毎回**先頭 2 u64** を埋めて送る。領域は 64 u64 確保する
+;;           （mvb の最小転送単位。先頭 2 個以外は読まれない）。
+;; slot 24 = broadcast 入力 (bmass)。粒子 k の質量。size 1。
+;;           **位置と質量を 1 本の double3 にまとめない。** そうすると .cl 側で
+;;           (double2)(bk.x, bk.y) が extract_subvector に畳まれ、backend が未対応で落ちる。
+;; slot 32 = 力積算値 (f)。size 2 で (fx, fy) を 1 回に読み書きする in-place 更新。
+;;           **以前は fx / fy を別スロットに分けて distribute 2 本 collect 2 本を出していた。**
+;;           send_wait_tag は付けない（前回カーネルが collect した PDM 常駐値を読む。
+;;           10-odd-even-sort と同じ）。初期化 0 は host が初回に送る。
+((:version :0.1)
+ (:reserved_wait_tag #x3f)
+ (:slot 8  :place :pdm0 :addr 0     :send_wait_tag #x10)
+ (:slot 16 :place :pdm0 :addr 8192  :send_wait_tag #x10)
+ (:slot 24 :place :pdm0 :addr 8320  :send_wait_tag #x10)
+ (:slot 32 :place :pdm0 :addr 12288 :recv_wait_tag #x1e))

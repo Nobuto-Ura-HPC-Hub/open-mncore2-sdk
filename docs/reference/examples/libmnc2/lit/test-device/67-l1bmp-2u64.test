@@ -1,0 +1,3 @@
+# device でも l1bmp の 1 u64 版 / 2 u64 版の L1BM 位置とレジスタの対応を観察する。
+# REQUIRES: device, assemble3
+# RUN: ninja -C %examples/67-l1bmp-2u64 test-device

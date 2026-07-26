@@ -1,0 +1,50 @@
+# imm_collect: imm で GRF0 に即値設定 → collect で PDM に書き出す
+#
+# imm i"12345" $r0 / imm i"67890" $r1 → $lr0 = 0x0000303900010932
+#   (12345 = 0x3039, 67890 = 0x10932)
+# collect パス: GRF0 → LM0 → L1BM → L2BM → PDM word 131072
+#
+# recv: recv_wait_tag=0x1e (最終 mvp done flag)
+
+	imm i"12345" $r0
+	imm i"67890" $r1
+	nop/4
+# GRF0 → LM0
+	lpassa $lr0 $lm0
+	nop/24
+# LM0 → L1BM
+	# 占有 L1BM [256, 512)。結合方向にはマスクが効かないため、
+	# 4 cycle 分 256 u64 すべてが上書きされる。
+	# 回収するのは cycle 0 の [256, 320) のみ。
+	l1bmd $lm0v $lb256
+	nop/24
+	nop/24
+# L1BM → L2BM
+	l2bm@0 $lb256 $lc1024
+	l2bm@1 $lb256 $lc1088
+	l2bm@2 $lb256 $lc1152
+	l2bm@3 $lb256 $lc1216
+	l2bm@4 $lb256 $lc1280
+	l2bm@5 $lb256 $lc1344
+	l2bm@6 $lb256 $lc1408
+	l2bm@7 $lb256 $lc1472
+	nop/5
+# L2BM → PDM (4 グループ × 512 u64)
+	mvp/n512 $lc1024@0.0 $p131072@0
+	mvp/n512i19 $lc1024@0.1 $p131584@0
+	nop/3
+	nop; wait i19
+	mvp/n512 $lc1024@1.0 $p132096@0
+	mvp/n512i1a $lc1024@1.1 $p132608@0
+	nop/3
+	nop; wait i1a
+	mvp/n512 $lc1024@2.0 $p133120@0
+	mvp/n512i1c $lc1024@2.1 $p133632@0
+	nop/3
+	nop; wait i1c
+	mvp/n512 $lc1024@3.0 $p134144@0
+	mvp/n512i1e $lc1024@3.1 $p134656@0
+	nop/3
+	nop; wait i1e
+	nop/4
+	# pseudo ret

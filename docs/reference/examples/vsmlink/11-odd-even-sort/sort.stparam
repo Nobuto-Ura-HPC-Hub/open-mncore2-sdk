@@ -1,0 +1,7 @@
+;; Odd-Even Transposition Sort 用構造パラメタ
+;; 1D, 4096 PE, clamp 境界
+((:version :0.0)
+ (:ndim 1)
+ (:pe_shape (4096))
+ (:pe_local (1))
+ (:boundary (:clamp)))

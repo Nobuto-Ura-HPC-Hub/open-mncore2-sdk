@@ -1,0 +1,17 @@
+# build.ninja — 65-nbody-like
+include ../../scripts/sdk.ninja
+include ../../scripts/examples.ninja
+
+build $builddir/nbody.asm:      asm3_text   data/nbody.vsm
+build $builddir/nbody.idma.dat: asm3_loader data/nbody.vsm
+  stem = $builddir/nbody
+
+build $builddir/ex_nbody.o: cc ex_nbody.c
+build $builddir/ex_nbody:   link $builddir/ex_nbody.o | ${sdk_root}/lib/libmnc2.a
+
+build test:         test_usage
+build test-emu:     test_emu_process $builddir/ex_nbody | $builddir/nbody.asm $builddir/nbody.idma.dat
+build test-emu-lib: test_emu_lib     $builddir/ex_nbody | $builddir/nbody.asm $builddir/nbody.idma.dat
+build test-device:  test_device      $builddir/ex_nbody | $builddir/nbody.asm $builddir/nbody.idma.dat
+
+default $builddir/ex_nbody $builddir/nbody.asm $builddir/nbody.idma.dat

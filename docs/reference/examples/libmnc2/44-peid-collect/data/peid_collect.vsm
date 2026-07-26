@@ -1,0 +1,94 @@
+# peid_collect: HW レジスタから PE ID を合成し collect で PDM に書き出す
+#
+# ビットレイアウト (低位 32bit):
+#   [11:9] l2bid | [8:6] l1bid | [5:2] mabid | [1:0] subpeid
+# flat PE ID = subpeid + (mabid << 2) + (l1bid << 6) + (l2bid << 9)
+# 範囲: 0..4095 (全 PE で一意)
+#
+# collect パス: GRF0 → LM0 → L1BM → L2BM → PDM word 131072
+# recv: recv_wait_tag=0x1e (最終 mvp done flag)
+#
+# 制約回避:
+#   GRF0 は 1R なので ALU の src_x/src_y 両方を GRF0 にできない。
+#   シフト量は LM1($ln0) 経由で供給。1操作ずつ処理。
+
+# === mabid << 2 ===
+	imm i"2" $r1
+	nop/4
+	lpassa $lr0 $ln0
+	nop/24
+	lpassa $mabid $lr32
+	nop/4
+	ilsl $lr32 $ln0 $lr32
+	nop/4
+# === l1bid << 6 ===
+	imm i"6" $r1
+	nop/4
+	lpassa $lr0 $ln0
+	nop/24
+	lpassa $l1bid $lr40
+	nop/4
+	ilsl $lr40 $ln0 $lr40
+	nop/4
+# === l2bid << 9 ===
+	imm i"9" $r1
+	nop/4
+	lpassa $lr0 $ln0
+	nop/24
+	lpassa $l2bid $lr48
+	nop/4
+	ilsl $lr48 $ln0 $lr48
+	nop/4
+# === subpeid → lr0 ===
+	lpassa $subpeid $lr0
+	nop/4
+# === 合成: LM1 経由で iadd ===
+	lpassa $lr32 $ln0
+	nop/24
+	iadd $ln0 $lr0 $lr0
+	nop/4
+	lpassa $lr40 $ln0
+	nop/24
+	iadd $ln0 $lr0 $lr0
+	nop/4
+	lpassa $lr48 $ln0
+	nop/24
+	iadd $ln0 $lr0 $lr0
+	nop/4
+# --- GRF0 → LM0 ---
+	lpassa $lr0 $lm0
+	nop/24
+# --- collect: LM0 → L1BM → L2BM → PDM ---
+	# 占有 L1BM [256, 512)。結合方向にはマスクが効かないため、
+	# 4 cycle 分 256 u64 すべてが上書きされる。
+	# 回収するのは cycle 0 の [256, 320) のみ。
+	l1bmd $lm0v $lb256
+	nop/24
+	nop/24
+	l2bm@0 $lb256 $lc1024
+	l2bm@1 $lb256 $lc1088
+	l2bm@2 $lb256 $lc1152
+	l2bm@3 $lb256 $lc1216
+	l2bm@4 $lb256 $lc1280
+	l2bm@5 $lb256 $lc1344
+	l2bm@6 $lb256 $lc1408
+	l2bm@7 $lb256 $lc1472
+	nop/5
+	mvp/n512 $lc1024@0.0 $p131072@0
+	mvp/n512i19 $lc1024@0.1 $p131584@0
+	nop/3
+	nop; wait i19
+	mvp/n512 $lc1024@1.0 $p132096@0
+	mvp/n512i1a $lc1024@1.1 $p132608@0
+	nop/3
+	nop; wait i1a
+	mvp/n512 $lc1024@2.0 $p133120@0
+	mvp/n512i1c $lc1024@2.1 $p133632@0
+	nop/3
+	nop; wait i1c
+	mvp/n512 $lc1024@3.0 $p134144@0
+	mvp/n512i1e $lc1024@3.1 $p134656@0
+	nop/3
+	nop; wait i1e
+	nop/4
+	# pseudo ret

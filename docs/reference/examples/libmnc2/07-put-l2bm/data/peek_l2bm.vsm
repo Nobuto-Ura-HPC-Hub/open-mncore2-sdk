@@ -1,0 +1,25 @@
+# peek_l2bm: L2BM[chip=0, l2b=0, addr=0..63] → PDM[word 0..63]
+#
+# 目的: mnc2_debug_read(MNC2_MEM_L2BM, loc={0,0,0,0,0}, addr=0, count=4) と
+# 同じ観測を device 上で外部から取るための peek カーネル。
+#
+# HW 制約 1: mvp の転送数 (nw) は 64 の倍数である必要があるため、最小単位の
+# 64 u64 を転送する。host 側では先頭 4 u64 だけ見れば十分。
+#
+# HW 制約 2: `gpfn3_map_pdm` は先頭 1 MiB しか mmap しないため、
+# PDM の書き戻し先は必ず先頭 1 MiB 内 (byte offset < 0x100000、word offset
+# < 131072) にすること。当初 word 131072 を使ったら mmap 外で garbage が
+# 返ってきた。この制約がある間は word 0 を使い、input data を上書きする。
+#
+# 前提: 直前に put_l2bm.idma.dat を実行して L2BM にデータが入っている状態で、
+# run-idma --no-reset で呼び出す (reset すると L2BM 状態が消える)。
+# put が終わった後は元の input data (PDM word 0..4095) は不要なので上書き OK。
+#
+# 出力: PDM の word offset 0 (= byte offset 0) に 64 u64 が書かれる。
+# 後で `read-pdm 0 32` で先頭 4 u64 = 32 バイトを host に取り戻して値を確認する。
+
+	mvp/n64i24 $lc0@0.0 $p0@0
+	nop/3
+	nop; wait i24
+	nop/4
+	# pseudo ret

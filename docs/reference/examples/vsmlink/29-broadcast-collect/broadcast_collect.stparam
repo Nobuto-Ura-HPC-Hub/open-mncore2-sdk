@@ -1,0 +1,6 @@
+;; broadcast-collect: 各 PE が 1 struct を担当 (4096 PE の 1 次元配置)。collect は size 4。
+((:version :0.0)
+ (:ndim 1)
+ (:pe_shape (4096))
+ (:pe_local (4))
+ (:data_layout :any))

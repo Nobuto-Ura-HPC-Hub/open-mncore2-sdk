@@ -1,0 +1,29 @@
+# mv-p15.vsm — Pattern 15: L2BM → DRAM グループ間結合縮約 (3.5.8.17, mvr4dfadd)
+#
+# 動作:
+#   Setup:    PDM@G0[0..63] → 全グループ L2BM (mvb broadcast, #3)
+#             → 全 L2BM (4G × 2L2B = 8 バンク) に同一データ (1..64)
+#   Test:     全グループ L2BM → DRAM 加算縮約 (mvr4dfadd, 3.5.8.17) ← 検証対象
+#             → DRAM@G0[i] = 8 * (i+1) (8バンク分の和)
+#   Gather:   DRAM@G0 → PDM@G0 (#8) ← recv trigger
+# 結果: PDM@G0[i] = 8 * (i+1)
+# DMA: send_wait_tag=2, recv_wait_tag=6
+
+	nop; wait i02
+	nop/3
+	# Setup: PDM@G0[0..63] → 全グループ L2BM (mvb broadcast, #3)
+	mvb/n64i01 $p0@0 $lc0
+	nop/2
+	nop; wait i01
+	nop/5
+	# Test: 全グループ L2BM → DRAM 加算縮約 (mvr4dfadd, 3.5.8.17)
+	mvr4dfadd/n64i03 $lc0 $d0
+	nop/2
+	nop; wait i03
+	nop/5
+	# Gather: DRAM@G0 → PDM@G0 (#8) → recv trigger
+	mvp/n64i06 $d0@0 $p0@0
+	nop/2
+	nop; wait i06
+	nop/5
+	# pseudo ret

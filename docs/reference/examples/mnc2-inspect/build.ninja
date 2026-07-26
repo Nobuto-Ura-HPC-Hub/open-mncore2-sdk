@@ -1,0 +1,15 @@
+# build.ninja — mnc2-inspect-kit examples
+sdk_root = __SDK_ROOT__
+builddir = _build
+
+cc = cc
+cflags = -std=c11 -Wall -Wextra -Wpedantic -O2 -I${sdk_root}/include
+
+rule cc_link
+  command = $cc $cflags -o $out $in
+  description = CC $out
+
+build $builddir/test_inspect: cc_link test_inspect.c ${sdk_root}/src/mnc2-inspect/mnc2_kernel_inspect.c
+build $builddir/test_hw_info: cc_link test_hw_info.c ${sdk_root}/src/mnc2-inspect/mnc2_hw_info.c
+
+default $builddir/test_inspect $builddir/test_hw_info

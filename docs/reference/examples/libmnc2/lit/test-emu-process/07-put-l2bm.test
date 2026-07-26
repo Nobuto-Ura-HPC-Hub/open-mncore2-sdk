@@ -1,0 +1,1 @@
+# RUN: ninja -C %examples/07-put-l2bm test-emu

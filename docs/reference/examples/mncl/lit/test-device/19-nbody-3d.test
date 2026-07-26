@@ -1,0 +1,2 @@
+# RUN: ninja -C %examples/19-nbody-3d build-e2e
+# RUN: ninja -C %examples/19-nbody-3d test-device

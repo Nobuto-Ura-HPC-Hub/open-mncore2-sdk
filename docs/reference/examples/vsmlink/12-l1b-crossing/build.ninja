@@ -1,0 +1,27 @@
+# 12-l1b-crossing: L1B boundary crossing observation test
+#
+# ninja build    → assemble3: .vsm → .idma.dat + .asm + host C
+# ninja test     → emu:lib で実行
+#
+# 前提: SDK activate 済み (assemble3, mnc2.h が利用可能)
+
+include ../../scripts/sdk.ninja
+include ../scripts/vsmlink.ninja
+builddir = _build
+
+# --- build ---
+build $builddir/l1b_crossing.asm: asm3 l1b_crossing.vsm
+build $builddir/l1b_crossing.idma.dat: asm3_loader l1b_crossing.vsm
+  stem = $builddir/l1b_crossing
+
+build $builddir/test_l1b_crossing.o: cc test_l1b_crossing.c
+build $builddir/test_l1b_crossing: link_exe $builddir/test_l1b_crossing.o
+
+build build: phony $builddir/l1b_crossing.asm $builddir/l1b_crossing.idma.dat $builddir/test_l1b_crossing
+
+# --- test ---
+build test: test_usage
+build test-emu-lib: test_emu_lib $builddir/test_l1b_crossing | $builddir/l1b_crossing.idma.dat
+build test-device: test_device $builddir/test_l1b_crossing | $builddir/l1b_crossing.idma.dat
+
+default build

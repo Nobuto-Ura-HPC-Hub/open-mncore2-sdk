@@ -1,0 +1,2 @@
+# 17-boundary-collect: data_edge 00 テスト
+# RUN: ninja -C %root/examples/17-boundary-collect test-edge-00

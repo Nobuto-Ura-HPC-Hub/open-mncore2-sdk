@@ -1,0 +1,46 @@
+# 30-soa2aos: collect の SoA 出力を device 上で AoS に並べ替える
+#
+# distribute size4 (SoA -> 各 PE の struct) + MAB 内 4x4 転置 (dmwrite/dmread) + collect size4
+# で、粒子ごと (AoS) の struct 配列を device 上で作る (粒子順は順列)。カーネルは対合で
+# 2 回適用すると元に戻る。設計は docs/broadcast-collect-layout.md。
+#
+# ninja              vsmlink (.vsm 生成)
+# ninja build-e2e    + assemble3 + host C ビルド
+# ninja test-emu-lib + emu:lib で自己テスト (テストデータで自己完結、CI で使える)
+# ninja test-device  + 実機で自己テスト
+#
+# フィルタ利用 (--pipe): stdin から SoA、stdout に AoS。device pod なら:
+#   cat soa.bin | ./_build/soa2aos --pipe > aos.bin
+# テスト入力生成:  ./_build/soa2aos --gen > soa.bin
+
+include ../../scripts/sdk.ninja
+include ../scripts/vsmlink.ninja
+builddir = _build
+
+build $builddir/aos.vsm: vsmlink aos._vsm aos.param aos.stparam
+  vsm = aos._vsm
+  param = aos.param
+  stparam = aos.stparam
+build $builddir/aos.idma.dat: asm3_loader $builddir/aos.vsm
+  stem = $builddir/aos
+# --use-global-id 版 (m を on-device flat_id で上書き)。param/stparam は共用。
+build $builddir/aos_id.vsm: vsmlink aos_id._vsm aos.param aos.stparam
+  vsm = aos_id._vsm
+  param = aos.param
+  stparam = aos.stparam
+build $builddir/aos_id.idma.dat: asm3_loader $builddir/aos_id.vsm
+  stem = $builddir/aos_id
+build $builddir/soa2aos.o: cc soa2aos.c
+build $builddir/soa2aos: link_exe $builddir/soa2aos.o
+
+build build-e2e: phony $builddir/aos.idma.dat $builddir/aos_id.idma.dat $builddir/soa2aos
+build test: test_usage
+build test-emu-lib: test_emu_lib $builddir/soa2aos | $builddir/aos.idma.dat
+build test-device: test_device $builddir/soa2aos | $builddir/aos.idma.dat
+build test-emu-lib-id: test_emu_lib $builddir/soa2aos | $builddir/aos_id.idma.dat
+  args = --use-global-id
+build test-device-id: test_device $builddir/soa2aos | $builddir/aos_id.idma.dat
+  args = --use-global-id
+
+build clean: clean
+default $builddir/aos.vsm

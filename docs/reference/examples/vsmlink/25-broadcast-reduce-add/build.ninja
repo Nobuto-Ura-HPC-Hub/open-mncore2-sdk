@@ -1,0 +1,65 @@
+# 25-broadcast-reduce-add: @identify + @broadcast + iadd + @reduce :liadd
+# (@broadcast の sub_pe_id 別 4 値分配 demo)
+#
+# ninja              → vsmlink のみ
+# ninja build-e2e    → + assemble3 + C ビルド
+# ninja test-emu-lib → + emu:lib で実行・検証
+# ninja test-device  → + 実機で実行・検証
+
+include ../../scripts/sdk.ninja
+include ../scripts/vsmlink.ninja
+builddir = _build
+
+# --- 独自 rule: test driver が [--view] <in.bin> <out.bin> を取る ---
+rule test_emu_lib_inout
+  command = LD_LIBRARY_PATH=${sdk_root}/lib/emu-lib ./$exe $opts $in_bin $out_bin
+  description = TEST [emu:lib] $exe $opts $in_bin $out_bin
+
+rule test_device_inout
+  command = ./$exe $opts $in_bin $out_bin
+  description = TEST [device] $exe $opts $in_bin $out_bin
+
+# --- vsmlink ---
+build $builddir/broadcast_reduce.vsm: vsmlink broadcast_reduce._vsm | broadcast_reduce.param broadcast_reduce.stparam
+  vsm     = broadcast_reduce._vsm
+  param   = broadcast_reduce.param
+  stparam = broadcast_reduce.stparam
+
+# --- assemble ---
+build $builddir/broadcast_reduce.asm: asm3 $builddir/broadcast_reduce.vsm
+build $builddir/broadcast_reduce.idma.dat: asm3_loader $builddir/broadcast_reduce.vsm
+  stem = $builddir/broadcast_reduce
+
+# --- host C ---
+build $builddir/test_broadcast_reduce.o: cc test_broadcast_reduce.c
+build $builddir/test_broadcast_reduce: link_exe $builddir/test_broadcast_reduce.o
+
+# --- 入力 binary 生成 (l1bmp: 全 PE 同値。 broadcast 領域を単一値 C=100 で埋める) ---
+rule gen_in
+  command = python3 -c "import struct,sys; d=[100]*4096; sys.stdout.buffer.write(struct.pack('<4096Q', *d))" > $out
+  description = GEN $out
+
+build $builddir/in.bin: gen_in
+
+build build-e2e: phony $
+    $builddir/broadcast_reduce.asm $
+    $builddir/broadcast_reduce.idma.dat $
+    $builddir/test_broadcast_reduce $
+    $builddir/in.bin
+
+# --- test targets ---
+build test: test_usage
+
+build test-emu-lib: test_emu_lib_inout $builddir/broadcast_reduce.idma.dat | $builddir/test_broadcast_reduce $builddir/in.bin
+  exe     = $builddir/test_broadcast_reduce
+  opts    = --view
+  in_bin  = $builddir/in.bin
+  out_bin = $builddir/out.bin
+
+build test-device: test_device_inout $builddir/broadcast_reduce.idma.dat | $builddir/test_broadcast_reduce $builddir/in.bin
+  exe     = $builddir/test_broadcast_reduce
+  opts    = --view
+  in_bin  = $builddir/in.bin
+  out_bin = $builddir/out.bin
+
+default $builddir/broadcast_reduce.vsm

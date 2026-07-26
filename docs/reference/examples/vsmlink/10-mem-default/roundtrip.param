@@ -1,0 +1,5 @@
+; :place 省略 — デフォルトで :pdm0 と同じ
+((:version :0.1)
+ (:reserved_wait_tag #x3f)
+ (:slot 8 :addr 0 :send_wait_tag #x10)
+ (:slot 24 :addr 131072 :send_wait_tag #x10 :recv_wait_tag #x1e))

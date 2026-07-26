@@ -1,0 +1,89 @@
+# init.vsm — PE ID 計算 + fp64 データ配布
+#
+# 【手書きの .vsm】このファイルは vsmlink を通さず assemble3 に直接渡す。
+# したがって vsmlink の守備範囲ではない。wait tag は数値で直接書いてあり、
+# .param の :reserved_wait_tag による管理の外にある。.param のタグを
+# デフォルト (#x3f) から変えると衝突しうるが、vsmlink は関知しないので
+# 警告も出ない。変えるときは手で確認すること。
+#
+# 1. wait i10 + mv distribute → LM0[0] にデータ配布
+# 2. flat PE ID (0-4095) を計算 → LM0[4] ($lm8) に保存
+#
+# flat_pe_id = subpeid + (mabid << 2) + (l1bid << 6) + (l2bid << 9)
+
+	nop; wait i10
+	nop/3
+
+# === Distribute: PDM → LM0[0] ===
+	mvp/n512 $p0@0 $lc0@0.0
+	mvp/n512 $p512@0 $lc0@0.1
+	mvp/n512 $p1024@0 $lc0@1.0
+	mvp/n512 $p1536@0 $lc0@1.1
+	mvp/n512 $p2048@0 $lc0@2.0
+	mvp/n512 $p2560@0 $lc0@2.1
+	mvp/n512 $p3072@0 $lc0@3.0
+	mvp/n512i23 $p3584@0 $lc0@3.1
+	nop/2
+	nop; wait i23
+	nop/5
+	l2bmb@0 $lc0 $lb0
+	l2bmb@1 $lc64 $lb0
+	l2bmb@2 $lc128 $lb0
+	l2bmb@3 $lc192 $lb0
+	l2bmb@4 $lc256 $lb0
+	l2bmb@5 $lc320 $lb0
+	l2bmb@6 $lc384 $lb0
+	l2bmb@7 $lc448 $lb0
+	nop/5
+	l1bmd $lb0 $lm0v
+	nop/24
+
+# === PE ID 計算 → LM0[4] ($lm8) ===
+# mabid << 2
+	imm i"2" $r1
+	nop/4
+	lpassa $lr0 $ln0
+	nop/24
+	lpassa $mabid $lr32
+	nop/4
+	ilsl $lr32 $ln0 $lr32
+	nop/4
+# l1bid << 6
+	imm i"6" $r1
+	nop/4
+	lpassa $lr0 $ln0
+	nop/24
+	lpassa $l1bid $lr40
+	nop/4
+	ilsl $lr40 $ln0 $lr40
+	nop/4
+# l2bid << 9
+	imm i"9" $r1
+	nop/4
+	lpassa $lr0 $ln0
+	nop/24
+	lpassa $l2bid $lr48
+	nop/4
+	ilsl $lr48 $ln0 $lr48
+	nop/4
+# subpeid → lr0
+	lpassa $subpeid $lr0
+	nop/4
+# 合成: iadd via LM1
+	lpassa $lr32 $ln0
+	nop/24
+	iadd $ln0 $lr0 $lr0
+	nop/4
+	lpassa $lr40 $ln0
+	nop/24
+	iadd $ln0 $lr0 $lr0
+	nop/4
+	lpassa $lr48 $ln0
+	nop/24
+	iadd $ln0 $lr0 $lr0
+	nop/4
+# LM0[4] = PE ID
+	lpassa $lr0 $lm8
+	nop
+	nop
+	nop/24

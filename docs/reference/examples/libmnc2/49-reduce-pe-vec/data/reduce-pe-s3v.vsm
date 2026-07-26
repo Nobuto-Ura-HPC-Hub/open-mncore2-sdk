@@ -1,0 +1,42 @@
+# reduce-pe-s3v.vsm — Stage 3v: v サフィックス付き全段縮約
+#
+# v なしとの違い:
+#   l1bmp $lb0 $lr0v → PE に 4 値を配布 ($lr0,$lr2,$lr4,$lr6)
+#   l1bmrdfadd $lr0v $lb64 → 4 サイクルで異なるレジスタを読む
+#
+# 入力: PDM[0..63] = [1.0, 2.0, 3.0, 4.0, 1.0, 2.0, ...] (4値繰り返し)
+# l1bmp v: $lr0=1.0, $lr2=2.0, $lr4=3.0, $lr6=4.0
+# l1bmr v:
+#   cycle 0 ($lr0=1.0): L1BM[64..67] = 16×1.0 = 16.0
+#   cycle 1 ($lr2=2.0): L1BM[68..71] = 16×2.0 = 32.0
+#   cycle 2 ($lr4=3.0): L1BM[72..75] = 16×3.0 = 48.0
+#   cycle 3 ($lr6=4.0): L1BM[76..79] = 16×4.0 = 64.0
+# l2bmr: 8 L1B 縮約 → L2BM[64..79] = [128, 256, 384, 512] × 4PE
+# mvrdfadd: 8 bank 縮約 → PDM[0..15] = [1024, 2048, 3072, 4096] × 4PE
+# DMA: send_wait_tag=2, recv_wait_tag=6
+
+	nop; wait i02
+	nop/3
+	# PDM → 全 L2BM broadcast
+	mvb/n64i01 $p0@0 $lc0
+	nop/2
+	nop; wait i01
+	nop/5
+	# L2BM → 全 L1BM broadcast
+	l2bmb $lc0 $lb0
+	nop/24
+	# L1BM → 全 PE broadcast (v: $lr0,$lr2,$lr4,$lr6 に 4 値配布)
+	l1bmp $lb0 $lr0v
+	nop/24
+	# PE → L1BM reduce (v: 4 サイクルで $lr0,$lr2,$lr4,$lr6 を読む)
+	l1bmrdfadd $lr0v $lb64
+	nop/24
+	# L1BM → L2BM reduce
+	l2bmrdfadd $lb64 $lc64
+	nop/24
+	# L2BM → PDM reduce
+	mvrdfadd/n64i06 $lc64 $p0@0
+	nop/2
+	nop; wait i06
+	nop/5
+	# pseudo ret

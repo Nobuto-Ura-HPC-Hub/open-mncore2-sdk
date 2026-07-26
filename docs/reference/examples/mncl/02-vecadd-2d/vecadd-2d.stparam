@@ -1,0 +1,6 @@
+;; vecadd 2D: c[i][j] = a[i][j] + b[i][j] (64x64)
+((:version :0.0)
+ (:ndim 2)
+ (:pe_shape (64 64))
+ (:pe_local (1 1))
+ (:data_layout :any))

@@ -1,0 +1,24 @@
+# build.ninja — 13-get-l2bm
+# put+get ペアは kernel 間の memory 保持が必要なため emu:lib / device でのみ効果があり、
+# emu:process では test 内で SKIP される。
+
+include ../../scripts/sdk.ninja
+include ../../scripts/examples.ninja
+
+# カーネル群
+build $builddir/put_l2bm.asm: asm3_text data/put_l2bm.vsm
+build $builddir/put_l2bm.idma.dat: asm3_loader data/put_l2bm.vsm
+  stem = $builddir/put_l2bm
+build $builddir/get_l2bm.asm: asm3_text data/get_l2bm.vsm
+build $builddir/get_l2bm.idma.dat: asm3_loader data/get_l2bm.vsm
+  stem = $builddir/get_l2bm
+
+# host binary
+build $builddir/ex_get_l2bm.o: cc ex_get_l2bm.c
+build $builddir/ex_get_l2bm: link $builddir/ex_get_l2bm.o | ${sdk_root}/lib/libmnc2.a
+
+build test:         test_usage_no_emu
+build test-emu-lib: test_emu_lib     $builddir/ex_get_l2bm | $builddir/put_l2bm.asm $builddir/put_l2bm.idma.dat $builddir/get_l2bm.asm $builddir/get_l2bm.idma.dat
+build test-device:  test_device      $builddir/ex_get_l2bm | $builddir/put_l2bm.asm $builddir/put_l2bm.idma.dat $builddir/get_l2bm.asm $builddir/get_l2bm.idma.dat
+
+default $builddir/ex_get_l2bm $builddir/put_l2bm.idma.dat $builddir/get_l2bm.idma.dat

@@ -1,0 +1,3 @@
+# LM1 BAR に 4 を書くと $ln0 の読みが物理 4 にシフトする (= LM BAR を SP に使える) ことを
+# 全 4096 PE で検証。 imm で全 PE 同値、 読みは PE 命令 lpassa、 collect は LM0 (BAR=0)。
+# RUN: ninja -C %examples/64-lm-bar-shift test-emu-lib

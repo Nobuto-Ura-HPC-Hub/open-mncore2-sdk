@@ -1,0 +1,1 @@
+# RUN: ninja -C %examples/29-broadcast-collect test-emu-lib

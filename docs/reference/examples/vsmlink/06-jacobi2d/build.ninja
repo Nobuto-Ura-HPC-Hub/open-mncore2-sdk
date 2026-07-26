@@ -1,0 +1,28 @@
+# 06-jacobi2d: 2D 5-point stencil（パース確認）
+#
+# ninja              → vsmlink: _vsm + .param + .stparam → .vsm
+#
+# カーネル未実装のため E2E なし。
+# vecadd カーネルを借りて .stparam のパースが通ることを確認する。
+
+builddir = _build
+
+rule vsmlink
+  command = vsmlink $vsm $param $stparam $out && $
+            echo "" && $
+            echo "  jacobi2d.stparam parsed successfully."
+  description = VSMLINK $out
+
+rule clean
+  command = rm -rf _build
+  description = CLEAN
+
+# --- default: vsmlink only ---
+build $builddir/out.vsm: vsmlink ../02-vecadd/vecadd._vsm ../02-vecadd/vecadd.param jacobi2d.stparam
+  vsm = ../02-vecadd/vecadd._vsm
+  param = ../02-vecadd/vecadd.param
+  stparam = jacobi2d.stparam
+
+build clean: clean
+
+default $builddir/out.vsm

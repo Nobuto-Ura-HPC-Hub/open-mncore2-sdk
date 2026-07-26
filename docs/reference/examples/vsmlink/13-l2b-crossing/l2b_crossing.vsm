@@ -1,0 +1,219 @@
+# === cross L2B 観測テスト（1D ステンシル offset=-1） ===
+#
+# 【手書きの .vsm】このファイルは vsmlink を通さず assemble3 に直接渡す。
+# したがって vsmlink の守備範囲ではない。wait tag は数値で直接書いてあり、
+# .param の :reserved_wait_tag による管理の外にある。.param のタグを
+# デフォルト (#x3f) から変えると衝突しうるが、vsmlink は関知しないので
+# 警告も出ない。変えるときは手で確認すること。
+#
+# cross L2B: 隣接セクションのデータを PDM 経由で取得する
+# 命令シーケンスを検証する。L2BM 間に直接転送命令がないため PDM を経由する。
+# これは @stencil ディレクティブが生成する 7 フェーズのうち、cross L2B 部分に対応する。
+#
+# ── MN-Core 2 のトポロジ（L2B セクション周辺） ──
+#
+#   Section 0: Group 0 L2B 0 (PE    0- 511)
+#   Section 1: Group 0 L2B 1 (PE  512-1023)
+#   Section 2: Group 1 L2B 0 (PE 1024-1535)
+#   Section 3: Group 1 L2B 1 (PE 1536-2047)
+#   Section 4: Group 2 L2B 0 (PE 2048-2559)
+#   Section 5: Group 2 L2B 1 (PE 2560-3071)
+#   Section 6: Group 3 L2B 0 (PE 3072-3583)
+#   Section 7: Group 3 L2B 1 (PE 3584-4095)
+#
+#   各セクションは独自の L2BM を持つ。L2BM 間は直接通信できない。
+#   セクション間のデータ転送は、PDM（PCIe 直結メモリ）を一時バッファとして経由する。
+#
+# ── データパス（3 段階 + 補正） ──
+#
+#   1. collect:      PE → L1BM → L2BM → (mvp) → PDM
+#   2. redistribute: PDM → (mvp) → 隣接セクションの L2BM
+#   3. distribute:   L2BM → (l2bmb@0) → L1B 0 の L1BM → (l1bmd+1) → PE → (msr*3)
+#
+# ── 入出力 ──
+#
+#   入力:  PE[i] = i+1（PDM offset 0, uint64_t, 4096 PE）
+#   出力:  cross L2B 結果（PDM offset 131072*8）
+#
+# ── 期待結果（offset=-1） ──
+#
+#   Section N (1-7) の L1B 0 MAB 0 PE[0-3]:
+#     前セクションの L1B 7 MAB 15 のデータ（msr*3 で補正済み）
+#     例: Section 1 → 512, 509, 510, 511（Section 0 L1B 7 のデータ）
+#
+#   Section 0 の L1B 0 MAB 0 PE[0-3]:
+#     左隣セクションなし → 値 = 0（境界条件）
+#
+# 実行方法: MNC2_BACKEND=emu:lib ./test_l2b_crossing
+
+# ============================================================
+# Phase A: Distribute（PDM → PE）
+# ============================================================
+# ホストが PDM に書き込んだ入力データを全 4096 PE に配布する。
+# 経路: PDM → (mvp) → L2BM → (l2bmb) → L1BM → (l1bmd) → PE の LM0
+	nop; wait i10
+	nop/3
+# mvp: PDM → L2BM（512 長語 × 8 セクション）
+	mvp/n512 $p0@0 $lc0@0.0
+	mvp/n512 $p512@0 $lc0@0.1
+	mvp/n512 $p1024@0 $lc0@1.0
+	mvp/n512 $p1536@0 $lc0@1.1
+	mvp/n512 $p2048@0 $lc0@2.0
+	mvp/n512 $p2560@0 $lc0@2.1
+	mvp/n512 $p3072@0 $lc0@3.0
+	mvp/n512i23 $p3584@0 $lc0@3.1
+	nop/2
+	nop; wait i23
+	nop/5
+# l2bmb: L2BM → L1BM（8 L1B に同時配信）
+	l2bmb@0 $lc0 $lb0
+	l2bmb@1 $lc64 $lb0
+	l2bmb@2 $lc128 $lb0
+	l2bmb@3 $lc192 $lb0
+	l2bmb@4 $lc256 $lb0
+	l2bmb@5 $lc320 $lb0
+	l2bmb@6 $lc384 $lb0
+	l2bmb@7 $lc448 $lb0
+	nop/5
+# l1bmd: L1BM → PE
+	l1bmd $lb0 $lm0v
+	nop/24
+
+# ============================================================
+# Phase B: 入力データを GRF にコピー
+# ============================================================
+	lpassa $lm0 $lr0
+	nop
+	nop
+
+# ============================================================
+# Phase C: cross L2B
+# ============================================================
+# Section N の L1B 0 が、Section N-1 の L1B 7 のデータを取得する。
+# L2BM 間に直接転送命令がないため、PDM を一時バッファとして使う。
+# 7 ステップで構成される。
+
+# C-1: 全 PE のデータを L1BM に集約（gather）
+	l1bmd $lr0v $lb128
+	nop/10
+
+# C-2: 全 L1B → L2BM（L2BM にデータを転送）
+# l2bm@N: L1B N の L1BM → L2BM のスロット N
+# lc アドレス: 512 + N*64
+	l2bm@0 $lb128 $lc512
+	l2bm@1 $lb128 $lc576
+	l2bm@2 $lb128 $lc640
+	l2bm@3 $lb128 $lc704
+	l2bm@4 $lb128 $lc768
+	l2bm@5 $lb128 $lc832
+	l2bm@6 $lb128 $lc896
+	l2bm@7 $lb128 $lc960
+	nop/3
+
+# C-3: L2BM → PDM（collect: 各セクションのデータを PDM に退避）
+# 各 mvp は 512 長語を転送。8 セクション分を PDM の一時領域（$p8192〜）に書き出す。
+# グループごとにペアで発行し、wait タグ（i28〜i2b）で DMA 完了を同期する。
+# PDM 上の配置:
+#   $p8192:  Section 0 のデータ (512 LW)
+#   $p8704:  Section 1 のデータ
+#   $p9216:  Section 2 のデータ
+#   ...
+#   $p11776: Section 7 のデータ（ただし最後の mvp は 7 セクション分）
+	mvp/n512 $lc512@0.0 $p8192@0
+	mvp/n512i28 $lc512@0.1 $p8704@0
+	nop/3
+	nop; wait i28
+	mvp/n512 $lc512@1.0 $p9216@0
+	mvp/n512i29 $lc512@1.1 $p9728@0
+	nop/3
+	nop; wait i29
+	mvp/n512 $lc512@2.0 $p10240@0
+	mvp/n512i2a $lc512@2.1 $p10752@0
+	nop/3
+	nop; wait i2a
+	mvp/n512 $lc512@3.0 $p11264@0
+	mvp/n512i2b $lc512@3.1 $p11776@0
+	nop/3
+	nop; wait i2b
+	nop/5
+
+# C-4: PDM → 隣接セクションの L2BM（redistribute: シフトして書き戻す）
+# offset=-1 なので、Section N のデータを Section N+1 の L2BM に送る。
+# 具体的には:
+#   $p8192（Sec 0）→ lc1024@0.1（Sec 1 の L2BM）
+#   $p8704（Sec 1）→ lc1024@1.0（Sec 2 の L2BM）
+#   ...
+#   $p11264（Sec 6）→ lc1024@3.1（Sec 7 の L2BM）
+# Section 0 自身は左隣がないので受信データなし（境界条件 = 0）。
+# Section 7 のデータ（$p11776）は右隣がないので転送しない。
+	mvp/n512 $p8192@0 $lc1024@0.1
+	mvp/n512 $p8704@0 $lc1024@1.0
+	mvp/n512 $p9216@0 $lc1024@1.1
+	mvp/n512 $p9728@0 $lc1024@2.0
+	mvp/n512 $p10240@0 $lc1024@2.1
+	mvp/n512 $p10752@0 $lc1024@3.0
+	mvp/n512i2c $p11264@0 $lc1024@3.1
+	nop/2
+	nop; wait i2c
+	nop/5
+
+# C-5: L2BM → L1B 0 の L1BM
+# redistribute で受け取ったデータは L2BM に入っている。
+# このうち L1B 7 のデータ（lc1024 + 7*64 = lc1472）を L1B 0 の L1BM に書き込む。
+# l2bmb@0 は L1B 0 に対する broadcast。
+# → L1B 0 が前セクションの L1B 7 のデータを持つようになる。
+	l2bmb@0 $lc1472 $lb128
+	nop/6
+
+# C-6: L1BM → PE（l1bmd+1）
+# MAB 0 は MAB 15 のスロットを読む = 前セクションの L1B 7 MAB 15 のデータ。
+	l1bmd+1 $lb128 $lr8v
+	nop/24
+
+# C-7: msr*3（PE 内回転で PE 0 に配置）
+# l1bmd+1 の結果は PE 3 に左端データが来るので、3 回右シフト。
+	msr $lr8 $lr8
+	nop
+	nop
+	msr $lr8 $lr8
+	nop
+	nop
+	msr $lr8 $lr8
+	nop
+	nop
+
+# ============================================================
+# Phase D: 結果回収（PE → PDM）
+# ============================================================
+# lr8 の結果を LN 経由で PDM に書き戻す。ホストが recv で読み出す。
+	lpassa $lr8 $ln4088
+	nop/24
+	l1bmd $ln4088v $lb256
+	nop/24
+	l2bm@0 $lb256 $lc1536
+	l2bm@1 $lb256 $lc1600
+	l2bm@2 $lb256 $lc1664
+	l2bm@3 $lb256 $lc1728
+	l2bm@4 $lb256 $lc1792
+	l2bm@5 $lb256 $lc1856
+	l2bm@6 $lb256 $lc1920
+	l2bm@7 $lb256 $lc1984
+	nop/5
+# mvp: L2BM → PDM（出力先: $p131072〜）
+	mvp/n512 $lc1536@0.0 $p131072@0
+	mvp/n512i19 $lc1536@0.1 $p131584@0
+	nop/3
+	nop; wait i19
+	mvp/n512 $lc1536@1.0 $p132096@0
+	mvp/n512i1a $lc1536@1.1 $p132608@0
+	nop/3
+	nop; wait i1a
+	mvp/n512 $lc1536@2.0 $p133120@0
+	mvp/n512i1c $lc1536@2.1 $p133632@0
+	nop/3
+	nop; wait i1c
+	mvp/n512 $lc1536@3.0 $p134144@0
+	mvp/n512i1e $lc1536@3.1 $p134656@0
+	nop/3
+	nop; wait i1e
+	nop/4

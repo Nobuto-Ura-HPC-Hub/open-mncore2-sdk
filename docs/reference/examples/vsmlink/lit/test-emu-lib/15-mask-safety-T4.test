@@ -1,0 +1,1 @@
+# RUN: ninja -C %root/examples/15-mask-safety-T4 test-emu-lib

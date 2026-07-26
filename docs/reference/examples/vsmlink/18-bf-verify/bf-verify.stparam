@@ -1,0 +1,6 @@
+;; @boundary_flags 検証用 stencil
+((:version :0.0)
+ (:ndim 1)
+ (:pe_shape (4096))
+ (:pe_local (1))
+ (:boundary (:clamp)))

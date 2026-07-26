@@ -1,0 +1,21 @@
+# ABI PFN3_SBY64
+#
+# @broadcast (全 PE 同値, l1bmp) + @reduce の検証
+#
+# 各 PE で:
+#   id = PE ID (0..4095)     @identify で配布
+#   C  = 全 PE 同値の定数     @broadcast (l1bmp) で放送
+#   PE 内で id + C を計算する。
+# 全 PE 合計を @reduce :liadd で取ると、 sub_pe_id 別の 4 部分和になる
+# (reduce が MAB 内 4 PE 単位を保つため出力は 4 u64)。
+#
+# 用途: @broadcast が全 PE に同値を放送することを reduce で検証する。
+#
+	@identify  0 $lr8 4096                       # $lr8  ← PE ID
+	@broadcast _C from_param 16 size 1 $lr16     # $lr16 に C (全 PE 同値、 l1bmp で放送)
+	# id + C_p → $lr32 (iadd の src1 は $ln 系経由が必要)
+	lpassa $lr16 $ln0
+	nop/24
+	iadd $ln0 $lr8 $lr32
+	nop/4
+	@reduce _sum to_param 24 $lr32 liadd          # sub_pe_id 別の 4 部分和 → PDM

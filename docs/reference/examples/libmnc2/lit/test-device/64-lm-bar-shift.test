@@ -1,0 +1,3 @@
+# device でも LM1 BAR シフト (BAR=4 で $ln0 が物理 4) を検証。
+# REQUIRES: device, assemble3
+# RUN: ninja -C %examples/64-lm-bar-shift test-device

@@ -1,0 +1,23 @@
+# mv-p5b.vsm — Pattern 5B: L2BM → PDM グループ間縮約 (3.5.8.19, mvrdfadd)
+#
+# 動作:
+#   Setup:    PDM@G0[0..63] を全グループ L2BM に放送 (mvb, #3)
+#             → 全グループ L2BM[0..63] = 同一データ (1..64)
+#   Test:     全グループ L2BM → PDM@G0 加算縮約 (mvrdfadd, 3.5.8.19) ← 検証対象
+#             → PDM@G0[i] = 4 * (i+1) (4グループ分の和)
+# 結果: PDM@G0[0..63] = 4x 入力 (4..256)
+# DMA: send_wait_tag=2, recv_wait_tag=6
+
+	nop; wait i02
+	nop/3
+	# Setup: PDM@G0[0..63] → 全グループ L2BM[0..63] (mvb broadcast, #3)
+	mvb/n64i01 $p0@0 $lc0
+	nop/2
+	nop; wait i01
+	nop/5
+	# Test: 全グループ L2BM → PDM@G0 加算縮約 (mvrdfadd, 3.5.8.19)
+	mvrdfadd/n64i06 $lc0 $p0@0
+	nop/2
+	nop; wait i06
+	nop/5
+	# pseudo ret

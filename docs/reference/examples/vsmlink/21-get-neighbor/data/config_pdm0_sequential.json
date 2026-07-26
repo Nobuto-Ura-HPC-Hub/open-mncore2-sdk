@@ -1,0 +1,4 @@
+{
+  "load": [{"region": "pdm0", "offset": 0, "length": 16384}],
+  "save": [{"region": "pdm0", "offset": 0, "length": 16384}]
+}

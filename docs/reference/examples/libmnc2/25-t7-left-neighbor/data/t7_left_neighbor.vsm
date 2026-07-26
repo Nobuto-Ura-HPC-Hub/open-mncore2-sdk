@@ -1,0 +1,103 @@
+# T7: 左隣統合 (msr + l1bmd+1 + maskr)
+# @stencil が展開する左隣パターンそのもの。
+# 全 PE の output[i] == input[i-1] を確認 (内部 PE 1..4094)。
+#
+# distribute → msr (PE間) + l1bmd+1 (MAB間) + maskr (境界修正) → collect
+# Input: PDM offset 0, Output: PDM offset 131072*8
+# send_wait_tag=0x10, recv_wait_tag=0x1e
+
+# --- distribute: PDM → L2BM → L1BM → LM0 ---
+	nop; wait i10
+	nop/3
+	mvp/n512 $p0@0 $lc0@0.0
+	mvp/n512 $p512@0 $lc0@0.1
+	mvp/n512 $p1024@0 $lc0@1.0
+	mvp/n512 $p1536@0 $lc0@1.1
+	mvp/n512 $p2048@0 $lc0@2.0
+	mvp/n512 $p2560@0 $lc0@2.1
+	mvp/n512 $p3072@0 $lc0@3.0
+	mvp/n512i23 $p3584@0 $lc0@3.1
+	nop/2
+	nop; wait i23
+	nop/5
+	l2bmb@0 $lc0 $lb0
+	l2bmb@1 $lc64 $lb0
+	l2bmb@2 $lc128 $lb0
+	l2bmb@3 $lc192 $lb0
+	l2bmb@4 $lc256 $lb0
+	l2bmb@5 $lc320 $lb0
+	l2bmb@6 $lc384 $lb0
+	l2bmb@7 $lc448 $lb0
+	nop/5
+	# 占有 L1BM [0, 256)。有効データは直前の l2bmb が埋めた
+	# cycle 0 の [0, 64) のみ。/1000 で cycle 1..3 の PE 側書き込みを
+	# 止める (L1BM 側の 256 u64 読み出しはマスクでは減らない)。
+	l1bmd $lb0 $lm0v/1000
+	nop/24
+	nop/24
+# --- compute: 左隣取得 ---
+# Step 1: msr (PE 間シフト、MAB 内 wrap)
+	lpassa $lm0 $lr0
+	msr $lm0 $lr2
+	nop
+	nop
+# Step 2: l1bmd+1 (隣 MAB からのデータ取得)
+	# 占有 L1BM [256, 512)。結合方向にはマスクが効かないため、
+	# 4 cycle 分 256 u64 すべてが上書きされる。
+	# 回収するのは cycle 0 の [256, 320) のみ。
+	l1bmd $lr0v $lb256
+	nop
+	nop
+	# 隣 MAB の L1BM [256, 512) を 4 cycle で読む。使うのは cycle 0 の $lr4。
+	# マスク無しだと cycle 2 が $lr8 を書き、直後の Step 3 でゼロレジスタとして
+	# 使う $lr8 (imm で 0 を入れ lxor で読む) と衝突する。/1000 で cycle 1..3 を抑止する。
+	l1bmd+1 $lb256 $lr4v/1000
+	nop/24
+# Step 3: maskr (PE[0] は msr の wrap 値を l1bmd+1 の値で上書き)
+	imm i"0" $r8
+	imm i"0" $r9
+	nop
+	nop
+	lxor $subpeid $lr8 $omr13
+	lpassa $lr2 $lr16
+	  maskr 13
+	lpassa $lr4 $lr16
+	  mask 0
+	nop
+	nop
+	lpassa $lr16 $lm0
+	nop/24
+# --- collect: LM0 → L1BM → L2BM → PDM ---
+	# 占有 L1BM [256, 512)。結合方向にはマスクが効かないため、
+	# 4 cycle 分 256 u64 すべてが上書きされる。
+	# 回収するのは cycle 0 の [256, 320) のみ。
+	l1bmd $lm0v $lb256
+	nop/24
+	nop/24
+	l2bm@0 $lb256 $lc1024
+	l2bm@1 $lb256 $lc1088
+	l2bm@2 $lb256 $lc1152
+	l2bm@3 $lb256 $lc1216
+	l2bm@4 $lb256 $lc1280
+	l2bm@5 $lb256 $lc1344
+	l2bm@6 $lb256 $lc1408
+	l2bm@7 $lb256 $lc1472
+	nop/5
+	mvp/n512 $lc1024@0.0 $p131072@0
+	mvp/n512i19 $lc1024@0.1 $p131584@0
+	nop/3
+	nop; wait i19
+	mvp/n512 $lc1024@1.0 $p132096@0
+	mvp/n512i1a $lc1024@1.1 $p132608@0
+	nop/3
+	nop; wait i1a
+	mvp/n512 $lc1024@2.0 $p133120@0
+	mvp/n512i1c $lc1024@2.1 $p133632@0
+	nop/3
+	nop; wait i1c
+	mvp/n512 $lc1024@3.0 $p134144@0
+	mvp/n512i1e $lc1024@3.1 $p134656@0
+	nop/3
+	nop; wait i1e
+	nop/4
+	# pseudo ret

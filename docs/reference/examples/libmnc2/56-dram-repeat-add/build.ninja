@@ -1,0 +1,39 @@
+# build.ninja — 56-dram-repeat-add (emu:lib / device 専用、emu:process 非対応)
+#
+# emu:process は mnc2_exec_kernel のたびに gpfn3_package_main を spawn するため
+# DRAM / PDM 状態を kernel 実行間で保持できない。このテストは state 継承が
+# 必須なので emu:lib か device でのみ動作する。C 側では emu:process を検出
+# して SKIP (exit 0) で返す。
+include ../../scripts/sdk.ninja
+include ../../scripts/examples.ninja
+
+# 3 つ (+ option 2 つ) の kernel をそれぞれ asm3_loader でビルド
+build $builddir/distribute.asm: asm3_text data/distribute.vsm
+build $builddir/distribute.idma.dat: asm3_loader data/distribute.vsm
+  stem = $builddir/distribute
+
+build $builddir/add1.asm: asm3_text data/add1.vsm
+build $builddir/add1.idma.dat: asm3_loader data/add1.vsm
+  stem = $builddir/add1
+
+build $builddir/collect-dram.asm: asm3_text data/collect-dram.vsm
+build $builddir/collect-dram.idma.dat: asm3_loader data/collect-dram.vsm
+  stem = $builddir/collect-dram
+
+build $builddir/collect-dram-pdm0.asm: asm3_text data/collect-dram-pdm0.vsm
+build $builddir/collect-dram-pdm0.idma.dat: asm3_loader data/collect-dram-pdm0.vsm
+  stem = $builddir/collect-dram-pdm0
+
+build $builddir/collect-pdm0.asm: asm3_text data/collect-pdm0.vsm
+build $builddir/collect-pdm0.idma.dat: asm3_loader data/collect-pdm0.vsm
+  stem = $builddir/collect-pdm0
+
+# test driver
+build $builddir/ex_dram_repeat_add.o: cc ex_dram_repeat_add.c
+build $builddir/ex_dram_repeat_add: link $builddir/ex_dram_repeat_add.o | ${sdk_root}/lib/libmnc2.a
+
+build test:         test_usage_no_emu
+build test-emu-lib: test_emu_lib     $builddir/ex_dram_repeat_add | $builddir/distribute.asm $builddir/distribute.idma.dat $builddir/add1.asm $builddir/add1.idma.dat $builddir/collect-dram.asm $builddir/collect-dram.idma.dat $builddir/collect-dram-pdm0.asm $builddir/collect-dram-pdm0.idma.dat $builddir/collect-pdm0.asm $builddir/collect-pdm0.idma.dat
+build test-device:  test_device      $builddir/ex_dram_repeat_add | $builddir/distribute.asm $builddir/distribute.idma.dat $builddir/add1.asm $builddir/add1.idma.dat $builddir/collect-dram.asm $builddir/collect-dram.idma.dat $builddir/collect-dram-pdm0.asm $builddir/collect-dram-pdm0.idma.dat $builddir/collect-pdm0.asm $builddir/collect-pdm0.idma.dat
+
+default $builddir/ex_dram_repeat_add $builddir/distribute.idma.dat $builddir/add1.idma.dat $builddir/collect-dram.idma.dat $builddir/collect-dram-pdm0.idma.dat $builddir/collect-pdm0.idma.dat

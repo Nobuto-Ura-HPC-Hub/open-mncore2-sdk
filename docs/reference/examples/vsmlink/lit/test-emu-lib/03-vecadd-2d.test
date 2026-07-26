@@ -1,0 +1,1 @@
+# RUN: ninja -C %root/examples/03-vecadd-2d test-emu-lib

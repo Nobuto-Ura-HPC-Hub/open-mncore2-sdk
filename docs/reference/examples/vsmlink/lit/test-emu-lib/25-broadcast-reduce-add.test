@@ -1,0 +1,1 @@
+# RUN: ninja -C %examples/25-broadcast-reduce-add test-emu-lib

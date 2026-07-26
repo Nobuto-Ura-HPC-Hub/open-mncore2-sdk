@@ -1,0 +1,7 @@
+((:version :0.1)
+ (:reserved_wait_tag #x3f)
+ (:slot 8  :place :pdm0 :addr 4096   :send_wait_tag #x10)
+ (:slot 16 :place :pdm0 :addr 131072 :send_wait_tag #x10 :recv_wait_tag #x1a)
+ (:slot 24 :place :pdm0 :addr 135168 :send_wait_tag #x10 :recv_wait_tag #x1b)
+ (:slot 32 :place :pdm0 :addr 139264 :send_wait_tag #x10 :recv_wait_tag #x1c)
+ (:slot 40 :place :pdm0 :addr 143360 :send_wait_tag #x10 :recv_wait_tag #x1d))

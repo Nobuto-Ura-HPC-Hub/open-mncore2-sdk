@@ -1,0 +1,15 @@
+# roundtrip2: size 2 の @distribute と @collect が対で往復すること
+#
+# 計算はしない。入力 = 出力 になることが検証条件である。
+#
+# 検証したいのは PDM 上の並びが両者で一致していることである。
+#   PDM 入力  [成分 0 を 4096 PE 分][成分 1] ... 計 2 成分
+#   PE        成分 k が $lm0 から 2 刻みの $lm0 / $lm2 / $lm4 / $lm6 に着地する
+#   PDM 出力  入力と同じ並びで戻る
+#
+# 並びが非対称なら、この往復は成分の入れ替わりとして失敗する。
+
+	@distribute _arg_a from_param 8 size 2 $lm0
+	nop/24
+	@collect _arg_b to_param 24 size 2 $lm0
+	# pseudo ret

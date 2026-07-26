@@ -1,0 +1,39 @@
+# 01-vecadd: c[i] = a[i] + b[i] (4096 PE, dvadd FP64 加算)
+#
+# ninja              -> .cl -> ._vsm -> .vsm
+# ninja build-e2e    -> + vsmlink + assemble3 + host C
+# ninja test         -> usage 表示
+# ninja test-emu-lib -> emu:lib backend で実行・検証
+# ninja test-device  -> 実機 backend で実行・検証
+
+include ../scripts/mncl.ninja
+include ../../scripts/sdk.ninja
+builddir = _build
+
+# --- kernel ---
+build $builddir/vecadd._vsm: emit-vsm vecadd.cl
+
+build $builddir/vecadd.vsm: vsmlink $builddir/vecadd._vsm vecadd.param vecadd.stparam
+  vsm = $builddir/vecadd._vsm
+  param = vecadd.param
+  stparam = vecadd.stparam
+
+build $builddir/vecadd.asm: asm3 $builddir/vecadd.vsm
+build $builddir/vecadd.idma.dat: asm3_loader $builddir/vecadd.vsm
+  stem = $builddir/vecadd
+
+# --- host driver ---
+build $builddir/test_vecadd.o: cc test_vecadd.c
+build $builddir/test_vecadd: link $builddir/test_vecadd.o
+
+# --- ビルド段階 phony ---
+build build-e2e: phony $builddir/vecadd.asm $builddir/vecadd.idma.dat $builddir/test_vecadd
+
+# --- test 3 種 ---
+build test-emu-lib: test_emu_lib $builddir/test_vecadd | $builddir/vecadd.asm $builddir/vecadd.idma.dat
+build test-device:  test_device  $builddir/test_vecadd | $builddir/vecadd.asm $builddir/vecadd.idma.dat
+build test:         test_usage
+
+build clean: clean
+
+default $builddir/vecadd.asm $builddir/vecadd.idma.dat

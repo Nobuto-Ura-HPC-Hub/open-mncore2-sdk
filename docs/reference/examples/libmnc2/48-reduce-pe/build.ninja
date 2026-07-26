@@ -1,0 +1,20 @@
+# build.ninja — 48-reduce-pe
+include ../../scripts/sdk.ninja
+include ../../scripts/examples.ninja
+
+# カーネル
+build $builddir/reduce-pe-s3.asm: asm3_text data/reduce-pe-s3.vsm
+build $builddir/reduce-pe-s3.idma.dat: asm3_loader data/reduce-pe-s3.vsm
+  stem = $builddir/reduce-pe-s3
+
+# test driver
+build $builddir/ex_reduce_pe.o: cc ex_reduce_pe.c
+build $builddir/ex_reduce_pe: link $builddir/ex_reduce_pe.o | ${sdk_root}/lib/libmnc2.a
+
+# test targets
+build test-emu:     test_emu_process $builddir/ex_reduce_pe | $builddir/reduce-pe-s3.asm $builddir/reduce-pe-s3.idma.dat
+build test-emu-lib: test_emu_lib     $builddir/ex_reduce_pe | $builddir/reduce-pe-s3.asm $builddir/reduce-pe-s3.idma.dat
+build test-device:  test_device      $builddir/ex_reduce_pe | $builddir/reduce-pe-s3.asm $builddir/reduce-pe-s3.idma.dat
+build test:         test_usage
+
+default $builddir/ex_reduce_pe $builddir/reduce-pe-s3.asm $builddir/reduce-pe-s3.idma.dat

@@ -1,0 +1,99 @@
+# add1.vsm — 59 Kernel B: PDM@0 ↔ L2BM ↔ PE round trip (mvp 単独個別 8 発)
+#
+# 外部メモリ = PDM@0 のみ (4 group に分散しない)。
+# 56/57/58 と並ぶベンチ系列の 1 つ:
+#   59 = mvp 単独個別 PDM-L2BM × 8 + L2BM round trip + mvp 単独個別 L2BM-PDM × 8
+#
+# 58 (mvd 1 + 1 = 2 命令) との比較対象。同じ「PDM@0 直結」だが、命令数が
+# 16 vs 2 と大きく違うので、レイテンシの差が直接測れる。
+
+# ===== Phase 1: PDM@0 → 8 L2BMs (8 mvp 単独個別、各 (PDM offset, L2BM bank)) =====
+# タグは i10 から順 (i10..i17)。1 命令ごとに即 wait で capture B の階段が取れる。
+	mvp/n512i10 $p0@0    $lc0@0.0
+	nop; wait i10
+	mvp/n512i11 $p512@0  $lc0@0.1
+	nop; wait i11
+	mvp/n512i12 $p1024@0 $lc0@1.0
+	nop; wait i12
+	mvp/n512i13 $p1536@0 $lc0@1.1
+	nop; wait i13
+	mvp/n512i14 $p2048@0 $lc0@2.0
+	nop; wait i14
+	mvp/n512i15 $p2560@0 $lc0@2.1
+	nop; wait i15
+	mvp/n512i16 $p3072@0 $lc0@3.0
+	nop; wait i16
+	mvp/n512i17 $p3584@0 $lc0@3.1
+	nop; wait i17
+	nop/5
+
+# ===== Phase 2: L2BM → L1BM (8x l2bmb) =====
+	l2bmb@0 $lc0 $lb0
+	l2bmb@1 $lc64 $lb0
+	l2bmb@2 $lc128 $lb0
+	l2bmb@3 $lc192 $lb0
+	l2bmb@4 $lc256 $lb0
+	l2bmb@5 $lc320 $lb0
+	l2bmb@6 $lc384 $lb0
+	l2bmb@7 $lc448 $lb0
+	nop/5
+
+# ===== Phase 3: L1BM → LM =====
+	# 占有 L1BM [0, 256)。有効データは直前の l2bmb が埋めた
+	# cycle 0 の [0, 64) のみ。/1000 で cycle 1..3 の PE 側書き込みを
+	# 止める (L1BM 側の 256 u64 読み出しはマスクでは減らない)。
+	l1bmd $lb0 $lm0v/1000
+	nop/24
+
+# ===== Phase 4: PE compute (data + 1, 64-bit ladd) =====
+	lpassa $lm0 $lr2
+	imm i"1" $r1
+	imm i"0" $r0
+	nop/4
+	lpassa $lr0 $lm0
+	nop
+	nop
+	ladd $lr2 $lm0 $lr0
+	nop
+	nop
+
+# ===== Phase 5: LM → L1BM =====
+	lpassa $lr0 $lm0v
+	nop/4
+	# 占有 L1BM [256, 512)。結合方向にはマスクが効かないため、
+	# 4 cycle 分 256 u64 すべてが上書きされる。
+	# 回収するのは cycle 0 の [256, 320) のみ。
+	l1bmd $lm0v $lb256
+	nop/24
+
+# ===== Phase 6: L1BM → L2BM (8x l2bm) =====
+	l2bm@0 $lb256 $lc0
+	l2bm@1 $lb256 $lc64
+	l2bm@2 $lb256 $lc128
+	l2bm@3 $lb256 $lc192
+	l2bm@4 $lb256 $lc256
+	l2bm@5 $lb256 $lc320
+	l2bm@6 $lb256 $lc384
+	l2bm@7 $lb256 $lc448
+	nop/5
+
+# ===== Phase 7: 8 L2BMs → PDM@0 (8 mvp 単独個別 reverse) =====
+# タグは i18 から順 (i18..i1f)。1 命令ごとに即 wait。
+	mvp/n512i18 $lc0@0.0 $p0@0
+	nop; wait i18
+	mvp/n512i19 $lc0@0.1 $p512@0
+	nop; wait i19
+	mvp/n512i1a $lc0@1.0 $p1024@0
+	nop; wait i1a
+	mvp/n512i1b $lc0@1.1 $p1536@0
+	nop; wait i1b
+	mvp/n512i1c $lc0@2.0 $p2048@0
+	nop; wait i1c
+	mvp/n512i1d $lc0@2.1 $p2560@0
+	nop; wait i1d
+	mvp/n512i1e $lc0@3.0 $p3072@0
+	nop; wait i1e
+	mvp/n512i1f $lc0@3.1 $p3584@0
+	nop; wait i1f
+	nop/5
+	# pseudo ret

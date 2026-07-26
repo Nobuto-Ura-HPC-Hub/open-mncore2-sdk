@@ -1,0 +1,7 @@
+;; get_neighbor left test
+((:version :0.0)
+ (:ndim 1)
+ (:pe_shape (4096))
+ (:pe_local (1))
+ (:data_size (4096))
+ (:data_offset (0)))

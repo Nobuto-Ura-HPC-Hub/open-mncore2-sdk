@@ -1,0 +1,114 @@
+# 28-nbody-3d: distribute / broadcast / collect を使った 3D N 体
+#
+# accumulate は全 N を 1 カーネルに unroll すると device の連続 DMA 確保 (2 の冪乗切り上げ)
+# に失敗して mnc2_load_kernel が NULL を返す。そこで chunk 粒子ずつの分割カーネル
+# にし、host が分割を順に exec する (IDMA queue depth 31 を n_dma で見ながら積む)。分割カーネル
+# の edge は生成 ninja (accumulate-chunks.ninja、gen_chunks_ninja.py が生成) で管理する。
+#
+# ninja              vsmlink (.vsm 生成)
+# ninja build-e2e    + assemble3 + host C ビルド
+# ninja test-emu-lib + emu:lib で実行・検証 (CI は N=32)
+# ninja test-device  + 実機で実行 (N=32)
+# ninja test-device-n{128,1024,4096}  大きい N を実機で (手動。lit には入れない)
+
+include ../../scripts/sdk.ninja
+include ../scripts/vsmlink.ninja
+builddir = _build
+
+# rsqrt のニュートン補正の反復数。0 で補正なし。
+newton = 3
+# 時間積分のステップ数。emu の CI は数ステップ (値照合)。
+nstep = 3
+# 分割単位 (粒子数)。gen_chunks_ninja.py の CHUNK と一致させること。
+# 128 は 1 分割の .idma.dat 約 1.44 MB (-> 2 MB 連続確保) で device に load 実績あり。
+chunk = 128
+
+rule gen_acc
+  command = python3 gen_accumulate.py $start $count $newton $first $out_vsm $out_param
+  description = GEN accumulate 分割 (start=$start count=$count newton=$newton first=$first)
+
+# CI 用の入力 (束縛系) を struct 形バイナリで生成。
+rule gen_ic
+  command = python3 gen_ic.py $unroll $out
+  description = GEN ic (N=$unroll)
+
+# accumulate 分割カーネルの edge (生成物)。N ごとに phony accum-n{N} を提供する。
+include accumulate-chunks.ninja
+
+# --- 入力 IC (N 別) ---
+build $builddir/ic_n32.bin: gen_ic gen_ic.py
+  unroll = 32
+build $builddir/ic_n128.bin: gen_ic gen_ic.py
+  unroll = 128
+build $builddir/ic_n1024.bin: gen_ic gen_ic.py
+  unroll = 1024
+build $builddir/ic_n4096.bin: gen_ic gen_ic.py
+  unroll = 4096
+
+# --- 共有カーネル (N 非依存: init / kick / drift / collect) ---
+build $builddir/init.vsm: vsmlink init._vsm init.param nbody3d.stparam
+  vsm = init._vsm
+  param = init.param
+  stparam = nbody3d.stparam
+build $builddir/init.idma.dat: asm3_loader $builddir/init.vsm
+  stem = $builddir/init
+build $builddir/kick.vsm: vsmlink kick._vsm kick.param nbody3d.stparam
+  vsm = kick._vsm
+  param = kick.param
+  stparam = nbody3d.stparam
+build $builddir/kick.idma.dat: asm3_loader $builddir/kick.vsm
+  stem = $builddir/kick
+build $builddir/drift.vsm: vsmlink drift._vsm drift.param nbody3d.stparam
+  vsm = drift._vsm
+  param = drift.param
+  stparam = nbody3d.stparam
+build $builddir/drift.idma.dat: asm3_loader $builddir/drift.vsm
+  stem = $builddir/drift
+build $builddir/collect_pos.vsm: vsmlink collect_pos._vsm collect_pos.param nbody3d.stparam
+  vsm = collect_pos._vsm
+  param = collect_pos.param
+  stparam = nbody3d.stparam
+build $builddir/collect_pos.idma.dat: asm3_loader $builddir/collect_pos.vsm
+  stem = $builddir/collect_pos
+build $builddir/collect_vel.vsm: vsmlink collect_vel._vsm collect_vel.param nbody3d.stparam
+  vsm = collect_vel._vsm
+  param = collect_vel.param
+  stparam = nbody3d.stparam
+build $builddir/collect_vel.idma.dat: asm3_loader $builddir/collect_vel.vsm
+  stem = $builddir/collect_vel
+
+# 共有 5 カーネルを 1 つの phony に束ねる (test 依存に使う)
+build shared-kernels: phony $builddir/init.idma.dat $builddir/kick.idma.dat $builddir/drift.idma.dat $builddir/collect_pos.idma.dat $builddir/collect_vel.idma.dat
+
+# --- host C (N 別) ---
+# 各 N: -DUNROLL=N -DCHUNK -DACC_FMT (分割ファイル名の printf 書式) を渡す。
+# host は NCHUNK=ceil(N/CHUNK) 個の分割を順にロード・exec する。
+build $builddir/test_nbody3d_n32.o: cc test_nbody3d.c
+  cflags = -DUNROLL=32 -DCHUNK=$chunk -DNEWTON=$newton -DNSTEP=$nstep -DACC_FMT=\"_build/accumulate_n32_g%d.idma.dat\" -DIC_DEFAULT=\"_build/ic_n32.bin\" -DRESULT_DIR=\"_result_n32\"
+build $builddir/test_nbody3d_n32: link_exe $builddir/test_nbody3d_n32.o
+build $builddir/test_nbody3d_n128.o: cc test_nbody3d.c
+  cflags = -DUNROLL=128 -DCHUNK=$chunk -DNEWTON=$newton -DNSTEP=$nstep -DACC_FMT=\"_build/accumulate_n128_g%d.idma.dat\" -DIC_DEFAULT=\"_build/ic_n128.bin\" -DRESULT_DIR=\"_result_n128\"
+build $builddir/test_nbody3d_n128: link_exe $builddir/test_nbody3d_n128.o
+build $builddir/test_nbody3d_n1024.o: cc test_nbody3d.c
+  cflags = -DUNROLL=1024 -DCHUNK=$chunk -DNEWTON=$newton -DNSTEP=$nstep -DACC_FMT=\"_build/accumulate_n1024_g%d.idma.dat\" -DIC_DEFAULT=\"_build/ic_n1024.bin\" -DRESULT_DIR=\"_result_n1024\"
+build $builddir/test_nbody3d_n1024: link_exe $builddir/test_nbody3d_n1024.o
+build $builddir/test_nbody3d_n4096.o: cc test_nbody3d.c
+  cflags = -DUNROLL=4096 -DCHUNK=$chunk -DNEWTON=$newton -DNSTEP=$nstep -DACC_FMT=\"_build/accumulate_n4096_g%d.idma.dat\" -DIC_DEFAULT=\"_build/ic_n4096.bin\" -DRESULT_DIR=\"_result_n4096\"
+build $builddir/test_nbody3d_n4096: link_exe $builddir/test_nbody3d_n4096.o
+
+# --- ビルド段階 phony (CI = N=32) ---
+build build-e2e: phony shared-kernels accum-n32 $builddir/test_nbody3d_n32 $builddir/ic_n32.bin
+
+# --- test targets ---
+build test: test_usage
+build test-emu-lib: test_emu_lib $builddir/test_nbody3d_n32 | shared-kernels accum-n32 $builddir/ic_n32.bin
+build test-device: test_device $builddir/test_nbody3d_n32 | shared-kernels accum-n32 $builddir/ic_n32.bin
+
+# 大きい N を実機で (手動。lit には入れない。名指ししたときだけ build される)
+build test-device-n128: test_device $builddir/test_nbody3d_n128 | shared-kernels accum-n128 $builddir/ic_n128.bin
+build test-device-n1024: test_device $builddir/test_nbody3d_n1024 | shared-kernels accum-n1024 $builddir/ic_n1024.bin
+build test-device-n4096: test_device $builddir/test_nbody3d_n4096 | shared-kernels accum-n4096 $builddir/ic_n4096.bin
+
+build clean: clean
+
+default $builddir/accumulate_n32_g0.vsm

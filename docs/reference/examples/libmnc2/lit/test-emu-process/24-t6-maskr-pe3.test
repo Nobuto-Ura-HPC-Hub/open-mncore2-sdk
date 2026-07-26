@@ -1,0 +1,1 @@
+# RUN: ninja -C %examples/24-t6-maskr-pe3 test-emu

@@ -1,0 +1,11 @@
+;; 15-broadcast: v(broadcast) + id(get_global_id) を out へ collect する。
+;; slot 8      = broadcast 入力 (_bc, arg0)。host が index 12..15 を同値 V で埋める（HW 特性）。
+;;               mvb は 64 u64 が最小転送単位なので少なくとも 64 u64 を送る。
+;; identify 0  = get_global_id 用の id 表 [0..4095]（@distribute と同じく host が事前送信する）。
+;; slot 16     = collect 出力 (_out, arg1)。
+;; slot 番号は param_offset = 8*(argno+1)（_bc arg0 -> 8、 _out arg1 -> 16）に対応。
+((:version :0.1)
+ (:reserved_wait_tag #x3f)
+ (:slot 8     :place :pdm0 :addr 0     :send_wait_tag #x10)
+ (:identify 0 :place :pdm0 :addr 4096  :send_wait_tag #x10)
+ (:slot 16    :place :pdm0 :addr 8192  :recv_wait_tag #x1e))

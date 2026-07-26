@@ -1,0 +1,29 @@
+# mv-p5a.vsm — Pattern 5A: PDM@0 ← DRAM@0~3 gather via 4x individual mvp (3.5.8.3)
+#
+# 動作:
+#   Setup:    PDM@0[G*64..G*64+63] → DRAM@G[0..63] for G=0..3 (各 DRAM に異なるデータ)
+#             ※ 3.5.8.2 の cross-group mvp を利用: $p{G*64}@0 $d0@G
+#   Pattern5: DRAM@G[0..63] → PDM@0[G*64..G*64+63] for G=0..3 (gather to group0 PDM)
+# 入力: PDM@0[0..255] = 4 ブロック
+# 結果: PDM@0[0..255] = roundtrip (元のデータ復元)
+# DMA: send_wait_tag=2, recv_wait_tag=6
+
+	nop; wait i02
+	nop/3
+	# Setup: PDM@0[G*64] → DRAM@G using cross-group mvp (3.5.8.2, src/dst groups may differ)
+	mvp/n64 $p0@0 $d0@0
+	mvp/n64 $p64@0 $d0@1
+	mvp/n64 $p128@0 $d0@2
+	mvp/n64i01 $p192@0 $d0@3
+	nop/2
+	nop; wait i01
+	nop/5
+	# Pattern 5: gather DRAM@G[0..63] → PDM@0[G*64..G*64+63] (3.5.8.3)
+	mvp/n64 $d0@0 $p0@0
+	mvp/n64 $d0@1 $p64@0
+	mvp/n64 $d0@2 $p128@0
+	mvp/n64i06 $d0@3 $p192@0
+	nop/2
+	nop; wait i06
+	nop/5
+	# pseudo ret

@@ -1,0 +1,78 @@
+# add1.vsm — 56 Kernel B: DRAM → PE (+1 int) → DRAM, PDM 経由なし
+#
+# 経路: DRAM → L2BM (並列個別 2命令) → L1BM → LM → PE → LM → L1BM → L2BM → DRAM
+# 4 group × 2 L2BM bank = 8 L2BM 全対応、4096 PE 全並列。
+#
+# データは u64 整数で、各 PE が 64-bit integer add +1 を行う (ladd)。
+
+# ===== Phase 1: DRAM → L2BM 並列個別 (2 命令で 8 L2BM 全部を埋める) =====
+#   mvp/n512 $d0   $lc0@.0  → 4 group 並列、各 group bank 0 に DRAM[0..511]
+#   mvp/n512 $d512 $lc0@.1  → 4 group 並列、各 group bank 1 に DRAM[512..1023]
+# タグは i10 から順。1 命令ごとに即 wait して capture B で個別計測可能にする。
+	mvp/n512i10 $d0   $lc0@.0
+	nop; wait i10
+	mvp/n512i11 $d512 $lc0@.1
+	nop; wait i11
+	nop/5
+
+# ===== Phase 2: L2BM → L1BM (8x l2bmb) =====
+	l2bmb@0 $lc0 $lb0
+	l2bmb@1 $lc64 $lb0
+	l2bmb@2 $lc128 $lb0
+	l2bmb@3 $lc192 $lb0
+	l2bmb@4 $lc256 $lb0
+	l2bmb@5 $lc320 $lb0
+	l2bmb@6 $lc384 $lb0
+	l2bmb@7 $lc448 $lb0
+	nop/5
+
+# ===== Phase 3: L1BM → LM =====
+	# 占有 L1BM [0, 256)。有効データは直前の l2bmb が埋めた
+	# cycle 0 の [0, 64) のみ。/1000 で cycle 1..3 の PE 側書き込みを
+	# 止める (L1BM 側の 256 u64 読み出しはマスクでは減らない)。
+	l1bmd $lb0 $lm0v/1000
+	nop/24
+
+# ===== Phase 4: PE compute (data + 1, 64-bit ladd) =====
+#   $lr2 ← data
+#   $lr0 ← u64 1: $r1 (odd) = LOW 32bit = 1、$r0 (even) = HIGH 32bit = 0
+#   LM0 を一時 scratch にして ladd の 2 入力を GRF0 と LM0 に分ける (1R 制約)
+	lpassa $lm0 $lr2
+	imm i"1" $r1
+	imm i"0" $r0
+	nop/4
+	lpassa $lr0 $lm0
+	nop
+	nop
+	ladd $lr2 $lm0 $lr0
+	nop
+	nop
+
+# ===== Phase 5: LM → L1BM (結果書き戻し) =====
+	lpassa $lr0 $lm0v
+	nop/4
+	# 占有 L1BM [256, 512)。結合方向にはマスクが効かないため、
+	# 4 cycle 分 256 u64 すべてが上書きされる。
+	# 回収するのは cycle 0 の [256, 320) のみ。
+	l1bmd $lm0v $lb256
+	nop/24
+
+# ===== Phase 6: L1BM → L2BM (8x l2bm) =====
+	l2bm@0 $lb256 $lc0
+	l2bm@1 $lb256 $lc64
+	l2bm@2 $lb256 $lc128
+	l2bm@3 $lb256 $lc192
+	l2bm@4 $lb256 $lc256
+	l2bm@5 $lb256 $lc320
+	l2bm@6 $lb256 $lc384
+	l2bm@7 $lb256 $lc448
+	nop/5
+
+# ===== Phase 7: L2BM → DRAM 並列個別 (reverse) =====
+# タグは i12, i13 を順に使用。1 命令ごとに即 wait。
+	mvp/n512i12 $lc0@.0 $d0
+	nop; wait i12
+	mvp/n512i13 $lc0@.1 $d512
+	nop; wait i13
+	nop/5
+	# pseudo ret

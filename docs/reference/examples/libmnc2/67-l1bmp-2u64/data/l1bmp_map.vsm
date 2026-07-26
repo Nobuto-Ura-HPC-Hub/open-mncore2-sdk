@@ -1,0 +1,171 @@
+# 67-l1bmp-2u64 — l1bmp の 1 u64 版と 2 u64 版で L1BM の位置とレジスタの対応を実測する
+#
+# L1BM[0..7] に区別できる値 (0xA0A0.. から 0xA7A7..) を置き、 同じ L1BM を 2 つの
+# l1bmp が読む。 書き込み先レジスタを分けてあるので 1 カーネルで両方を観察できる。
+#
+#   l1bmp $llb0 $llr0v   2 u64 版 (3.6.8.7) -> $lr0 から $lr14 の 8 本
+#   l1bmp $lb0  $lr16v   1 u64 版 (3.6.8.6) -> $lr16 $lr18 $lr20 $lr22 の 4 本
+#
+# 回収は collect 経路 (l1bmd 結合 + l2bm + mvp) を使う。 debug_read は実機で
+# 動かないので、 3 backend すべてで同じ検証ができるようにするため。
+# 1 ブロックが wait タグを 4 個使い、 タグは 63 までなので、 回収は
+# 2 u64 版の $lr0 $lr2 $lr4 $lr6 の 4 本に絞る。 これで
+#   $lr0 が L1BM[+0] か L1BM[+4] か  -> 1 サイクル内の 2 u64 の並び順が決まる
+#   $lr4 が L1BM[+1] か              -> サイクルの進み方が決まる
+# の両方が確定する。 残り 8 本は emu でのみ mnc2_debug_read を併用して観察する。
+#
+# 実測結果 (emu:lib と emu:process で一致、 2026-07-19)
+#
+#   2 u64 版  l1bmp $llb0 $llr0v          1 u64 版  l1bmp $lb0 $lr16v
+#     cycle 0  L1BM[+0] -> $lr0             cycle 0  L1BM[+0] -> $lr16
+#     cycle 0  L1BM[+4] -> $lr2             cycle 1  L1BM[+1] -> $lr18
+#     cycle 1  L1BM[+1] -> $lr4             cycle 2  L1BM[+2] -> $lr20
+#     cycle 1  L1BM[+5] -> $lr6             cycle 3  L1BM[+3] -> $lr22
+#     cycle 2  L1BM[+2] -> $lr8
+#     cycle 2  L1BM[+6] -> $lr10
+#     cycle 3  L1BM[+3] -> $lr12
+#     cycle 3  L1BM[+7] -> $lr14
+#
+# 1 サイクル内の 2 u64 は、 効果の式でいう data[0] (= L1BM[+cycle]) が小さいレジスタ番号
+# に入り、 data[1] (= L1BM[+cycle+4]) が大きいほうに入る。 3.6.8.7 には明示が無いが、
+# 3.6.8.3 の「L1BM から PE への転送であれば MSB 側 1 長語に有効な値が入り」という記述と
+# 整合する (番号が小さいほうが MSB 側)。
+#
+# L1BM 割り当て
+#   $lb0   [0, 256)    broadcast 受け。 l2bmb が [0, 64) を埋め、 l1bmp が [0, 8) を読む
+#   $lb256 [256, 512)  結合出力。 cycle c の出力が [256 + 64c) に入る。 4 つとも読み出す
+#
+# 入力 (host send): PDM[0..7] = 0xA0A0.. から 0xA7A7..、 send_wait_tag=0x10
+# 出力 (host recv): PDM[0..4095]=$lr0、 [4096..8191]=$lr2、
+#                   [8192..12287]=$lr4、 [12288..16383]=$lr6、 recv_wait_tag=0x36
+
+	nop; wait i10
+	nop/3
+	# PDM[0..511] を全 8 L2BM へ。 L1BM[k] = PDM[k] (k < 64) になる
+	mvb/n512i23 $p0@0 $lc0
+	nop/2
+	nop; wait i23
+	nop/5
+	l2bmb $lc0 $lb0
+	nop/5
+	# 2 u64 版 (3.6.8.7)。 cycle c が L1BM[c] と L1BM[c+4] の 2 u64 を読む。
+	# v は adri 省略なのでアクセス語長 1 語分 = 2 u64 = 4 単語ずつ進む (3.6.1.10)。
+	l1bmp $llb0 $llr0v
+	nop/24
+	# 1 u64 版 (3.6.8.6)。 cycle c が L1BM[c] を読み、 書き込み先は 2 単語ずつ進む。
+	l1bmp $lb0 $lr16v
+	nop/24
+	# 結合: $lr0 $lr2 $lr4 $lr6 を L1BM[256/320/384/448] に集める。
+	# 占有 L1BM [256, 512)。 結合方向にはマスクが効かないため 4 cycle 分すべてが書かれる。
+	l1bmd $lr0v $lb256
+	nop/24
+	nop/24
+	# --- L1BM[256] = $lr0 -> PDM[0..4095] ---
+	l2bm@0 $lb256 $lc1024
+	l2bm@1 $lb256 $lc1088
+	l2bm@2 $lb256 $lc1152
+	l2bm@3 $lb256 $lc1216
+	l2bm@4 $lb256 $lc1280
+	l2bm@5 $lb256 $lc1344
+	l2bm@6 $lb256 $lc1408
+	l2bm@7 $lb256 $lc1472
+	nop/5
+	mvp/n512 $lc1024@0.0 $p0@0
+	mvp/n512i19 $lc1024@0.1 $p512@0
+	nop/3
+	nop; wait i19
+	mvp/n512 $lc1024@1.0 $p1024@0
+	mvp/n512i1a $lc1024@1.1 $p1536@0
+	nop/3
+	nop; wait i1a
+	mvp/n512 $lc1024@2.0 $p2048@0
+	mvp/n512i1c $lc1024@2.1 $p2560@0
+	nop/3
+	nop; wait i1c
+	mvp/n512 $lc1024@3.0 $p3072@0
+	mvp/n512i1e $lc1024@3.1 $p3584@0
+	nop/3
+	nop; wait i1e
+	nop/4
+	# --- L1BM[320] = $lr2 -> PDM[4096..8191] ---
+	l2bm@0 $lb320 $lc1024
+	l2bm@1 $lb320 $lc1088
+	l2bm@2 $lb320 $lc1152
+	l2bm@3 $lb320 $lc1216
+	l2bm@4 $lb320 $lc1280
+	l2bm@5 $lb320 $lc1344
+	l2bm@6 $lb320 $lc1408
+	l2bm@7 $lb320 $lc1472
+	nop/5
+	mvp/n512 $lc1024@0.0 $p4096@0
+	mvp/n512i21 $lc1024@0.1 $p4608@0
+	nop/3
+	nop; wait i21
+	mvp/n512 $lc1024@1.0 $p5120@0
+	mvp/n512i22 $lc1024@1.1 $p5632@0
+	nop/3
+	nop; wait i22
+	mvp/n512 $lc1024@2.0 $p6144@0
+	mvp/n512i24 $lc1024@2.1 $p6656@0
+	nop/3
+	nop; wait i24
+	mvp/n512 $lc1024@3.0 $p7168@0
+	mvp/n512i26 $lc1024@3.1 $p7680@0
+	nop/3
+	nop; wait i26
+	nop/4
+	# --- L1BM[384] = $lr4 -> PDM[8192..12287] ---
+	l2bm@0 $lb384 $lc1024
+	l2bm@1 $lb384 $lc1088
+	l2bm@2 $lb384 $lc1152
+	l2bm@3 $lb384 $lc1216
+	l2bm@4 $lb384 $lc1280
+	l2bm@5 $lb384 $lc1344
+	l2bm@6 $lb384 $lc1408
+	l2bm@7 $lb384 $lc1472
+	nop/5
+	mvp/n512 $lc1024@0.0 $p8192@0
+	mvp/n512i29 $lc1024@0.1 $p8704@0
+	nop/3
+	nop; wait i29
+	mvp/n512 $lc1024@1.0 $p9216@0
+	mvp/n512i2a $lc1024@1.1 $p9728@0
+	nop/3
+	nop; wait i2a
+	mvp/n512 $lc1024@2.0 $p10240@0
+	mvp/n512i2c $lc1024@2.1 $p10752@0
+	nop/3
+	nop; wait i2c
+	mvp/n512 $lc1024@3.0 $p11264@0
+	mvp/n512i2e $lc1024@3.1 $p11776@0
+	nop/3
+	nop; wait i2e
+	nop/4
+	# --- L1BM[448] = $lr6 -> PDM[12288..16383] ---
+	l2bm@0 $lb448 $lc1024
+	l2bm@1 $lb448 $lc1088
+	l2bm@2 $lb448 $lc1152
+	l2bm@3 $lb448 $lc1216
+	l2bm@4 $lb448 $lc1280
+	l2bm@5 $lb448 $lc1344
+	l2bm@6 $lb448 $lc1408
+	l2bm@7 $lb448 $lc1472
+	nop/5
+	mvp/n512 $lc1024@0.0 $p12288@0
+	mvp/n512i31 $lc1024@0.1 $p12800@0
+	nop/3
+	nop; wait i31
+	mvp/n512 $lc1024@1.0 $p13312@0
+	mvp/n512i32 $lc1024@1.1 $p13824@0
+	nop/3
+	nop; wait i32
+	mvp/n512 $lc1024@2.0 $p14336@0
+	mvp/n512i34 $lc1024@2.1 $p14848@0
+	nop/3
+	nop; wait i34
+	mvp/n512 $lc1024@3.0 $p15360@0
+	mvp/n512i36 $lc1024@3.1 $p15872@0
+	nop/3
+	nop; wait i36
+	nop/4
+	# pseudo ret

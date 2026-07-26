@@ -1,0 +1,6 @@
+;; vecadd f32: c[i] = a[i] + b[i] (4096 PE, layout :any, single precision)
+((:version :0.0)
+ (:ndim 1)
+ (:pe_shape (4096))
+ (:pe_local (1))
+ (:data_layout :any))

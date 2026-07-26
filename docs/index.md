@@ -13,6 +13,7 @@
 1. [MN-Core2 について](./01-mncore2/)
 2. [SDK について](./02-sdk/)
 3. [libmnc2 を使った開発](./03-libmnc2/)
+4. [リファレンス](./reference/README.md) — SDK に同梱される各 kit のドキュメントと examples（v0.5.0 の `share/` と同一内容）
 
 ## はじめに
 

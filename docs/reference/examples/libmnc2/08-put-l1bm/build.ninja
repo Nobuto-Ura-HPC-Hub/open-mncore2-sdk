@@ -1,0 +1,42 @@
+# build.ninja — 08-put-l1bm
+# device テストは peek pipeline 方式 (07-put-l2bm/build.ninja のコメント参照)
+
+include ../../scripts/sdk.ninja
+include ../../scripts/examples.ninja
+
+# device 3 段 pipeline 用 rule (本 example 群固有)
+rule run_put_device
+  command = LD_LIBRARY_PATH=${sdk_root}/lib ./$in
+  description = RUN [device] put $in
+
+rule run_peek_device
+  command = ${sdk_root}/bin/run-idma $in --no-reset
+  description = RUN [device] peek $in --no-reset
+
+rule peek_check_device
+  command = ${sdk_root}/bin/read-pdm 0 32 | od -An -v -tx8 --endian=little | diff - data/expected-peek.txt && echo "PASS: L1BM[0..3] matches expected"
+  description = CHECK [device] peek vs data/expected-peek.txt
+
+# カーネル
+build $builddir/put_l1bm.asm: asm3_text data/put_l1bm.vsm
+build $builddir/put_l1bm.idma.dat: asm3_loader data/put_l1bm.vsm
+  stem = $builddir/put_l1bm
+
+build $builddir/peek_l1bm.asm: asm3_text data/peek_l1bm.vsm
+build $builddir/peek_l1bm.idma.dat: asm3_loader data/peek_l1bm.vsm
+  stem = $builddir/peek_l1bm
+
+# host binary
+build $builddir/ex_put_l1bm.o: cc ex_put_l1bm.c
+build $builddir/ex_put_l1bm: link $builddir/ex_put_l1bm.o | ${sdk_root}/lib/libmnc2.a
+
+build test:         test_usage
+build test-emu:     test_emu_process $builddir/ex_put_l1bm | $builddir/put_l1bm.asm $builddir/put_l1bm.idma.dat
+build test-emu-lib: test_emu_lib     $builddir/ex_put_l1bm | $builddir/put_l1bm.asm $builddir/put_l1bm.idma.dat
+
+build run-put-device: run_put_device $builddir/ex_put_l1bm | $builddir/put_l1bm.idma.dat
+build run-peek-device: run_peek_device $builddir/peek_l1bm.idma.dat | run-put-device
+build peek-check-device: peek_check_device | run-peek-device data/expected-peek.txt
+build test-device: phony peek-check-device
+
+default $builddir/ex_put_l1bm $builddir/put_l1bm.asm $builddir/put_l1bm.idma.dat $builddir/peek_l1bm.asm $builddir/peek_l1bm.idma.dat

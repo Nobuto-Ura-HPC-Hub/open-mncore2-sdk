@@ -1,0 +1,127 @@
+# data/build.ninja — golden データを sha256 ID で生成
+#
+# Usage:
+#   ninja                # boundary_flags golden 生成 (default = all)
+#   ninja all            # 全ファイル生成 (boundary_flags + 入力データ)
+#   ninja verify         # 全 sha256 検証
+#   ninja 57b42dea.bin   # boundary_flags: data_edge なし
+#   ninja ab1449ae.bin   # identify golden (全5ファイル同時生成)
+#
+# 中間生成物 (.o, 実行ファイル) は _build/ に集約。
+# 生成 bin は created/ に集約 (git 管理外)。
+
+builddir = _build
+
+rule cc_host
+  command = gcc -Wall -Wextra -c $in -o $out
+  description = CC $out
+
+rule link_host
+  command = gcc $in -o $out
+  description = LINK $out
+
+rule gen
+  command = ./$builddir/$exe ok $out $args
+  description = GEN $out
+
+rule gen_input
+  command = python3 gen_input.py $type $out
+  description = GEN $out
+
+rule sha256_check
+  command = echo "$expected  $in" | sha256sum -c -
+  description = SHA256 $in
+
+# --- boundary_flags golden (gen_bf_golden) ---
+build $builddir/gen_bf_golden.o: cc_host gen_bf_golden.c
+build $builddir/gen_bf_golden: link_host $builddir/gen_bf_golden.o
+
+# data_edge なし (10bit, cross_group 廃止後)
+build created/57b42dea.bin: gen $builddir/gen_bf_golden
+  exe = gen_bf_golden
+  args =
+build verify-57b42dea: sha256_check created/57b42dea.bin
+  expected = 57b42dea9b158e8e1b9de447a9c54b522ebdef7b8da8ab3779edd9ca55b4d6eb
+
+# data_edge あり (10bit, data_size=4096, data_offset=0)
+build created/75c77b0f.bin: gen $builddir/gen_bf_golden
+  exe = gen_bf_golden
+  args = --edge-left --edge-right
+build verify-75c77b0f: sha256_check created/75c77b0f.bin
+  expected = 75c77b0f06bb635fb67d50f8b0ee5cf035723d9429a231a5409d6a587c0fe5ac
+
+# --- identify golden (gen_identify_golden) ---
+build $builddir/gen_identify_golden.o: cc_host gen_identify_golden.c
+build $builddir/gen_identify_golden: link_host $builddir/gen_identify_golden.o
+
+rule gen_identify
+  command = ./$builddir/gen_identify_golden created
+  description = GEN identify golden
+
+build created/ab1449ae.bin created/d202bcfb.bin created/8f8ea7e3.bin created/01becdee.bin created/e4d40321.bin: gen_identify $builddir/gen_identify_golden
+build verify-ab1449ae: sha256_check created/ab1449ae.bin
+  expected = ab1449aec48da3856f8ffc82e27072b6092dfea463f8bbd70d9e20b7c82656c3
+build verify-d202bcfb: sha256_check created/d202bcfb.bin
+  expected = d202bcfbe0f27a1e3d6881324db3b55c88ad0e64cd5c8e802caadaa27fc604a2
+build verify-8f8ea7e3: sha256_check created/8f8ea7e3.bin
+  expected = 8f8ea7e3afbec098f7e946e0acebfca8ae1079dd36940bfbf3b0b50e40414834
+build verify-01becdee: sha256_check created/01becdee.bin
+  expected = 01becdeee144e6e66aab2452b732c1a638f4d102bf8b9e70d262b19b5a934f58
+build verify-e4d40321: sha256_check created/e4d40321.bin
+  expected = e4d4032119802157b6e589c8d2d95c11405eb5bbbd7a4f1673ee2c8b626db66c
+
+# --- odd-even-sort 入力データ (gen_input.py) ---
+build created/d5575075.bin: gen_input | gen_input.py
+  type = sorted
+build verify-d5575075: sha256_check created/d5575075.bin
+  expected = d5575075eb395216bf2ef800ba88d1fe5fa5aa2cb0f9d32e41c0ed0fe2104253
+
+build created/75c24047.bin: gen_input | gen_input.py
+  type = reversed
+build verify-75c24047: sha256_check created/75c24047.bin
+  expected = 75c24047bd2d398e3c2364a8bf0101299be569fc9e72d4075134252c5be1342e
+
+build created/7353c2c6.bin: gen_input | gen_input.py
+  type = negated
+build verify-7353c2c6: sha256_check created/7353c2c6.bin
+  expected = 7353c2c6cfcc8b1a5c18d2518afd60be5369e4eea3a0a4789e2b71fbf9750927
+
+build created/1d5f9c66.bin: gen_input | gen_input.py
+  type = group_reversed
+build verify-1d5f9c66: sha256_check created/1d5f9c66.bin
+  expected = 1d5f9c667e661a9d6674aebd91543839ac87988a8e072f094da278726b693462
+
+build created/1720baa2.bin: gen_input | gen_input.py
+  type = random-123
+build verify-1720baa2: sha256_check created/1720baa2.bin
+  expected = 1720baa23e8872a227e0e895032db722a3a4637d59197e24052204c71df47443
+
+build created/d382fbf4.bin: gen_input | gen_input.py
+  type = nearly_sorted-42
+build verify-d382fbf4: sha256_check created/d382fbf4.bin
+  expected = d382fbf46d9329bfe83249b33b76c9d015d9a37ef0b42cb7cda04f760cb2feea
+
+# --- get-neighbor 入力データ (gen_input.py) ---
+build created/08063881.bin: gen_input | gen_input.py
+  type = sequential
+build verify-08063881: sha256_check created/08063881.bin
+  expected = 08063881d584e95e1734c94e92def2197295bb9d20f96d44852ce6fe37aa3687
+
+# --- aggregate ---
+build all: phony $
+    created/57b42dea.bin created/75c77b0f.bin $
+    created/ab1449ae.bin created/d202bcfb.bin created/8f8ea7e3.bin $
+    created/01becdee.bin created/e4d40321.bin $
+    created/d5575075.bin created/75c24047.bin created/7353c2c6.bin $
+    created/1d5f9c66.bin created/1720baa2.bin created/d382fbf4.bin $
+    created/08063881.bin
+
+build verify: phony $
+    verify-57b42dea verify-75c77b0f $
+    verify-ab1449ae verify-d202bcfb verify-8f8ea7e3 $
+    verify-01becdee verify-e4d40321 $
+    verify-d5575075 verify-75c24047 verify-7353c2c6 $
+    verify-1d5f9c66 verify-1720baa2 verify-d382fbf4 $
+    verify-08063881
+
+default all

@@ -1,0 +1,1 @@
+# RUN: ninja -C %examples/13-get-l2bm test-emu-lib

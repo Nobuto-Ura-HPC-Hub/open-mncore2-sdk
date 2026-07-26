@@ -1,0 +1,82 @@
+# 18-bf-verify: @boundary_flags 検証（golden data で上書き → stencil）
+#
+# ninja              → vsmlink: _vsm + .param + .stparam → .vsm
+# ninja build-e2e    → + assemble3 + host C ビルド + golden/zero 生成
+# ninja test-emu-lib → + emu:lib で golden.bin 検証（PASS 期待）
+# ninja test-ng      → zero.bin (全ゼロ) で検証（FAIL 期待）
+# ninja test-from-17 → example 17 が収集した golden_data/collected_flags.bin で検証
+# ninja test-device  → + 実機で golden.bin 検証
+#
+# 前提: SDK activate 済み (vsmlink, assemble3, mnc2.h が利用可能)
+
+include ../../scripts/sdk.ninja
+include ../scripts/vsmlink.ninja
+builddir = _build
+
+# --- 独自 rule (golden 生成) ---
+rule cc_host
+  command = gcc -Wall -Wextra -c $in -o $out
+  description = CC [host] $out
+
+rule link_host
+  command = gcc $in -o $out
+  description = LINK [host] $out
+
+rule gen_bf_golden
+  command = ./$in $mode $out
+  description = GEN_GOLDEN [$mode] $out
+
+# --- default: vsmlink only ---
+build $builddir/bf-verify.vsm: vsmlink bf-verify._vsm bf-verify.param bf-verify.stparam
+  vsm = bf-verify._vsm
+  param = bf-verify.param
+  stparam = bf-verify.stparam
+
+# --- assemble ---
+build $builddir/bf-verify.idma.dat: asm3_loader $builddir/bf-verify.vsm
+  stem = $builddir/bf-verify
+
+# --- gen_bf_golden tool ---
+build $builddir/gen_bf_golden.o: cc_host ../data/gen_bf_golden.c
+build $builddir/gen_bf_golden: link_host $builddir/gen_bf_golden.o
+
+# --- golden binaries ---
+build $builddir/golden.bin: gen_bf_golden $builddir/gen_bf_golden
+  in = $builddir/gen_bf_golden
+  mode = ok
+build $builddir/zero.bin: gen_bf_golden $builddir/gen_bf_golden
+  in = $builddir/gen_bf_golden
+  mode = zero
+
+# --- test exe ---
+build $builddir/test_bf_override.o: cc test_bf_override.c
+build $builddir/test_bf_override: link_exe $builddir/test_bf_override.o
+
+# --- build-e2e ---
+build build-e2e: phony $
+  $builddir/bf-verify.idma.dat $
+  $builddir/test_bf_override $
+  $builddir/golden.bin $builddir/zero.bin
+
+# --- test targets ---
+build test: test_usage
+
+build test-emu-lib: test_emu_lib $builddir/test_bf_override | $builddir/bf-verify.idma.dat $builddir/golden.bin
+  args = _build/bf-verify.idma.dat _build/golden.bin
+
+build test-device: test_device $builddir/test_bf_override | $builddir/bf-verify.idma.dat $builddir/golden.bin
+  args = _build/bf-verify.idma.dat _build/golden.bin
+
+build test-ng: test_emu_lib $builddir/test_bf_override | $builddir/bf-verify.idma.dat $builddir/zero.bin
+  args = _build/bf-verify.idma.dat _build/zero.bin --expect-fail
+
+build $builddir/57b42dea.bin: fetch_data
+  bin = 57b42dea.bin
+
+# example 17 が収集した静的 golden data で検証
+build test-from-17: test_emu_lib $builddir/test_bf_override | $builddir/bf-verify.idma.dat $builddir/57b42dea.bin
+  args = _build/bf-verify.idma.dat _build/57b42dea.bin
+
+build clean: clean
+
+default $builddir/bf-verify.vsm

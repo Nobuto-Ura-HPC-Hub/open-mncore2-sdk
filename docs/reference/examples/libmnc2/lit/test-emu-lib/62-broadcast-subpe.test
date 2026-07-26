@@ -1,0 +1,1 @@
+# RUN: ninja -C %examples/62-broadcast-subpe test-emu-lib

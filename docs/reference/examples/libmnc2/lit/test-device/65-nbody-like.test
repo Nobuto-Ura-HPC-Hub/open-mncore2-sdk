@@ -1,0 +1,3 @@
+# device でも nbody like (f64、 broadcast + 質量積の累積) を golden と比較。
+# REQUIRES: device, assemble3
+# RUN: ninja -C %examples/65-nbody-like test-device

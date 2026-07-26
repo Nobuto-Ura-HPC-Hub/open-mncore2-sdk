@@ -1,0 +1,8 @@
+;; reduce kernel: (swap_flags, swap_count) を slot 8 / 16 に割り当てる。
+;; swap_flags @ 32768 は even / odd が collect した値 (addr は even/odd.param と一致必須)。
+;;   host は送らず、 直前の even/odd 実行が PDM に残した値を distribute で読む。
+;; swap_count @ 131072 は 4 partial sum。 host が recv_wait #x1d で受信して合計する。
+((:version :0.1)
+ (:reserved_wait_tag #x3f)
+ (:slot 8  :place :pdm0 :addr 32768)
+ (:slot 16 :place :pdm0 :addr 131072 :recv_wait_tag #x1d))

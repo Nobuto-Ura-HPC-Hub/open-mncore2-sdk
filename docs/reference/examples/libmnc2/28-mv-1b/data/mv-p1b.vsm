@@ -1,0 +1,37 @@
+# mv-p1b.vsm — Pattern 1B: PDM@0 → PDM@0~3 via mvb broadcast (3.5.8.18 + 3.5.8.10)
+#
+# 動作:
+#   mvb: PDM@G0[0..63] → 全 L2BM[0..63] (グループ間放送, 3.5.8.18)
+#   mvp: L2BM[0][0..63] → 全グループ PDM[0..63] (並列個別, 3.5.8.10)
+#   Gather step1: PDM@G1/2/3[0..63] → DRAM@G1/2/3 (3.5.8.2)
+#   Gather step2: DRAM@G1/2/3 → PDM@G0[64..255] (3.5.8.3) ← recv trigger
+# 結果: PDM@G0[0..255] = 4 copies of source block0
+# DMA: send_wait_tag=2, recv_wait_tag=6
+
+	nop; wait i02
+	nop/3
+	# Broadcast: PDM@G0[0..63] → all L2BMs[0..63] (3.5.8.18)
+	mvb/n64i01 $p0@0 $lc0
+	nop/2
+	nop; wait i01
+	nop/5
+	# L2BM[0][0..63] → PDM@G[0..63] (all groups, 3.5.8.10)
+	mvp/n64i03 $lc0@.0 $p0
+	nop/2
+	nop; wait i03
+	nop/5
+	# Gather step1: PDM@G1/2/3[0..63] → DRAM@G1/2/3[0..63] (3.5.8.2)
+	mvp/n64 $p0@1 $d0@1
+	mvp/n64 $p0@2 $d0@2
+	mvp/n64i04 $p0@3 $d0@3
+	nop/2
+	nop; wait i04
+	nop/5
+	# Gather step2: DRAM@G1/2/3 → PDM@G0[64..255] (3.5.8.3) → recv trigger
+	mvp/n64 $d0@1 $p64@0
+	mvp/n64 $d0@2 $p128@0
+	mvp/n64i06 $d0@3 $p192@0
+	nop/2
+	nop; wait i06
+	nop/5
+	# pseudo ret

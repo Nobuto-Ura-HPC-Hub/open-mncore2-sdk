@@ -1,0 +1,44 @@
+# vsmlink.ninja — examples/ 共通ビルドルール
+# 使い方: include ../scripts/vsmlink.ninja (examples/*/build.ninja から)
+# sdk.ninja の include より後に記述すること (${sdk_root} を参照するため)
+
+rule vsmlink
+  command = vsmlink $vsm $param $stparam $out
+  description = VSMLINK $out
+
+rule asm3
+  command = assemble3 $in --output-file $out
+  description = ASM3 $out
+
+rule asm3_loader
+  command = assemble3 $in --output-file $stem --loader
+  description = ASM3 [loader] $stem
+
+rule cc
+  command = gcc -Wall -Wextra -I${sdk_root}/include $cflags -c $in -o $out
+  description = CC $out
+
+rule link_exe
+  command = g++ $in -o $out -L${sdk_root}/lib/emu-lib -L${sdk_root}/lib -lmnc2 -lgpfn3 -lstdc++ -lrt -lm -fopenmp
+  description = LINK $out
+
+rule test_emu_lib
+  command = LD_LIBRARY_PATH=${sdk_root}/lib/emu-lib ./$in $args
+  description = TEST [emu:lib] $in
+
+rule test_device
+  command = ./$in $args
+  description = TEST [device] $in
+
+rule test_usage
+  command = echo "使い方: ninja test-emu-lib / ninja test-device"
+  description = INFO
+
+rule fetch_data
+  # ../data/created/<bin> が未生成なら自動で ninja -C ../data を呼ぶ。
+  command = ninja -C ../data created/$bin >/dev/null && cp ../data/created/$bin $out
+  description = FETCH $out
+
+rule clean
+  command = rm -rf _build
+  description = CLEAN

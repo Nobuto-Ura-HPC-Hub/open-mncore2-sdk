@@ -1,0 +1,11 @@
+((:version :0.1)
+ (:reserved_wait_tag #x3f)
+ (:slot 8  :place :pdm0 :addr 0 :send_wait_tag #x10)       ; IDs [0..4095]
+ (:slot 16 :place :pdm0 :addr 4096 :send_wait_tag #x10)    ; IDs [4096..8191]
+ (:slot 24 :place :pdm0 :addr 8192 :send_wait_tag #x10 :recv_wait_tag #x1e)    ; test1 output
+ (:slot 32 :place :pdm0 :addr 12288 :send_wait_tag #x10 :recv_wait_tag #x1f)   ; test2 output (test3: 2nd @collect)
+ (:slot 40 :place :pdm0 :addr 16384 :send_wait_tag #x10 :recv_wait_tag #x1e)   ; test4 output
+ (:slot 48 :place :pdm0 :addr 20480 :send_wait_tag #x10 :recv_wait_tag #x1f)   ; test5 output (test6: 2nd @collect)
+ ; @identify bindings (0=x: IDs[0..4095], 1=y: IDs[4096..8191])
+ (:identify 0 :place :pdm0 :addr 0 :send_wait_tag #x10)
+ (:identify 1 :place :pdm0 :addr 4096 :send_wait_tag #x10))

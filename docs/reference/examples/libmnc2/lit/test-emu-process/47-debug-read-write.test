@@ -1,0 +1,3 @@
+# 47-debug-read-write: emu:process 非対応 (state 継承不可 / .test 未整備)
+# UNSUPPORTED: true
+# RUN: ninja -C %examples/47-debug-read-write test-emu

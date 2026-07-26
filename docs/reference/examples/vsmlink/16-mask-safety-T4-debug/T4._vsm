@@ -1,0 +1,189 @@
+# ABI PFN3_SBY64
+#
+# T4: @stencil in nested if-if (flag1 ∧ flag2) — debug_read 版
+#
+# PDM layout:
+#   slot 8:  input  (stencil source, 1 LW/PE)
+#   slot 24: flag1  (outer if: 0=true, nonzero=false)
+#   slot 32: flag2  (inner if: 0=true, nonzero=false)
+#
+# if(flag1) {
+#     r16=1
+#     if(flag2) { r16=5; @stencil; r18=1 } else { r16=9 }
+# } else {
+#     r16=2
+#     if(flag2) { r16=6 } else { r16=10 }
+# }
+#
+# Expected (r16,r18): TT→5,1  TF→9,0  FT→6,0  FF→10,0
+#
+# Verification: debug_read で GRF0 から r16/r18 を直接読み出す。
+# @collect 不要のため wd タグ衝突の問題なし。
+# ただし emu:lib では debug_read(GRF0) が常に 0 を返す。
+# emu:process または実機で使用すること。
+#
+	@distribute _arg_a from_param 8 size 1 $lm0
+	@distribute _arg_flag1 from_param 24 size 1 $lm8
+	@distribute _arg_flag2 from_param 32 size 1 $lm16
+	lpassa $lm0 $lr0
+# r16=0, r18=0
+	imm i"0" $r16
+	imm i"0" $r17
+	imm i"0" $r18
+	imm i"0" $r19
+	nop
+	nop
+# ── Condition setup (all outside maskr, lxor/lor-based) ──
+# Step 1: Compute NOT flag values → save to LM
+# lr28 = (0, 1) を定数として用意
+	imm i"0" $r28
+	imm i"1" $r29
+	nop
+	nop
+# NOT flag1 → lr30 → lm24
+	lxor $lm8 $lr28 $lr30
+	nop
+	nop
+	nop/24
+	lpassa $lr30 $lm24
+	nop
+	nop
+	nop/24
+# NOT flag2 → lr30 → lm32 (lr28 は operand なので変更されない)
+	lxor $lm16 $lr28 $lr30
+	nop
+	nop
+	nop/24
+	lpassa $lr30 $lm32
+	nop
+	nop
+	nop/24
+# Step 2: Set all 6 omr values
+# omr15 = flag1
+	imm i"0" $r28
+	imm i"0" $r29
+	nop
+	nop
+	lxor $lm8 $lr28 $omr15
+	nop
+	nop
+# omr8 = NOT flag1
+	imm i"0" $r28
+	imm i"0" $r29
+	nop
+	nop
+	lxor $lm24 $lr28 $omr8
+	nop
+	nop
+# omr7 = flag1 AND flag2: lor(flag1, flag2)
+	lpassa $lm8 $lr28
+	nop
+	nop
+	nop/24
+	lor $lm16 $lr28 $omr7
+	nop
+	nop
+# omr6 = flag1 AND NOT flag2: lor(flag1, NOT_flag2)
+	lpassa $lm8 $lr28
+	nop
+	nop
+	nop/24
+	lor $lm32 $lr28 $omr6
+	nop
+	nop
+# omr5 = NOT flag1 AND flag2: lor(NOT_flag1, flag2)
+	lpassa $lm24 $lr28
+	nop
+	nop
+	nop/24
+	lor $lm16 $lr28 $omr5
+	nop
+	nop
+# omr4 = NOT flag1 AND NOT flag2: lor(NOT_flag1, NOT_flag2)
+	lpassa $lm24 $lr28
+	nop
+	nop
+	nop/24
+	lor $lm32 $lr28 $omr4
+	nop
+	nop
+# ── Test sections ──
+# NOTE: lpassa は maskr を無視する。maskr 内では ipassa を使うこと。
+# === outer if (flag1) { r16=1 ===
+	imm i"1" $r24
+	imm i"0" $r25
+	nop
+	nop
+	  maskr 15
+	ipassa $lr24 $lr16
+	  mask 0
+	nop
+	nop
+# inner if (flag1 ∧ flag2): r16=5, @stencil, r18=1
+	imm i"5" $r24
+	imm i"0" $r25
+	nop
+	nop
+	  maskr 7
+	ipassa $lr24 $lr16
+	  mask 0
+	nop
+	nop
+# @stencil
+	@boundary_flags bf1 0 $lr416 data_edge_left data_edge_right cross_chip_left cross_chip_right cross_L2B_left cross_L2B_right cross_L1B_left cross_L1B_right cross_MAB_left cross_MAB_right
+	@alloc left :omr 9 10 11 12 :grf0 200 202 204 206 208 210 212 214 216 218 220 :n 0
+	@get_neighbor $lr400 -1 $lm0 bf1 nbuf0 left
+	@free left
+# r18 = 1 (stencil completion)
+	imm i"1" $r24
+	imm i"0" $r25
+	nop
+	nop
+	  maskr 7
+	ipassa $lr24 $lr18
+	  mask 0
+	nop
+	nop
+# inner else (flag1 ∧ !flag2): r16=9
+	imm i"9" $r24
+	imm i"0" $r25
+	nop
+	nop
+	  maskr 6
+	ipassa $lr24 $lr16
+	  mask 0
+	nop
+	nop
+# === } outer if end ===
+# === outer else (!flag1) { r16=2 ===
+	imm i"2" $r24
+	imm i"0" $r25
+	nop
+	nop
+	  maskr 8
+	ipassa $lr24 $lr16
+	  mask 0
+	nop
+	nop
+# inner if in else (!flag1 ∧ flag2): r16=6
+	imm i"6" $r24
+	imm i"0" $r25
+	nop
+	nop
+	  maskr 5
+	ipassa $lr24 $lr16
+	  mask 0
+	nop
+	nop
+# inner else in else (!flag1 ∧ !flag2): r16=10
+	imm i"10" $r24
+	imm i"0" $r25
+	nop
+	nop
+	  maskr 4
+	ipassa $lr24 $lr16
+	  mask 0
+	nop
+	nop
+# === } outer else end ===
+# (no @collect — debug_read で直接読み出す)

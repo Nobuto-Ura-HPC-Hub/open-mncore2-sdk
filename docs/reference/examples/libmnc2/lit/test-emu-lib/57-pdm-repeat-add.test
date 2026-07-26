@@ -1,0 +1,10 @@
+# 57-pdm-repeat-add — emu-lib (XFAIL)
+#
+# libgpfn3.so の emulator (upstream pfcomp の `consume_dt()`) のバグで fail。
+# `consume_dt()` が `done_flags[mvid].piu_dt` を立てる mmode リストから `pdmpdm`
+# (PDM→PDM、 mode 8) が漏れている。 結果、 PDM→PDM mvp 命令が DDMA event を host
+# に emit せず、 mnc2_recv が timeout (DDMA_STAT bit が立たず recv rc=-5)。
+# PFN 修正版が降りるまで暫定で XFAIL。
+#
+# XFAIL: *
+# RUN: ninja -C %examples/57-pdm-repeat-add test-emu-lib

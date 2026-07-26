@@ -1,0 +1,2 @@
+# RUN: ninja -C %examples/13-odd-even-sort-gid build-e2e
+# RUN: ninja -C %examples/13-odd-even-sort-gid test-emu-lib

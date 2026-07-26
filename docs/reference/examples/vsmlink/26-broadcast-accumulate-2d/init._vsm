@@ -1,0 +1,22 @@
+# ABI PFN3_SBY64
+#
+# 段階3b init: 自粒子の位置 (xi,yi) を distribute で LM 常駐、accumulator ax,ay を
+# 0 初期化。ホストが 1 回だけ実行する。
+# LM0 レイアウト: xi=$lm0, yi=$lm2, ax=$lm4, ay=$lm6
+#
+# 位置は size 2 の 1 回で配る。PDM 上は [x を 4096 個][y を 4096 個] の並びで、
+# 成分は $lm0 (x) と $lm2 (y) に着地する。
+#
+# 自粒子の質量は配らない。総和 mj * (xi - xj) が使うのは他粒子の質量 mj だけで、
+# 自分の質量を参照する場面が無いためである。
+#
+# softening eps2 も持たない。rsqrt を使わなくなりゼロ除算が起きないためである。
+#
+	@distribute _p    from_param 8  size 2 $lm0     # x -> LM0[0], y -> LM0[1]
+	imm i"0" $r0
+	imm i"0" $r1
+	nop/4
+	lpassa $lr0 $lm4         # ax = 0 -> LM0[2]
+	nop/24
+	lpassa $lr0 $lm6         # ay = 0 -> LM0[3]
+	nop/24

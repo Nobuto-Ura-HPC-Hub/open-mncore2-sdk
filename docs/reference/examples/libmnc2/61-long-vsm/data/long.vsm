@@ -1,0 +1,732 @@
+# ABI PFN3_SBY64
+#
+# sort_even: Odd-Even Transposition Sort — 偶数フェーズ
+#
+# 組: (PE0,PE1), (PE2,PE3), ..., (PE4094,PE4095)
+#   Even PE (bit0=0): new_val = min(my, right_neighbor)
+#   Odd  PE (bit0=1): new_val = max(my, left_neighbor)
+#
+# maskr N は omr[N]=1 のときに発動する (lxor はresult=0のとき omr=1をセット)
+#
+# Input:  slot  8 [addr     0] = data A
+# Output: slot 16 [addr  4096] = data B
+#         slot 24 [addr  8192] = swap_flags
+
+# distribute.vsm — @distribute テンプレート
+# placeholder の意味は src/vsmlink.c の @distribute 展開部を参照
+
+	nop; wait i10
+	nop/3
+# @distribute _a from_param 8 size 1 $lm0
+# === @distribute _a: PDM $p0 → L2BM → L1BM → $lm0 ===
+	mvp/n512 $p0@0 $lc0@0.0
+	mvp/n512 $p512@0 $lc0@0.1
+	mvp/n512 $p1024@0 $lc0@1.0
+	mvp/n512 $p1536@0 $lc0@1.1
+	mvp/n512 $p2048@0 $lc0@2.0
+	mvp/n512 $p2560@0 $lc0@2.1
+	mvp/n512 $p3072@0 $lc0@3.0
+	mvp/n512i3f $p3584@0 $lc0@3.1
+	nop/2
+	nop; wait i3f
+	nop/5
+	l2bmb@0 $lc0 $lb0
+	l2bmb@1 $lc64 $lb0
+	l2bmb@2 $lc128 $lb0
+	l2bmb@3 $lc192 $lb0
+	l2bmb@4 $lc256 $lb0
+	l2bmb@5 $lc320 $lb0
+	l2bmb@6 $lc384 $lb0
+	l2bmb@7 $lc448 $lb0
+	nop/5
+	# 占有 L1BM [0, 256)。有効データは直前の l2bmb が埋めた
+	# cycle 0 の [0, 64) のみ。/1000 で cycle 1..3 の PE 側書き込みを
+	# 止める (L1BM 側の 256 u64 読み出しはマスクでは減らない)。
+	l1bmd $lb0 $lm0v/1000
+
+# --- 定数セットアップ ---
+# $ln0 = 1 (staging: $lr0; @get_neighbor で上書き → 後で復元)
+	nop/24
+	imm i"0" $r0
+	imm i"1" $r1
+	nop/4
+	lpassa $lr0 $ln0
+	nop/24
+
+# $ln8 = 0 (staging: $lr72; preserved through @boundary_flags)
+	imm i"0" $r72
+	imm i"0" $r73
+	nop/4
+	lpassa $lr72 $ln8
+	nop/24
+
+# $lr64 = 1 (GRF0 定数: $ln0 復元用)
+	imm i"0" $r64
+	imm i"1" $r65
+	nop/4
+
+# --- PE ID 取得 ---
+# distribute.vsm — @distribute テンプレート
+# placeholder の意味は src/vsmlink.c の @distribute 展開部を参照
+
+# @identify 0 $lr8 4096
+# === @identify 0: PDM $p12288 → L2BM → L1BM → $lr8 ===
+	mvp/n512 $p12288@0 $lc1024@0.0
+	mvp/n512 $p12800@0 $lc1024@0.1
+	mvp/n512 $p13312@0 $lc1024@1.0
+	mvp/n512 $p13824@0 $lc1024@1.1
+	mvp/n512 $p14336@0 $lc1024@2.0
+	mvp/n512 $p14848@0 $lc1024@2.1
+	mvp/n512 $p15360@0 $lc1024@3.0
+	mvp/n512i3f $p15872@0 $lc1024@3.1
+	nop/2
+	nop; wait i3f
+	nop/5
+	l2bmb@0 $lc1024 $lb256
+	l2bmb@1 $lc1088 $lb256
+	l2bmb@2 $lc1152 $lb256
+	l2bmb@3 $lc1216 $lb256
+	l2bmb@4 $lc1280 $lb256
+	l2bmb@5 $lc1344 $lb256
+	l2bmb@6 $lc1408 $lb256
+	l2bmb@7 $lc1472 $lb256
+	nop/5
+	# 占有 L1BM [256, 512)。有効データは直前の l2bmb が埋めた
+	# cycle 0 の [256, 320) のみ。/1000 で cycle 1..3 の PE 側書き込みを
+	# 止める (L1BM 側の 256 u64 読み出しはマスクでは減らない)。
+	l1bmd $lb256 $lr8v/1000
+
+# --- my_val をロード ($lr0 上書き) ---
+	nop/24
+	lpassa $lm0 $lr0
+	nop
+	nop
+
+# --- my_val を GRF1 に保存 (lmax/lmin + スワップ検出用) ---
+	lpassa $lr0 $ln16
+	nop/24
+
+# --- bit0 = PE_id & 1 ($ln0 有効なうちに) ---
+	iand $ln0 $lr8 $lr16
+	nop/4
+
+# --- 隣接値取得 ---
+# boundary_flags.vsm — @boundary_flags テンプレート
+# placeholder の意味は src/vsmlink.c の @boundary_flags 展開部を参照
+
+# @boundary_flags bf1 0 $lr416 data_edge_left data_edge_right cross_chip_left cross_chip_right cross_L2B_left cross_L2B_right cross_L1B_left cross_L1B_right cross_MAB_left cross_MAB_right
+# === @boundary_flags bf1: PDM → $lr416 ===
+# -- @boundary_flags distribute: PDM $p16384 → L2BM → L1BM → $lr416 --
+	mvp/n512 $p16384@0 $lc2048@0.0
+	mvp/n512 $p16896@0 $lc2048@0.1
+	mvp/n512 $p17408@0 $lc2048@1.0
+	mvp/n512 $p17920@0 $lc2048@1.1
+	mvp/n512 $p18432@0 $lc2048@2.0
+	mvp/n512 $p18944@0 $lc2048@2.1
+	mvp/n512 $p19456@0 $lc2048@3.0
+	mvp/n512i3f $p19968@0 $lc2048@3.1
+	nop/2
+	nop; wait i3f
+	nop/5
+	l2bmb@0 $lc2048 $lb512
+	l2bmb@1 $lc2112 $lb512
+	l2bmb@2 $lc2176 $lb512
+	l2bmb@3 $lc2240 $lb512
+	l2bmb@4 $lc2304 $lb512
+	l2bmb@5 $lc2368 $lb512
+	l2bmb@6 $lc2432 $lb512
+	l2bmb@7 $lc2496 $lb512
+	nop/5
+	# 占有 L1BM [512, 768)。有効データは直前の l2bmb が埋めた
+	# cycle 0 の [512, 576) のみ。/1000 で cycle 1..3 の PE 側書き込みを
+	# 止める (L1BM 側の 256 u64 読み出しはマスクでは減らない)。
+	l1bmd $lb512 $lr416v/1000
+	nop/24
+#@ @alloc left :omr 9 10 11 12 :grf0 200 202 204 206 208 210 212 214 216 218 220 :n 0
+#@ @get_neighbor $lr400 -1 _a bf1 nbuf0 left
+# get_neighbor_left_clamp.vsm — @get_neighbor offset=-1 clamp テンプレート
+#
+# put/get モデル: PDM0 上の専用バッファ（:buffer）を使用。
+# L1B7 のみ collect する minimal 方式。
+# clamp: data_edge の PE は自分自身の値を返す。
+#
+# omr 導出: ixor でワンホット完全一致を検出
+# 結果選択: within MAB をデフォルトにし、maskr で上書き
+#
+# バッファレイアウト (buf_size = 4160):
+#   512 u64 間隔で 9 スロット。各スロットの先頭 64 u64 のみ使用。
+#   put: offset 512, 1024, ..., 4096 (8 L2B の L1B7 データ)
+#   get: offset 0, 512, ..., 3584 (1 L2B 分ずらして読む = left)
+#   offset 0..63 は edge 領域（get 時のずらし先）
+#
+# レジスタ使用 (grf0: r0-r10, omr: omr0-omr3, n: n0):
+#   r0: 入力データ  r1: ゼロ  r2: cross_L2B  r3: cross_L1B
+#   r4: cross_MAB   r5: within_MAB  r6: omr 一時
+#   r7: imm cross_L2B マスク (_hi/_lo)
+#   r8: imm cross_L1B マスク (_hi/_lo)
+#   r9: imm cross_MAB マスク (_hi/_lo)
+#   r10: imm data_edge マスク (_hi/_lo)
+
+# ゼロレジスタ
+lxor $lr202 $lr202 $lr202
+
+# 入力データ → GRF
+lpassa $lm0 $lr200
+nop
+nop
+
+# ============================================================
+# put: PE → L1BM → L2BM → PDM（L1B7 のみ）
+# ============================================================
+# 占有 L1BM [1280, 1536)。結合方向にはマスクが効かないため、
+# 4 cycle 分 256 u64 すべてが上書きされる。
+# 回収するのは cycle 0 の [1280, 1344) のみ。
+l1bmd $lr200v $lb1280
+nop/10
+
+l2bm@7 $lb1280 $lc960
+nop/3
+
+mvp/n64 $lc960@0.0 $p25088@0
+mvp/n64i3f $lc960@0.1 $p25600@0
+nop/3
+nop; wait i3f
+mvp/n64 $lc960@1.0 $p26112@0
+mvp/n64i3f $lc960@1.1 $p26624@0
+nop/3
+nop; wait i3f
+mvp/n64 $lc960@2.0 $p27136@0
+mvp/n64i3f $lc960@2.1 $p27648@0
+nop/3
+nop; wait i3f
+mvp/n64 $lc960@3.0 $p28160@0
+mvp/n64i3f $lc960@3.1 $p28672@0
+nop/3
+nop; wait i3f
+nop/5
+
+# ============================================================
+# get: PDM → L2BM → L1BM → PE（1 L2B 分ずらして読む = left）
+# ============================================================
+mvp/n64 $p24576@0 $lc1472@0.0
+mvp/n64 $p25088@0 $lc1472@0.1
+mvp/n64 $p25600@0 $lc1472@1.0
+mvp/n64 $p26112@0 $lc1472@1.1
+mvp/n64 $p26624@0 $lc1472@2.0
+mvp/n64 $p27136@0 $lc1472@2.1
+mvp/n64 $p27648@0 $lc1472@3.0
+mvp/n64i3f $p28160@0 $lc1472@3.1
+nop/2
+nop; wait i3f
+nop/5
+
+# L2BM → L1BM → PE
+l2bmb@0 $lc1472 $lb1280
+nop/6
+# 隣 MAB の L1BM [1280, 1536) を 4 cycle で読む。使うのは cycle 0 の $lr204。
+# /1000 で cycle 1..3 の PE 側書き込みを抑止する。
+l1bmd+1 $lb1280 $lr204v/1000
+nop/2
+msl $lr204 $lr204
+
+# ============================================================
+# cross L1B (L2BM 経由)
+# ============================================================
+nop/2
+# 占有 L1BM [1280, 1536)。結合方向にはマスクが効かないため、
+# 4 cycle 分 256 u64 すべてが上書きされる。
+# 回収するのは cycle 0 の [1280, 1344) のみ。
+l1bmd $lr200v $lb1280
+nop/10
+
+l2bm@0 $lb1280 $lc512
+l2bm@1 $lb1280 $lc576
+l2bm@2 $lb1280 $lc640
+l2bm@3 $lb1280 $lc704
+l2bm@4 $lb1280 $lc768
+l2bm@5 $lb1280 $lc832
+l2bm@6 $lb1280 $lc896
+l2bm@7 $lb1280 $lc960
+nop/3
+
+l2bmb@1 $lc512 $lb1280
+l2bmb@2 $lc576 $lb1280
+l2bmb@3 $lc640 $lb1280
+l2bmb@4 $lc704 $lb1280
+l2bmb@5 $lc768 $lb1280
+l2bmb@6 $lc832 $lb1280
+l2bmb@7 $lc896 $lb1280
+nop/6
+
+# 隣 MAB の L1BM [1280, 1536) を 4 cycle で読む。使うのは cycle 0 の $lr206。
+# /1000 で cycle 1..3 の PE 側書き込みを抑止する。
+l1bmd+1 $lb1280 $lr206v/1000
+nop/2
+msl $lr206 $lr206
+
+# ============================================================
+# cross MAB + within MAB
+# ============================================================
+nop/2
+# 占有 L1BM [1536, 1792)。結合方向にはマスクが効かないため、
+# 4 cycle 分 256 u64 すべてが上書きされる。
+# 回収するのは cycle 0 の [1536, 1600) のみ。
+l1bmd $lr200v $lb1536
+nop/2
+
+# 隣 MAB の L1BM [1536, 1792) を 4 cycle で読む。使うのは cycle 0 の $lr208。
+# /1000 で cycle 1..3 の PE 側書き込みを抑止する。
+l1bmd+1 $lb1536 $lr208v/1000
+nop/2
+msl $lr208 $lr208
+
+nop/2
+msl $lm0 $lr210
+
+# ============================================================
+# omr 導出 (ixor ワンホット完全一致)
+# ============================================================
+# cross_L2B_left = bit5 = 32
+imm i"0" $r214
+imm i"32" $r215
+
+# cross_L1B_left = bit3 = 8
+imm i"0" $r216
+imm i"8" $r217
+
+# cross_MAB_left = bit1 = 2
+imm i"0" $r218
+imm i"2" $r219
+
+# data_edge_left = bit9 = 512
+imm i"0" $r220
+imm i"512" $r221
+
+nop/2
+
+# omr0: cross_L2B_left
+lpassa $lr416 $ln0
+nop/2
+ixor $ln0 $lr214 $lr212
+nop/2
+lpassa $lr212 $omr9
+
+# omr1: cross_L1B_left
+nop
+lpassa $lr416 $ln0
+nop/2
+ixor $ln0 $lr216 $lr212
+nop/2
+lpassa $lr212 $omr10
+
+# omr2: cross_MAB_left
+nop
+lpassa $lr416 $ln0
+nop/2
+ixor $ln0 $lr218 $lr212
+nop/2
+lpassa $lr212 $omr11
+
+# omr3: data_edge_left
+nop
+lpassa $lr416 $ln0
+nop/2
+ixor $ln0 $lr220 $lr212
+nop/2
+lpassa $lr212 $omr12
+
+# ============================================================
+# 結果選択 (within MAB デフォルト + maskr 上書き)
+# ============================================================
+
+# default: within MAB
+nop/2
+lpassa $lr210 $lr400
+
+# cross_MAB_left で上書き
+nop/2
+  maskr 11
+ipassa $lr208 $lr400
+  mask 0
+
+# cross_L1B_left で上書き
+nop/2
+  maskr 10
+ipassa $lr206 $lr400
+  mask 0
+
+# cross_L2B_left で上書き
+nop/2
+  maskr 9
+ipassa $lr204 $lr400
+  mask 0
+
+# clamp: data_edge_left → self で上書き
+nop/2
+  maskr 12
+ipassa $lm0 $lr400
+  mask 0
+
+# 暫定: 直後に $lr400 を使う命令が来ると hazard になるため。 後で精査して正確な数に置き換える
+nop/2
+#@ @free left
+#@ @alloc right :omr 9 10 11 12 :grf0 200 202 204 206 208 210 212 214 216 218 220 :n 0
+#@ @get_neighbor $lr408 +1 _a bf1 nbuf0 right
+# get_neighbor_right_clamp.vsm — @get_neighbor offset=+1 clamp テンプレート
+#
+# put/get モデル: PDM0 上の専用バッファ（:buffer）を使用。
+# L1B0 のみ minimal。
+# clamp: data_edge の PE は自分自身の値を返す。
+#
+# omr 導出: ixor でワンホット完全一致を検出
+# 結果選択: within MAB をデフォルトにし、maskr で上書き
+#
+# レジスタ使用 (grf0: r0-r10, omr: omr0-omr3, n: n0):
+#   r0-r6: 作業用  r7-r10: imm マスク (_hi/_lo)
+
+# ゼロレジスタ
+lxor $lr202 $lr202 $lr202
+
+# 入力データ → GRF
+lpassa $lm0 $lr200
+nop
+nop
+
+# ============================================================
+# put: PE → L1BM → L2BM → PDM（L1B0 のみ）
+# ============================================================
+# 占有 L1BM [1280, 1536)。結合方向にはマスクが効かないため、
+# 4 cycle 分 256 u64 すべてが上書きされる。
+# 回収するのは cycle 0 の [1280, 1344) のみ。
+l1bmd $lr200v $lb1280
+nop/10
+
+l2bm@0 $lb1280 $lc0
+nop/3
+
+mvp/n64 $lc0@0.0 $p24576@0
+mvp/n64i3f $lc0@0.1 $p25088@0
+nop/3
+nop; wait i3f
+mvp/n64 $lc0@1.0 $p25600@0
+mvp/n64i3f $lc0@1.1 $p26112@0
+nop/3
+nop; wait i3f
+mvp/n64 $lc0@2.0 $p26624@0
+mvp/n64i3f $lc0@2.1 $p27136@0
+nop/3
+nop; wait i3f
+mvp/n64 $lc0@3.0 $p27648@0
+mvp/n64i3f $lc0@3.1 $p28160@0
+nop/3
+nop; wait i3f
+nop/5
+
+# ============================================================
+# get: PDM → L2BM → L1BM → PE（1 L2B 分ずらして読む = right）
+# ============================================================
+mvp/n64 $p25088@0 $lc1024@0.0
+mvp/n64 $p25600@0 $lc1024@0.1
+mvp/n64 $p26112@0 $lc1024@1.0
+mvp/n64 $p26624@0 $lc1024@1.1
+mvp/n64 $p27136@0 $lc1024@2.0
+mvp/n64 $p27648@0 $lc1024@2.1
+mvp/n64 $p28160@0 $lc1024@3.0
+mvp/n64i3f $p28672@0 $lc1024@3.1
+nop/2
+nop; wait i3f
+nop/5
+
+# L2BM → L1BM → PE
+l2bmb@7 $lc1024 $lb1280
+nop/6
+# 隣 MAB の L1BM [1280, 1536) を 4 cycle で読む。使うのは cycle 0 の $lr204。
+# /1000 で cycle 1..3 の PE 側書き込みを抑止する。
+l1bmd-1 $lb1280 $lr204v/1000
+nop/2
+msr $lr204 $lr204
+
+# ============================================================
+# cross L1B (L2BM 経由)
+# ============================================================
+nop/2
+# 占有 L1BM [1280, 1536)。結合方向にはマスクが効かないため、
+# 4 cycle 分 256 u64 すべてが上書きされる。
+# 回収するのは cycle 0 の [1280, 1344) のみ。
+l1bmd $lr200v $lb1280
+nop/10
+
+l2bm@0 $lb1280 $lc512
+l2bm@1 $lb1280 $lc576
+l2bm@2 $lb1280 $lc640
+l2bm@3 $lb1280 $lc704
+l2bm@4 $lb1280 $lc768
+l2bm@5 $lb1280 $lc832
+l2bm@6 $lb1280 $lc896
+l2bm@7 $lb1280 $lc960
+nop/3
+
+l2bmb@0 $lc576 $lb1280
+l2bmb@1 $lc640 $lb1280
+l2bmb@2 $lc704 $lb1280
+l2bmb@3 $lc768 $lb1280
+l2bmb@4 $lc832 $lb1280
+l2bmb@5 $lc896 $lb1280
+l2bmb@6 $lc960 $lb1280
+nop/6
+
+# 隣 MAB の L1BM [1280, 1536) を 4 cycle で読む。使うのは cycle 0 の $lr206。
+# /1000 で cycle 1..3 の PE 側書き込みを抑止する。
+l1bmd-1 $lb1280 $lr206v/1000
+nop/2
+msr $lr206 $lr206
+
+# ============================================================
+# cross MAB + within MAB
+# ============================================================
+nop/2
+# 占有 L1BM [1536, 1792)。結合方向にはマスクが効かないため、
+# 4 cycle 分 256 u64 すべてが上書きされる。
+# 回収するのは cycle 0 の [1536, 1600) のみ。
+l1bmd $lr200v $lb1536
+nop/2
+
+# 隣 MAB の L1BM [1536, 1792) を 4 cycle で読む。使うのは cycle 0 の $lr208。
+# /1000 で cycle 1..3 の PE 側書き込みを抑止する。
+l1bmd-1 $lb1536 $lr208v/1000
+nop/2
+msr $lr208 $lr208
+
+nop/2
+msr $lm0 $lr210
+
+# ============================================================
+# omr 導出 (ixor ワンホット完全一致)
+# ============================================================
+# cross_L2B_right = bit4 = 16
+imm i"0" $r214
+imm i"16" $r215
+
+# cross_L1B_right = bit2 = 4
+imm i"0" $r216
+imm i"4" $r217
+
+# cross_MAB_right = bit0 = 1
+imm i"0" $r218
+imm i"1" $r219
+
+# data_edge_right = bit8 = 256
+imm i"0" $r220
+imm i"256" $r221
+
+nop/2
+
+# omr0: cross_L2B_right
+lpassa $lr416 $ln0
+nop/2
+ixor $ln0 $lr214 $lr212
+nop/2
+lpassa $lr212 $omr9
+
+# omr1: cross_L1B_right
+nop
+lpassa $lr416 $ln0
+nop/2
+ixor $ln0 $lr216 $lr212
+nop/2
+lpassa $lr212 $omr10
+
+# omr2: cross_MAB_right
+nop
+lpassa $lr416 $ln0
+nop/2
+ixor $ln0 $lr218 $lr212
+nop/2
+lpassa $lr212 $omr11
+
+# omr3: data_edge_right
+nop
+lpassa $lr416 $ln0
+nop/2
+ixor $ln0 $lr220 $lr212
+nop/2
+lpassa $lr212 $omr12
+
+# ============================================================
+# 結果選択 (within MAB デフォルト + maskr 上書き)
+# ============================================================
+
+# default: within MAB
+nop/2
+lpassa $lr210 $lr408
+
+# cross_MAB_right で上書き
+nop/2
+  maskr 11
+ipassa $lr208 $lr408
+  mask 0
+
+# cross_L1B_right で上書き
+nop/2
+  maskr 10
+ipassa $lr206 $lr408
+  mask 0
+
+# cross_L2B_right で上書き
+nop/2
+  maskr 9
+ipassa $lr204 $lr408
+  mask 0
+
+# clamp: data_edge_right → self で上書き
+nop/2
+  maskr 12
+ipassa $lm0 $lr408
+  mask 0
+
+# 暫定: 直後に $lr408 を使う命令が来ると hazard になるため。 後で精査して正確な数に置き換える
+nop/2
+#@ @free right
+
+# --- $ln0 復元 ($lr64=1 から) ---
+	lpassa $lr64 $ln0
+	nop/24
+
+# --- max(left, my) と min(right, my) ---
+# lmax/lmin: src1=GRF0, src2=GRF1($ln16=my_val), dst=GRF0
+	lmax $lr400 $ln16 $lr24
+	nop
+	lmin $lr408 $ln16 $lr32
+	nop
+	nop
+
+# --- new_val の選択 ---
+# Even PE (bit0=0): new_val = $lr32 (min with right)  ← デフォルト
+# Odd  PE (bit0=1): new_val = $lr24 (max with left)   ← maskr で上書き
+#
+# lxor $lr16 $ln0 $omr2:
+#   Even PE ($lr16=0): 0 XOR 1 = 1 ≠ 0  → omr2=0 (maskr 不発動)
+#   Odd  PE ($lr16=1): 1 XOR 1 = 0       → omr2=1 (maskr 発動)
+#
+# デフォルト: new_val = $lr32 (min with right)
+	lxor $lr32 $ln8 $lr40
+	nop
+	nop
+
+# omr2 セット: 奇数PE で omr2=1
+	lxor $lr16 $ln0 $omr2
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+
+# 奇数PE (omr2=1): new_val = $lr24 (max with left) に上書き
+	  maskr 2
+	ipassa $lr24 $lr40
+	  mask 0
+	nop
+	nop
+
+# --- スワップ検出 ---
+# lxor new_val XOR my_val:
+#   変化なし (result=0) → omr4=1 (maskr 発動 → swap_flag=0)
+#   スワップあり (result≠0) → omr4=0 (maskr 不発動 → swap_flag=1 のまま)
+	lxor $lr40 $ln16 $omr4
+	nop
+	nop
+
+# swap_flag = 1 (デフォルト: スワップしたと仮定)
+	imm i"0" $r48
+	imm i"1" $r49
+	nop
+	nop
+
+# 変化なし (omr4=1): swap_flag = 0 ($lr72=0)
+	  maskr 4
+	ipassa $lr72 $lr48
+	  mask 0
+	nop
+	nop
+
+# --- LM 書き込みと collect ---
+	lpassa $lr40 $lm8
+	lpassa $lr48 $lm16
+	nop
+	nop
+	nop/24
+# collect.vsm — @collect テンプレート
+# placeholder の意味は src/vsmlink.c の @collect 展開部を参照
+
+# @collect _b    to_param 16 size 1 $lm8
+# === @collect _b: $lm8 → L1BM → L2BM → PDM $p4096 ===
+	nop/24
+	# 占有 L1BM [768, 1024)。結合方向にはマスクが効かないため、
+	# 4 cycle 分 256 u64 すべてが上書きされる。
+	# 回収するのは cycle 0 の [768, 832) のみ。
+	l1bmd $lm8v $lb768
+	nop/24
+	l2bm@0 $lb768 $lc3072
+	l2bm@1 $lb768 $lc3136
+	l2bm@2 $lb768 $lc3200
+	l2bm@3 $lb768 $lc3264
+	l2bm@4 $lb768 $lc3328
+	l2bm@5 $lb768 $lc3392
+	l2bm@6 $lb768 $lc3456
+	l2bm@7 $lb768 $lc3520
+	nop/5
+	mvp/n512 $lc3072@0.0 $p4096@0
+	mvp/n512i3f $lc3072@0.1 $p4608@0
+	nop/3
+	nop; wait i3f
+	mvp/n512 $lc3072@1.0 $p5120@0
+	mvp/n512i3f $lc3072@1.1 $p5632@0
+	nop/3
+	nop; wait i3f
+	mvp/n512 $lc3072@2.0 $p6144@0
+	mvp/n512i3f $lc3072@2.1 $p6656@0
+	nop/3
+	nop; wait i3f
+	mvp/n512 $lc3072@3.0 $p7168@0
+	mvp/n512i1e $lc3072@3.1 $p7680@0
+	nop/3
+	nop; wait i1e
+	nop/4
+# collect.vsm — @collect テンプレート
+# placeholder の意味は src/vsmlink.c の @collect 展開部を参照
+
+# @collect _swap to_param 24 size 1 $lm16
+# === @collect _swap: $lm16 → L1BM → L2BM → PDM $p8192 ===
+	nop/24
+	# 占有 L1BM [1024, 1280)。結合方向にはマスクが効かないため、
+	# 4 cycle 分 256 u64 すべてが上書きされる。
+	# 回収するのは cycle 0 の [1024, 1088) のみ。
+	l1bmd $lm16v $lb1024
+	nop/24
+	l2bm@0 $lb1024 $lc4096
+	l2bm@1 $lb1024 $lc4160
+	l2bm@2 $lb1024 $lc4224
+	l2bm@3 $lb1024 $lc4288
+	l2bm@4 $lb1024 $lc4352
+	l2bm@5 $lb1024 $lc4416
+	l2bm@6 $lb1024 $lc4480
+	l2bm@7 $lb1024 $lc4544
+	nop/5
+	mvp/n512 $lc4096@0.0 $p8192@0
+	mvp/n512i3f $lc4096@0.1 $p8704@0
+	nop/3
+	nop; wait i3f
+	mvp/n512 $lc4096@1.0 $p9216@0
+	mvp/n512i3f $lc4096@1.1 $p9728@0
+	nop/3
+	nop; wait i3f
+	mvp/n512 $lc4096@2.0 $p10240@0
+	mvp/n512i3f $lc4096@2.1 $p10752@0
+	nop/3
+	nop; wait i3f
+	mvp/n512 $lc4096@3.0 $p11264@0
+	mvp/n512i1f $lc4096@3.1 $p11776@0
+	nop/3
+	nop; wait i1f
+	nop/4

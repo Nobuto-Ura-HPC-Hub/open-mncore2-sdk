@@ -1,0 +1,25 @@
+# build.ninja — 38-mv-11
+include ../../scripts/sdk.ninja
+include ../../scripts/examples.ninja
+
+# カーネル
+build $builddir/mv-p11.asm: asm3_text data/mv-p11.vsm
+build $builddir/mv-p11.idma.dat: asm3_loader data/mv-p11.vsm
+  stem = $builddir/mv-p11
+
+# poison-fill カーネル (broadcast の wait 不足検出用に L2BM を先に汚す)
+build $builddir/poison-fill.asm: asm3_text data/poison-fill.vsm
+build $builddir/poison-fill.idma.dat: asm3_loader data/poison-fill.vsm
+  stem = $builddir/poison-fill
+
+# test driver
+build $builddir/ex_mv_11.o: cc ex_mv_11.c
+build $builddir/ex_mv_11: link $builddir/ex_mv_11.o | ${sdk_root}/lib/libmnc2.a
+
+# test targets
+build test-emu:     test_emu_process $builddir/ex_mv_11 | $builddir/mv-p11.asm $builddir/mv-p11.idma.dat $builddir/poison-fill.asm $builddir/poison-fill.idma.dat
+build test-emu-lib: test_emu_lib     $builddir/ex_mv_11 | $builddir/mv-p11.asm $builddir/mv-p11.idma.dat $builddir/poison-fill.asm $builddir/poison-fill.idma.dat
+build test-device:  test_device      $builddir/ex_mv_11 | $builddir/mv-p11.asm $builddir/mv-p11.idma.dat $builddir/poison-fill.asm $builddir/poison-fill.idma.dat
+build test:         test_usage
+
+default $builddir/ex_mv_11 $builddir/mv-p11.asm $builddir/mv-p11.idma.dat $builddir/poison-fill.asm $builddir/poison-fill.idma.dat

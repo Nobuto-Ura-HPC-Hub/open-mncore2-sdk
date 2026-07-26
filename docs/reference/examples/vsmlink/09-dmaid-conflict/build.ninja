@@ -1,0 +1,38 @@
+# 09-dmaid-conflict: dmaid=0x23 タグ衝突の検証
+#
+# カーネルは 01-roundtrip と同一。ホスト側で dmaid を変えて衝突を確認する。
+#
+# ninja              → vsmlink: _vsm + .param + .stparam → .vsm
+# ninja build-e2e    → + assemble3 + host C ビルド (emu:lib)
+# ninja test         → + 実行・検証
+#
+# 前提: SDK activate 済み (vsmlink, assemble3, mnc2.h が利用可能)
+
+include ../../scripts/sdk.ninja
+include ../scripts/vsmlink.ninja
+builddir = _build
+
+# --- default: vsmlink only (reuse 01-roundtrip kernel) ---
+build $builddir/roundtrip.vsm: vsmlink roundtrip._vsm roundtrip.param roundtrip.stparam
+  vsm = roundtrip._vsm
+  param = roundtrip.param
+  stparam = roundtrip.stparam
+
+# --- build-e2e: assemble + host C ---
+build $builddir/roundtrip.asm: asm3 $builddir/roundtrip.vsm
+build $builddir/roundtrip.idma.dat: asm3_loader $builddir/roundtrip.vsm
+  stem = $builddir/roundtrip
+
+build $builddir/test_dmaid_conflict.o: cc test_dmaid_conflict.c
+build $builddir/test_dmaid_conflict: link_exe $builddir/test_dmaid_conflict.o
+
+build build-e2e: phony $builddir/roundtrip.asm $builddir/roundtrip.idma.dat $builddir/test_dmaid_conflict
+
+# --- test: run E2E ---
+# test-emu-lib は無し: emu:lib は async dmaid 衝突を検出しない。 詳細は README.md 参照。
+build test: test_usage
+build test-device: test_device $builddir/test_dmaid_conflict | $builddir/roundtrip.idma.dat
+
+build clean: clean
+
+default $builddir/roundtrip.vsm

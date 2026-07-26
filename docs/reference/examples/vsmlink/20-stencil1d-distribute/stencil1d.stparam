@@ -1,0 +1,7 @@
+;; 1D 3-point stencil
+;; offset{-1} と offset{+1} の 2 点。PE 間通信で実現。
+((:version :0.0)
+ (:ndim 1)
+ (:pe_shape (4096))
+ (:pe_local (1))
+ (:boundary (:clamp)))        ; 端の PE は端の値を返す

@@ -1,0 +1,46 @@
+# mv-p10.vsm — Pattern 10: DRAM → L2BM 個別並列 (3.5.8.11)
+#
+# 動作:
+#   Setup:    PDM@G0[G*64..G*64+63] → DRAM@G[0..63] (4x mvp, #6)
+#   Test:     DRAM@G[0..63] → L2BM@G.0[0..63] (mvp individual parallel, 3.5.8.11) ← 検証対象
+#   Readback: L2BM@G.0[0..63] → PDM@G[0..63] (mvp individual parallel, #4)
+#   Gather:   PDM@G1/2/3[0..63] → DRAM@G1/2/3 → PDM@G0[64..255] (#6+#8) ← recv trigger
+# 入力: PDM@G0[0..255] = 4 ブロック
+# 結果: PDM@G0[0..255] = roundtrip
+# DMA: send_wait_tag=2, recv_wait_tag=6
+
+	nop; wait i02
+	nop/3
+	# Setup: PDM@G0[G*64] → DRAM@G[0..63] (individual, #6)
+	mvp/n64 $p0@0 $d0@0
+	mvp/n64 $p64@0 $d0@1
+	mvp/n64 $p128@0 $d0@2
+	mvp/n64i01 $p192@0 $d0@3
+	nop/2
+	nop; wait i01
+	nop/5
+	# Test: DRAM@G[0..63] → L2BM@G.0[0..63] (individual parallel, 3.5.8.11)
+	mvp/n64i03 $d0 $lc0@.0
+	nop/2
+	nop; wait i03
+	nop/5
+	# Readback: L2BM@G.0[0..63] → PDM@G[0..63] (individual parallel, #4)
+	mvp/n64i04 $lc0@.0 $p0
+	nop/2
+	nop; wait i04
+	nop/5
+	# Gather step1: PDM@G1/2/3[0..63] → DRAM@G1/2/3 (#6)
+	mvp/n64 $p0@1 $d0@1
+	mvp/n64 $p0@2 $d0@2
+	mvp/n64i05 $p0@3 $d0@3
+	nop/2
+	nop; wait i05
+	nop/5
+	# Gather step2: DRAM@G1/2/3 → PDM@G0[64..255] (#8) → recv trigger
+	mvp/n64 $d0@1 $p64@0
+	mvp/n64 $d0@2 $p128@0
+	mvp/n64i06 $d0@3 $p192@0
+	nop/2
+	nop; wait i06
+	nop/5
+	# pseudo ret

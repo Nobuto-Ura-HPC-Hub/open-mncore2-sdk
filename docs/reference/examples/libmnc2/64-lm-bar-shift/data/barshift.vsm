@@ -1,0 +1,77 @@
+# 64-lm-bar-shift — LM1 の BAR (ベースアドレスレジスタ) に書くと以降の LM アクセスが
+# BAR ぶんシフトすることの確認 (将来 LM BAR を stack pointer に使えるかの裏取り)
+#
+# imm で全 PE 同じ既知値を LM1 に置くので distribute の PE 対応に依存しない。
+# 読みは PE 命令 lpassa (BAR 適用) で行い、書き先の LM0 (BAR=0) を collect するので
+# collect が BAR 適用経路かも問わない。
+#
+#   1. LM1 物理 0..7 に 16..23 を書く (BAR=0)
+#   2. LM1 BAR に 4 を書く
+#   3. lpassa $ln0 (auto-stride, BAR=4) で LM1 物理 4 (=20) を読み LM0[0] へ
+#   4. collect LM0[0] (BAR=0) → PDM[0..4095]
+#
+# 期待 (host recv): BAR=4 が効けば全 4096 PE の値 = 20 (物理4)、効かなければ 16 (物理0)
+# 入力 (host send): ダミー (vsm の wait i10 を満たすだけ)、send_wait_tag=0x10
+# 出力 (host recv): PDM[0..4095]、recv_wait_tag=0x1e
+
+	nop; wait i10
+	nop/3
+	# === LM1 物理 0/2/4/6 に既知値 16/18/20/22 を書く (BAR=0、LM1 addr は 2 の倍数) ===
+	imm i"16" $lr0
+	nop/4
+	lpassa $lr0 $ln0
+	nop/4
+	imm i"18" $lr0
+	nop/4
+	lpassa $lr0 $ln2
+	nop/4
+	imm i"20" $lr0
+	nop/4
+	lpassa $lr0 $ln4
+	nop/4
+	imm i"22" $lr0
+	nop/4
+	lpassa $lr0 $ln6
+	nop/4
+	# === LM1 BAR に 4 を書く ===
+	imm i"4" $lr0
+	nop/4
+	lpassa $lr0 $lnb
+	nop/4
+	# === BAR 適用で LM1[0] (物理4=20) を LM0[0] に写す ===
+	lpassa $ln0 $lm0
+	nop/24
+	# === collect LM0[0..] (LM0 は BAR=0) → PDM[0..4095] ===
+	# 占有 L1BM [256, 512)。結合方向にはマスクが効かないため、
+	# 4 cycle 分 256 u64 すべてが上書きされる。
+	# 回収するのは cycle 0 の [256, 320) のみ。
+	l1bmd $lm0v $lb256
+	nop/24
+	nop/24
+	l2bm@0 $lb256 $lc1024
+	l2bm@1 $lb256 $lc1088
+	l2bm@2 $lb256 $lc1152
+	l2bm@3 $lb256 $lc1216
+	l2bm@4 $lb256 $lc1280
+	l2bm@5 $lb256 $lc1344
+	l2bm@6 $lb256 $lc1408
+	l2bm@7 $lb256 $lc1472
+	nop/5
+	mvp/n512 $lc1024@0.0 $p0@0
+	mvp/n512i19 $lc1024@0.1 $p512@0
+	nop/3
+	nop; wait i19
+	mvp/n512 $lc1024@1.0 $p1024@0
+	mvp/n512i1a $lc1024@1.1 $p1536@0
+	nop/3
+	nop; wait i1a
+	mvp/n512 $lc1024@2.0 $p2048@0
+	mvp/n512i1c $lc1024@2.1 $p2560@0
+	nop/3
+	nop; wait i1c
+	mvp/n512 $lc1024@3.0 $p3072@0
+	mvp/n512i1e $lc1024@3.1 $p3584@0
+	nop/3
+	nop; wait i1e
+	nop/4
+	# pseudo ret

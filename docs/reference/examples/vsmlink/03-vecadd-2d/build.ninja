@@ -1,0 +1,36 @@
+# 03-vecadd-2d: c[i][j] = a[i][j] + b[i][j]  (pe_shape 64x64)
+#
+# ninja              → vsmlink: _vsm + .param + .stparam → .vsm
+# ninja build-e2e    → + assemble3 + host C ビルド (emu:lib)
+# ninja test         → + emu:lib で実行・検証
+#
+# 02-vecadd と同一カーネル・同一 .param。pe_shape のみ異なる。
+
+include ../../scripts/sdk.ninja
+include ../scripts/vsmlink.ninja
+builddir = _build
+
+# --- default: vsmlink only ---
+build $builddir/vecadd-2d.vsm: vsmlink ../02-vecadd/vecadd._vsm ../02-vecadd/vecadd.param vecadd-2d.stparam
+  vsm = ../02-vecadd/vecadd._vsm
+  param = ../02-vecadd/vecadd.param
+  stparam = vecadd-2d.stparam
+
+# --- build-e2e: assemble + host C ---
+build $builddir/vecadd.asm: asm3 $builddir/vecadd-2d.vsm
+build $builddir/vecadd.idma.dat: asm3_loader $builddir/vecadd-2d.vsm
+  stem = $builddir/vecadd
+
+build $builddir/test_vecadd_2d.o: cc test_vecadd_2d.c
+build $builddir/test_vecadd_2d: link_exe $builddir/test_vecadd_2d.o
+
+build build-e2e: phony $builddir/vecadd.asm $builddir/vecadd.idma.dat $builddir/test_vecadd_2d
+
+# --- test: run E2E ---
+build test: test_usage
+build test-emu-lib: test_emu_lib $builddir/test_vecadd_2d | $builddir/vecadd.idma.dat
+build test-device: test_device $builddir/test_vecadd_2d | $builddir/vecadd.idma.dat
+
+build clean: clean
+
+default $builddir/vecadd-2d.vsm

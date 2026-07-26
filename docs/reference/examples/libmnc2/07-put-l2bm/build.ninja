@@ -1,0 +1,55 @@
+# build.ninja — 07-put-l2bm
+#
+# device テストは 3 段階 pipeline で外部検証を行う:
+#   (1) run-put-device    — ex_put_l2bm を device 実行 (put kernel まで走り、
+#                            debug_read は skip して exit 0)
+#   (2) run-peek-device   — peek_l2bm.idma.dat を run-idma --no-reset で実行
+#                            (L2BM → PDM word 0..63)
+#   (3) peek-check-device — read-pdm で先頭 32 バイト読み出し、expected と diff
+#   test-device           — (1)(2)(3) を phony で束ねる
+#
+# ステージ分割の意図: mnc2_debug_read が device で使えないため、それに代わる
+# 「外部 peek による検証」を build システム上の独立ターゲットとして表現する。
+# 各ステップが成功時 0 / 失敗時 non-zero を返し、ninja の依存解決で順次実行される。
+
+include ../../scripts/sdk.ninja
+include ../../scripts/examples.ninja
+
+# device 3 段 pipeline 用 rule (本 example 群固有なので examples.ninja には入れず local 定義)
+rule run_put_device
+  command = LD_LIBRARY_PATH=${sdk_root}/lib ./$in
+  description = RUN [device] put $in
+
+rule run_peek_device
+  command = ${sdk_root}/bin/run-idma $in --no-reset
+  description = RUN [device] peek $in --no-reset
+
+rule peek_check_device
+  command = ${sdk_root}/bin/read-pdm 0 32 | od -An -v -tx8 --endian=little | diff - data/expected-peek.txt && echo "PASS: L2BM[0..3] matches expected"
+  description = CHECK [device] peek vs data/expected-peek.txt
+
+# カーネル build
+build $builddir/put_l2bm.asm: asm3_text data/put_l2bm.vsm
+build $builddir/put_l2bm.idma.dat: asm3_loader data/put_l2bm.vsm
+  stem = $builddir/put_l2bm
+
+build $builddir/peek_l2bm.asm: asm3_text data/peek_l2bm.vsm
+build $builddir/peek_l2bm.idma.dat: asm3_loader data/peek_l2bm.vsm
+  stem = $builddir/peek_l2bm
+
+# host binary
+build $builddir/ex_put_l2bm.o: cc ex_put_l2bm.c
+build $builddir/ex_put_l2bm: link $builddir/ex_put_l2bm.o | ${sdk_root}/lib/libmnc2.a
+
+# emu 系
+build test:         test_usage
+build test-emu:     test_emu_process $builddir/ex_put_l2bm | $builddir/put_l2bm.asm $builddir/put_l2bm.idma.dat
+build test-emu-lib: test_emu_lib     $builddir/ex_put_l2bm | $builddir/put_l2bm.asm $builddir/put_l2bm.idma.dat
+
+# device 3 段 pipeline
+build run-put-device: run_put_device $builddir/ex_put_l2bm | $builddir/put_l2bm.idma.dat
+build run-peek-device: run_peek_device $builddir/peek_l2bm.idma.dat | run-put-device
+build peek-check-device: peek_check_device | run-peek-device data/expected-peek.txt
+build test-device: phony peek-check-device
+
+default $builddir/ex_put_l2bm $builddir/put_l2bm.asm $builddir/put_l2bm.idma.dat $builddir/peek_l2bm.asm $builddir/peek_l2bm.idma.dat

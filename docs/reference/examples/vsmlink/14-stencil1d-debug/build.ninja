@@ -1,0 +1,25 @@
+# 14-stencil1d-debug: Stencil 1D debug tutorial
+#
+# ninja build    → assemble3 + host C
+# ninja test     → emu:lib で実行
+
+include ../../scripts/sdk.ninja
+include ../scripts/vsmlink.ninja
+builddir = _build
+
+# --- build ---
+build $builddir/stencil1d_debug.asm: asm3 stencil1d_debug.vsm
+build $builddir/stencil1d_debug.idma.dat: asm3_loader stencil1d_debug.vsm
+  stem = $builddir/stencil1d_debug
+
+build $builddir/test_stencil1d_debug.o: cc test_stencil1d_debug.c
+build $builddir/test_stencil1d_debug: link_exe $builddir/test_stencil1d_debug.o
+
+build build: phony $builddir/stencil1d_debug.asm $builddir/stencil1d_debug.idma.dat $builddir/test_stencil1d_debug
+
+# --- test ---
+build test: test_usage
+build test-emu-lib: test_emu_lib $builddir/test_stencil1d_debug | $builddir/stencil1d_debug.idma.dat
+build test-device: test_device $builddir/test_stencil1d_debug | $builddir/stencil1d_debug.idma.dat
+
+default build

@@ -1,0 +1,10 @@
+;; 16-broadcast-f64: out[i] = v + w + x[i]
+;; slot 8/16 = broadcast 入力 (bc, bc2)。host が各 index 12..15 を V, W で埋める。各 64 u64。
+;; slot 24   = distribute 入力 (x)。
+;; slot 32   = collect 出力 (out)。
+((:version :0.1)
+ (:reserved_wait_tag #x3f)
+ (:slot 8  :place :pdm0 :addr 0    :send_wait_tag #x10)
+ (:slot 16 :place :pdm0 :addr 64   :send_wait_tag #x10)
+ (:slot 24 :place :pdm0 :addr 4096 :send_wait_tag #x10)
+ (:slot 32 :place :pdm0 :addr 8192 :recv_wait_tag #x1e))

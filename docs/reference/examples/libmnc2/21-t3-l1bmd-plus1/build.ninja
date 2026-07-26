@@ -1,0 +1,17 @@
+# build.ninja — 21-t3-l1bmd-plus1
+include ../../scripts/sdk.ninja
+include ../../scripts/examples.ninja
+
+build $builddir/t3_l1bmd_plus1.asm: asm3_text data/t3_l1bmd_plus1.vsm
+build $builddir/t3_l1bmd_plus1.idma.dat: asm3_loader data/t3_l1bmd_plus1.vsm
+  stem = $builddir/t3_l1bmd_plus1
+
+build $builddir/ex_t3_l1bmd_plus1.o: cc ex_t3_l1bmd_plus1.c
+build $builddir/ex_t3_l1bmd_plus1: link $builddir/ex_t3_l1bmd_plus1.o | ${sdk_root}/lib/libmnc2.a
+
+build test:         test_usage
+build test-emu:     test_emu_process $builddir/ex_t3_l1bmd_plus1 | $builddir/t3_l1bmd_plus1.asm $builddir/t3_l1bmd_plus1.idma.dat
+build test-emu-lib: test_emu_lib     $builddir/ex_t3_l1bmd_plus1 | $builddir/t3_l1bmd_plus1.asm $builddir/t3_l1bmd_plus1.idma.dat
+build test-device:  test_device      $builddir/ex_t3_l1bmd_plus1 | $builddir/t3_l1bmd_plus1.asm $builddir/t3_l1bmd_plus1.idma.dat
+
+default $builddir/ex_t3_l1bmd_plus1 $builddir/t3_l1bmd_plus1.idma.dat

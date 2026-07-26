@@ -1,0 +1,39 @@
+# 20-stencil1d-distribute: @boundary_flags distribute の stencil1d
+#
+# example 05 と同じ 1D 3-point stencil だが、境界フラグをホスト側で計算し
+# PDM に send してからカーネルを実行する。
+#
+# ninja              → vsmlink: _vsm + .param + .stparam → .vsm
+# ninja build-e2e    → + assemble3 + host C ビルド (emu:lib)
+# ninja test         → + 実行・検証
+#
+# 前提: SDK activate 済み (vsmlink, assemble3, mnc2.h が利用可能)
+
+include ../../scripts/sdk.ninja
+include ../scripts/vsmlink.ninja
+builddir = _build
+
+# --- default: vsmlink only ---
+build $builddir/stencil1d.vsm: vsmlink stencil1d._vsm stencil1d.param stencil1d.stparam
+  vsm = stencil1d._vsm
+  param = stencil1d.param
+  stparam = stencil1d.stparam
+
+# --- build-e2e: assemble + host C ---
+build $builddir/stencil1d.asm: asm3 $builddir/stencil1d.vsm
+build $builddir/stencil1d.idma.dat: asm3_loader $builddir/stencil1d.vsm
+  stem = $builddir/stencil1d
+
+build $builddir/test_stencil1d_distribute.o: cc test_stencil1d_distribute.c
+build $builddir/test_stencil1d_distribute: link_exe $builddir/test_stencil1d_distribute.o
+
+build build-e2e: phony $builddir/stencil1d.asm $builddir/stencil1d.idma.dat $builddir/test_stencil1d_distribute
+
+# --- test: run E2E ---
+build test: test_usage
+build test-emu-lib: test_emu_lib $builddir/test_stencil1d_distribute | $builddir/stencil1d.idma.dat
+build test-device: test_device $builddir/test_stencil1d_distribute | $builddir/stencil1d.idma.dat
+
+build clean: clean
+
+default $builddir/stencil1d.vsm

@@ -1,0 +1,65 @@
+include ../../scripts/sdk.ninja
+include ../scripts/vsmlink.ninja
+builddir = _build
+
+# --- vsmlink ---
+build $builddir/get_left.vsm: vsmlink data/get_left._vsm | data/get_left.param data/get_left.stparam
+  vsm = data/get_left._vsm
+  param = data/get_left.param
+  stparam = data/get_left.stparam
+
+# --- assemble ---
+build $builddir/get_left.asm: asm3 $builddir/get_left.vsm
+build $builddir/get_left.idma.dat: asm3_loader $builddir/get_left.vsm
+  stem = $builddir/get_left
+
+# --- host C ---
+build $builddir/test_get_left.o: cc test_get_left.c
+build $builddir/test_get_left: link_exe $builddir/test_get_left.o
+
+# --- right: vsmlink ---
+build $builddir/get_right.vsm: vsmlink data/get_right._vsm | data/get_left.param data/get_left.stparam
+  vsm = data/get_right._vsm
+  param = data/get_left.param
+  stparam = data/get_left.stparam
+
+# --- right: assemble ---
+build $builddir/get_right.asm: asm3 $builddir/get_right.vsm
+build $builddir/get_right.idma.dat: asm3_loader $builddir/get_right.vsm
+  stem = $builddir/get_right
+
+# --- right: host C ---
+build $builddir/test_get_right.o: cc test_get_right.c
+build $builddir/test_get_right: link_exe $builddir/test_get_right.o
+
+# --- 実験用 ---
+# --- 実験用 ---
+rule gpfn3_config
+  command = gpfn3_package_main -i $in -c $config --load-memory-file $memfile --offchip-memory-init zero
+  description = GPFN3 [config] $in
+
+build $builddir/edge_test.asm: asm3 data/edge_test.vsm
+build $builddir/08063881.bin: fetch_data
+  bin = 08063881.bin
+build edge-test: gpfn3_config $builddir/edge_test.asm | $builddir/08063881.bin
+  config = data/config_pdm0_sequential.json
+  memfile = $builddir/08063881.bin
+
+build build-e2e: phony $builddir/get_left.asm $builddir/get_left.idma.dat $builddir/test_get_left $builddir/get_right.asm $builddir/get_right.idma.dat $builddir/test_get_right
+
+build $builddir/75c77b0f.bin: fetch_data
+  bin = 75c77b0f.bin
+
+
+# --- test ---
+build test-left: test_emu_lib $builddir/test_get_left | $builddir/get_left.idma.dat $builddir/75c77b0f.bin
+build test-right: test_emu_lib $builddir/test_get_right | $builddir/get_right.idma.dat $builddir/75c77b0f.bin
+build test-emu-lib: phony test-left test-right
+
+build test-left-device: test_device $builddir/test_get_left | $builddir/get_left.idma.dat $builddir/75c77b0f.bin
+build test-right-device: test_device $builddir/test_get_right | $builddir/get_right.idma.dat $builddir/75c77b0f.bin
+build test-device: phony test-left-device test-right-device
+
+build test: test_usage
+
+default $builddir/get_left.vsm $builddir/get_right.vsm

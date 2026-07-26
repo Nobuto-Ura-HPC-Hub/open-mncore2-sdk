@@ -1,0 +1,2 @@
+# RUN: ninja -C %examples/11-vecdiv-with-newton-raphson build-e2e
+# RUN: ninja -C %examples/11-vecdiv-with-newton-raphson test-emu-lib

@@ -1,0 +1,6 @@
+;; 18-broadcast-vec: out[i] = v.x + v.y * 2 + v.z * 4 + x[i] (4096 PE, layout :any)
+((:version :0.0)
+ (:ndim 1)
+ (:pe_shape (4096))
+ (:pe_local (1))
+ (:data_layout :any))

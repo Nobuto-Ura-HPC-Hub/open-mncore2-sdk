@@ -1,0 +1,38 @@
+# reduce-pe-s3.vsm — Stage 3: PE → L1BM → L2BM → PDM 全段縮約
+#
+# 動作:
+#   Distribute: PDM → L2BM (mvb) → L1BM (l2bmb) → PE (l1bmp)
+#   Reduce 1:   PE → L1BM (l1bmrdfadd, 16 MAB 縮約)
+#   Reduce 2:   L1BM → L2BM (l2bmrdfadd, 8 L1B 縮約)
+#   Reduce 3:   L2BM → PDM (mvrdfadd, 8 L2B バンク縮約)
+#
+# 入力: PDM[0..63] = 64 doubles (all 1.0)
+# 期待: PDM[0..3] = 1024.0 (8 bank × 8 L1B × 16 MAB × 1.0)
+# 検証: mnc2_recv(PDM)
+# DMA: send_wait_tag=2, recv_wait_tag=6
+
+	nop; wait i02
+	nop/3
+	# PDM → 全 L2BM broadcast
+	mvb/n64i01 $p0@0 $lc0
+	nop/2
+	nop; wait i01
+	nop/5
+	# L2BM → 全 L1BM broadcast
+	l2bmb $lc0 $lb0
+	nop/24
+	# L1BM → 全 PE broadcast ($lr0 = 1.0)
+	l1bmp $lb0 $lr0
+	nop/24
+	# PE → L1BM reduce (16 MAB 縮約)
+	l1bmrdfadd $lr0 $lb64
+	nop/24
+	# L1BM → L2BM reduce (8 L1B 縮約)
+	l2bmrdfadd $lb64 $lc64
+	nop/24
+	# L2BM → PDM reduce (8 L2B バンク縮約)
+	mvrdfadd/n64i06 $lc64 $p0@0
+	nop/2
+	nop; wait i06
+	nop/5
+	# pseudo ret

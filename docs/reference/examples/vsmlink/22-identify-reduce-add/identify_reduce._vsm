@@ -1,0 +1,8 @@
+# ABI PFN3_SBY64
+#
+# @identify → @reduce :liadd
+# PE ID [0..4095] を配布し、全 PE の合計を reduce で取得する。
+#
+	@identify 0 $lr8 4096
+	nop
+	@reduce _sum to_param 8 $lr8 liadd

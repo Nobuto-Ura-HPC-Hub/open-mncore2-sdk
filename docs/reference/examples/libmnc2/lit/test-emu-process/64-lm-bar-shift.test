@@ -1,0 +1,2 @@
+# LM1 BAR シフト (BAR=4 で $ln0 が物理 4 を読む) を検証。
+# RUN: ninja -C %examples/64-lm-bar-shift test-emu

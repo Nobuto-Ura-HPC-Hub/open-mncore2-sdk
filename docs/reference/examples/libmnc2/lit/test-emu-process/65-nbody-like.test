@@ -1,0 +1,2 @@
+# nbody like (f64): broadcast + 累積 (F_j += (x_i - x_j)*(m_i*m_j)) を golden と比較。
+# RUN: ninja -C %examples/65-nbody-like test-emu

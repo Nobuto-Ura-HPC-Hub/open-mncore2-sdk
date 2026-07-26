@@ -1,0 +1,4 @@
+# 23-identify: @identify directive のフィジビリティ検証 (emu:lib)
+# REQUIRES: filecheck, assemble3
+# RUN: ninja -C %examples/23-identify test-emu-lib 2>&1 | %FileCheck %s
+# CHECK: test1_identify PASS

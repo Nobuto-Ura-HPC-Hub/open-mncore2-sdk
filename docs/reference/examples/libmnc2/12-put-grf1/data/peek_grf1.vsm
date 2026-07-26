@@ -1,0 +1,23 @@
+# peek_grf1: GRF1 → LM0 → L1BM → L2BM → PDM[0..63]
+#
+# 18-get-grf1 の collect path を n64 1 mvp に短縮した版。
+# put_grf1 が GRF1 に入れたデータのうち、4 PE 分を PDM 先頭に戻す。
+#
+# HW 制約: PDM 先頭 1 MiB 制約あり、$p0@0 を使い input data を上書き。
+# 前提: put_grf1.idma.dat 実行直後に run-idma --no-reset で呼び出す。
+
+	lpassa $ls0 $lm0
+	nop/24
+	# 占有 L1BM [256, 512)。結合方向にはマスクが効かないため、
+	# 4 cycle 分 256 u64 すべてが上書きされる。
+	# 回収するのは cycle 0 の [256, 320) のみ。
+	l1bmd $lm0v $lb256
+	nop/24
+	nop/24
+	l2bm@0 $lb256 $lc1024
+	nop/5
+	mvp/n64i24 $lc1024@0.0 $p0@0
+	nop/3
+	nop; wait i24
+	nop/4
+	# pseudo ret

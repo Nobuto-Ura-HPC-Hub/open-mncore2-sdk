@@ -1,0 +1,39 @@
+# 19-collect-x3: @collect ×3 で $subpeid/$mabid/$l1bid を個別回収
+#
+# 各 PE の $subpeid / $mabid / $l1bid を 3 回の @collect で順にホストへ回収する。
+# （17 は @boundary_flags で 8bit パック → 1 回の @collect。こちらは素朴な 3 回版）
+#
+# ninja              → vsmlink: _vsm + .param + .stparam → .vsm
+# ninja build-e2e    → + assemble3 + host C ビルド (emu:lib)
+# ninja test         → + 実行・検証
+#
+# 前提: SDK activate 済み (vsmlink, assemble3, mnc2.h が利用可能)
+
+include ../../scripts/sdk.ninja
+include ../scripts/vsmlink.ninja
+builddir = _build
+
+# --- default: vsmlink only ---
+build $builddir/boundary-collect.vsm: vsmlink boundary-collect._vsm boundary-collect.param boundary-collect.stparam
+  vsm = boundary-collect._vsm
+  param = boundary-collect.param
+  stparam = boundary-collect.stparam
+
+# --- build-e2e: assemble + host C ---
+build $builddir/boundary-collect.asm: asm3 $builddir/boundary-collect.vsm
+build $builddir/boundary-collect.idma.dat: asm3_loader $builddir/boundary-collect.vsm
+  stem = $builddir/boundary-collect
+
+build $builddir/test_boundary_collect.o: cc test_boundary_collect.c
+build $builddir/test_boundary_collect: link_exe $builddir/test_boundary_collect.o
+
+build build-e2e: phony $builddir/boundary-collect.asm $builddir/boundary-collect.idma.dat $builddir/test_boundary_collect
+
+# --- test: run E2E ---
+build test: test_usage
+build test-emu-lib: test_emu_lib $builddir/test_boundary_collect | $builddir/boundary-collect.idma.dat
+build test-device: test_device $builddir/test_boundary_collect | $builddir/boundary-collect.idma.dat
+
+build clean: clean
+
+default $builddir/boundary-collect.vsm

@@ -1,0 +1,1 @@
+# RUN: ninja -C %examples/21-t3-l1bmd-plus1 test-emu

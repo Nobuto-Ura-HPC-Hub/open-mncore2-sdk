@@ -1,0 +1,38 @@
+# build.ninja — debug-read example
+include ../../scripts/sdk.ninja
+include ../../scripts/examples.ninja
+
+# カーネル群 (data/*.vsm → _build/)
+build $builddir/nop.asm: asm3_text data/nop.vsm
+build $builddir/nop.idma.dat: asm3_loader data/nop.vsm
+  stem = $builddir/nop
+build $builddir/put_l2bm.asm: asm3_text data/put_l2bm.vsm
+build $builddir/put_l2bm.idma.dat: asm3_loader data/put_l2bm.vsm
+  stem = $builddir/put_l2bm
+build $builddir/put_l1bm.asm: asm3_text data/put_l1bm.vsm
+build $builddir/put_l1bm.idma.dat: asm3_loader data/put_l1bm.vsm
+  stem = $builddir/put_l1bm
+build $builddir/put_lm.asm: asm3_text data/put_lm.vsm
+build $builddir/put_lm.idma.dat: asm3_loader data/put_lm.vsm
+  stem = $builddir/put_lm
+build $builddir/put_grf.asm: asm3_text data/put_grf.vsm
+build $builddir/put_grf.idma.dat: asm3_loader data/put_grf.vsm
+  stem = $builddir/put_grf
+
+# test driver
+build $builddir/test_debug_read.o: cc test_debug_read.c
+build $builddir/test_debug_read: link $builddir/test_debug_read.o | ${sdk_root}/lib/libmnc2.a
+
+# test targets (emu:lib 専用 example: debug_read API が emu:lib のみ対応)
+build test-emu-lib: test_emu_lib $builddir/test_debug_read | $
+    $builddir/nop.asm $builddir/nop.idma.dat $
+    $builddir/put_l2bm.asm $builddir/put_l2bm.idma.dat $
+    $builddir/put_l1bm.asm $builddir/put_l1bm.idma.dat $
+    $builddir/put_lm.asm $builddir/put_lm.idma.dat $
+    $builddir/put_grf.asm $builddir/put_grf.idma.dat
+build test: test_usage_emu_lib_only
+
+default $builddir/test_debug_read $
+    $builddir/nop.asm $builddir/nop.idma.dat $
+    $builddir/put_l2bm.idma.dat $builddir/put_l1bm.idma.dat $
+    $builddir/put_lm.idma.dat $builddir/put_grf.idma.dat

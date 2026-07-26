@@ -1,0 +1,22 @@
+# mv-p2b.vsm — Pattern 2B: PDM@0 → DRAM@0~3 via mvd 分配 + mvd 収集 (3.5.8.24/3.5.8.25)
+#
+# 動作 (size=64):
+#   mvd distribute: PDM@0[0..63] (64LW) を4等分 → DRAM@G[0..15] each (16LW each)
+#     G=0: PDM[0..15], G=1: PDM[16..31], G=2: PDM[32..47], G=3: PDM[48..63]
+#   mvd collect:    DRAM@G[0..15] → 結合 → PDM@0[0..63] (元のデータ復元)
+# 結果: PDM@0[0..63] == 元の入力 (roundtrip)
+# DMA: send_wait_tag=2, recv_wait_tag=6
+
+	nop; wait i02
+	nop/3
+	# Distribute: PDM@0[0..63] → DRAM@G[0..15] (3.5.8.24)
+	mvd/n64i01 $p0@0 $d0
+	nop/2
+	nop; wait i01
+	nop/5
+	# Collect: DRAM@G[0..15] → PDM@0[0..63] (3.5.8.25)
+	mvd/n64i06 $d0 $p0@0
+	nop/2
+	nop; wait i06
+	nop/5
+	# pseudo ret

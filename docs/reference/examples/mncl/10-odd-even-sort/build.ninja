@@ -1,0 +1,68 @@
+# 10-odd-even-sort: 奇偶転置ソート 1 ステップ (4096 PE, fp64, neighbor + if/else)
+# even / odd / reduce の 3 kernel 構成。 分割の理由は README.md を参照。
+
+include ../scripts/mncl.ninja
+include ../../scripts/sdk.ninja
+builddir = _build
+
+# stparam は 3 kernel 共通 (4096 PE 1D, layout :any)
+
+# --- even kernel ---
+build $builddir/odd-even-sort-even._vsm: emit-vsm odd-even-sort-even.cl
+build $builddir/odd-even-sort-even.vsm: vsmlink $builddir/odd-even-sort-even._vsm odd-even-sort-even.param odd-even-sort.stparam
+  vsm = $builddir/odd-even-sort-even._vsm
+  param = odd-even-sort-even.param
+  stparam = odd-even-sort.stparam
+build $builddir/odd-even-sort-even.asm: asm3 $builddir/odd-even-sort-even.vsm
+build $builddir/odd-even-sort-even.idma.dat: asm3_loader $builddir/odd-even-sort-even.vsm
+  stem = $builddir/odd-even-sort-even
+
+# --- odd kernel ---
+build $builddir/odd-even-sort-odd._vsm: emit-vsm odd-even-sort-odd.cl
+build $builddir/odd-even-sort-odd.vsm: vsmlink $builddir/odd-even-sort-odd._vsm odd-even-sort-odd.param odd-even-sort.stparam
+  vsm = $builddir/odd-even-sort-odd._vsm
+  param = odd-even-sort-odd.param
+  stparam = odd-even-sort.stparam
+build $builddir/odd-even-sort-odd.asm: asm3 $builddir/odd-even-sort-odd.vsm
+build $builddir/odd-even-sort-odd.idma.dat: asm3_loader $builddir/odd-even-sort-odd.vsm
+  stem = $builddir/odd-even-sort-odd
+
+# --- reduce kernel ---
+build $builddir/odd-even-sort-reduce._vsm: emit-vsm odd-even-sort-reduce.cl
+build $builddir/odd-even-sort-reduce.vsm: vsmlink $builddir/odd-even-sort-reduce._vsm odd-even-sort-reduce.param odd-even-sort.stparam
+  vsm = $builddir/odd-even-sort-reduce._vsm
+  param = odd-even-sort-reduce.param
+  stparam = odd-even-sort.stparam
+build $builddir/odd-even-sort-reduce.asm: asm3 $builddir/odd-even-sort-reduce.vsm
+build $builddir/odd-even-sort-reduce.idma.dat: asm3_loader $builddir/odd-even-sort-reduce.vsm
+  stem = $builddir/odd-even-sort-reduce
+
+# --- host ---
+build $builddir/test_odd-even-sort.o: cc test_odd-even-sort.c
+build $builddir/test_odd-even-sort: link $builddir/test_odd-even-sort.o
+
+# --- boundary flags (../data/created/<sha>.bin から fetch) ---
+# 奇数フェーズはペアが PE グループ境界を跨ぐので non-zero boundary_flags が要る。
+# 75c77b0f.bin = gen_bf_golden ok --edge-left --edge-right (4096 u64)。 05-stencil1d と同じ。
+build $builddir/collected_flags.bin: fetch_data
+  bin = 75c77b0f.bin
+
+build build-e2e: phony $
+    $builddir/odd-even-sort-even.asm $builddir/odd-even-sort-even.idma.dat $
+    $builddir/odd-even-sort-odd.asm $builddir/odd-even-sort-odd.idma.dat $
+    $builddir/odd-even-sort-reduce.asm $builddir/odd-even-sort-reduce.idma.dat $
+    $builddir/test_odd-even-sort $builddir/collected_flags.bin
+
+build test-emu-lib: test_emu_lib $builddir/test_odd-even-sort | $
+    $builddir/odd-even-sort-even.idma.dat $builddir/odd-even-sort-odd.idma.dat $
+    $builddir/odd-even-sort-reduce.idma.dat $builddir/collected_flags.bin
+build test-device:  test_device  $builddir/test_odd-even-sort | $
+    $builddir/odd-even-sort-even.idma.dat $builddir/odd-even-sort-odd.idma.dat $
+    $builddir/odd-even-sort-reduce.idma.dat $builddir/collected_flags.bin
+build test:         test_usage
+
+build clean: clean
+
+default $builddir/odd-even-sort-even.asm $builddir/odd-even-sort-even.idma.dat $
+    $builddir/odd-even-sort-odd.asm $builddir/odd-even-sort-odd.idma.dat $
+    $builddir/odd-even-sort-reduce.asm $builddir/odd-even-sort-reduce.idma.dat

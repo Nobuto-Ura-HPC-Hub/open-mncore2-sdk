@@ -1,0 +1,20 @@
+# build.ninja — 44-peid-collect
+include ../../scripts/sdk.ninja
+include ../../scripts/examples.ninja
+
+# カーネル
+build $builddir/peid_collect.asm: asm3_text data/peid_collect.vsm
+build $builddir/peid_collect.idma.dat: asm3_loader data/peid_collect.vsm
+  stem = $builddir/peid_collect
+
+# test driver
+build $builddir/ex_peid_collect.o: cc ex_peid_collect.c
+build $builddir/ex_peid_collect: link $builddir/ex_peid_collect.o | ${sdk_root}/lib/libmnc2.a
+
+# test targets
+build test-emu:     test_emu_process $builddir/ex_peid_collect | $builddir/peid_collect.asm $builddir/peid_collect.idma.dat
+build test-emu-lib: test_emu_lib     $builddir/ex_peid_collect | $builddir/peid_collect.asm $builddir/peid_collect.idma.dat
+build test-device:  test_device      $builddir/ex_peid_collect | $builddir/peid_collect.asm $builddir/peid_collect.idma.dat
+build test:         test_usage
+
+default $builddir/ex_peid_collect $builddir/peid_collect.asm $builddir/peid_collect.idma.dat

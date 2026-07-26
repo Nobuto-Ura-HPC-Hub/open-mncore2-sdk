@@ -1,0 +1,131 @@
+# ABI PFN3_SBY64
+#
+# sort_even: Odd-Even Transposition Sort — 偶数フェーズ
+#
+# 組: (PE0,PE1), (PE2,PE3), ..., (PE4094,PE4095)
+#   Even PE (bit0=0): new_val = min(my, right_neighbor)
+#   Odd  PE (bit0=1): new_val = max(my, left_neighbor)
+#
+# maskr N は omr[N]=1 のときに発動する (lxor はresult=0のとき omr=1をセット)
+#
+# Input:  slot  8 [addr     0] = data A
+# Output: slot 16 [addr  4096] = data B
+#         slot 24 [addr  8192] = swap_flags
+
+	@distribute _a from_param 8 size 1 $lm0
+
+# --- 定数セットアップ ---
+# $ln0 = 1 (staging: $lr0; @get_neighbor で上書き → 後で復元)
+	imm i"0" $r0
+	imm i"1" $r1
+	nop/4
+	lpassa $lr0 $ln0
+	nop/24
+
+# $ln8 = 0 (staging: $lr72; preserved through @boundary_flags)
+	imm i"0" $r72
+	imm i"0" $r73
+	nop/4
+	lpassa $lr72 $ln8
+	nop/24
+
+# $lr64 = 1 (GRF0 定数: $ln0 復元用)
+	imm i"0" $r64
+	imm i"1" $r65
+	nop/4
+
+# --- PE ID 取得 ---
+	@identify 0 $lr8 4096
+
+# --- my_val をロード ($lr0 上書き) ---
+	lpassa $lm0 $lr0
+	nop
+	nop
+
+# --- my_val を GRF1 に保存 (lmax/lmin + スワップ検出用) ---
+	lpassa $lr0 $ln16
+	nop/24
+
+# --- bit0 = PE_id & 1 ($ln0 有効なうちに) ---
+	iand $ln0 $lr8 $lr16
+	nop/4
+
+# --- 隣接値取得 ---
+	@boundary_flags bf1 0 $lr416 data_edge_left data_edge_right cross_chip_left cross_chip_right cross_L2B_left cross_L2B_right cross_L1B_left cross_L1B_right cross_MAB_left cross_MAB_right
+	@alloc left :omr 9 10 11 12 :grf0 200 202 204 206 208 210 212 214 216 218 220 :n 0
+	@get_neighbor $lr400 -1 $lm0 bf1 nbuf0 left
+	@free left
+	@alloc right :omr 9 10 11 12 :grf0 200 202 204 206 208 210 212 214 216 218 220 :n 0
+	@get_neighbor $lr408 +1 $lm0 bf1 nbuf0 right
+	@free right
+
+# --- $ln0 復元 ($lr64=1 から) ---
+	lpassa $lr64 $ln0
+	nop/24
+
+# --- max(left, my) と min(right, my) ---
+# lmax/lmin: src1=GRF0, src2=GRF1($ln16=my_val), dst=GRF0
+	lmax $lr400 $ln16 $lr24
+	nop
+	lmin $lr408 $ln16 $lr32
+	nop
+	nop
+
+# --- new_val の選択 ---
+# Even PE (bit0=0): new_val = $lr32 (min with right)  ← デフォルト
+# Odd  PE (bit0=1): new_val = $lr24 (max with left)   ← maskr で上書き
+#
+# lxor $lr16 $ln0 $omr2:
+#   Even PE ($lr16=0): 0 XOR 1 = 1 ≠ 0  → omr2=0 (maskr 不発動)
+#   Odd  PE ($lr16=1): 1 XOR 1 = 0       → omr2=1 (maskr 発動)
+#
+# デフォルト: new_val = $lr32 (min with right)
+	lxor $lr32 $ln8 $lr40
+	nop
+	nop
+
+# omr2 セット: 奇数PE で omr2=1
+	lxor $lr16 $ln0 $omr2
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+
+# 奇数PE (omr2=1): new_val = $lr24 (max with left) に上書き
+	  maskr 2
+	ipassa $lr24 $lr40
+	  mask 0
+	nop
+	nop
+
+# --- スワップ検出 ---
+# lxor new_val XOR my_val:
+#   変化なし (result=0) → omr4=1 (maskr 発動 → swap_flag=0)
+#   スワップあり (result≠0) → omr4=0 (maskr 不発動 → swap_flag=1 のまま)
+	lxor $lr40 $ln16 $omr4
+	nop
+	nop
+
+# swap_flag = 1 (デフォルト: スワップしたと仮定)
+	imm i"0" $r48
+	imm i"1" $r49
+	nop
+	nop
+
+# 変化なし (omr4=1): swap_flag = 0 ($lr72=0)
+	  maskr 4
+	ipassa $lr72 $lr48
+	  mask 0
+	nop
+	nop
+
+# --- LM 書き込みと collect ---
+	lpassa $lr40 $lm8
+	lpassa $lr48 $lm16
+	nop
+	nop
+	nop/24
+	@collect _b    to_param 16 size 1 $lm8
+	@collect _swap to_param 24 size 1 $lm16

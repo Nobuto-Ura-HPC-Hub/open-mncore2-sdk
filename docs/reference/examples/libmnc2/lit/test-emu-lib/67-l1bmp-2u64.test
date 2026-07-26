@@ -1,0 +1,2 @@
+# l1bmp の 1 u64 版 (3.6.8.6) と 2 u64 版 (3.6.8.7) で L1BM の位置とレジスタの対応を観察する。
+# RUN: ninja -C %examples/67-l1bmp-2u64 test-emu-lib

@@ -1,0 +1,1 @@
+# RUN: ninja -C %root/examples/05-stencil1d test-emu-lib

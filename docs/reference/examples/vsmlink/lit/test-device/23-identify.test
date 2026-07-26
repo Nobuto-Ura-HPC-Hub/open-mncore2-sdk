@@ -1,0 +1,3 @@
+# 23-identify: @identify directive のフィジビリティ検証 (device)
+# REQUIRES: device, assemble3
+# RUN: ninja -C %examples/23-identify test-device

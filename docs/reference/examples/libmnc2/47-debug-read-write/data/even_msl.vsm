@@ -1,0 +1,22 @@
+# even_msl.vsm — msl (左シフト) カーネル
+#
+# LM0[0] の値を msl で左隣から取得し、GRF0 経由で LM0[4] に書き戻す。
+# 入力: LM0 addr=0 (ホスト側で debug_write)
+# 出力: LM0 addr=4 (ホスト側で debug_read)
+#
+# msl: PE[i] ← PE[i-1] (MAB 内循環)
+#   MAB0: PE0←PE3(wrap), PE1←PE0, PE2←PE1, PE3←PE2
+#   MAB1: PE4←PE7(wrap), PE5←PE4, PE6←PE5, PE7←PE6
+
+nop
+nop
+
+# --- 左隣を取る (msl) ---
+msl $lm0 $lr8/1111
+nop/24
+
+# --- 結果を LM0[4] に保存 ---
+lpassa $lr8 $lm8
+nop
+nop
+nop/24

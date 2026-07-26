@@ -1,0 +1,481 @@
+# exec_odd._vsm — 奇数swap / 偶奇統合 / cross MAB+L1B+L2B (@boundary_flags 版)
+#
+# exec_odd.vsm と同じロジックだが、HW レジスタ境界判定を
+# @boundary_flags distribute で置き換え。
+#
+# 入力: LM0[0] (init で配布済み)
+# 出力: LM0[0] = new_val, LM0[8] ($lm16) = swap_flag
+
+# ============================================================
+# 0. @boundary_flags distribute → $lr416
+# ============================================================
+	@boundary_flags bf1 0 $lr416 data_edge_left data_edge_right cross_chip_left cross_chip_right cross_L2B_left cross_L2B_right cross_L1B_left cross_L1B_right cross_MAB_left cross_MAB_right
+
+nop
+nop
+
+# === 定数 ===
+lxor $lr64 $lr64 $lr64
+nop/4
+imm i"0" $r0
+imm i"1" $r1
+imm i"0" $r50
+imm i"1" $r51                 # $lr50 = (0, 1) — $ln0 復元用定数
+imm i"0" $r80
+imm i"3" $r81                 # $lr80 = (0, 3) — 境界PE保護用
+nop/4
+lpassa $lr0 $ln0
+nop/24
+lpassa $lr64 $ln8
+lpassa $lr64 $ln32             # $ln32 = 0 — 境界PE保護用
+nop/24
+imm i"0" $r72
+imm i"15" $r73
+nop/4
+lpassa $lr72 $ln36             # $ln36 = (0, 15) — 境界PE保護用
+nop/24
+imm i"0" $r76
+imm i"7" $r77
+nop/4
+lpassa $lr76 $ln40             # $ln40 = (0, 7) — 境界PE保護用
+nop/24
+
+# === my_val → GRF1 ===
+lpassa $lm0 $lr0
+nop
+nop
+lpassa $lr0 $ln16
+nop/24
+
+# ============================================================
+# cross_L2B: cross L2B (左方向 → $lr88, 右方向 → $lr160)
+# ============================================================
+l1bmd $lr0v $lb128
+nop/10
+l2bm@0 $lb128 $lc512
+l2bm@1 $lb128 $lc576
+l2bm@2 $lb128 $lc640
+l2bm@3 $lb128 $lc704
+l2bm@4 $lb128 $lc768
+l2bm@5 $lb128 $lc832
+l2bm@6 $lb128 $lc896
+l2bm@7 $lb128 $lc960
+nop/3
+# collect to PDM
+mvp/n512 $lc512@0.0 $p8192@0
+mvp/n512i28 $lc512@0.1 $p8704@0
+nop/3
+nop; wait i28
+mvp/n512 $lc512@1.0 $p9216@0
+mvp/n512i29 $lc512@1.1 $p9728@0
+nop/3
+nop; wait i29
+mvp/n512 $lc512@2.0 $p10240@0
+mvp/n512i2a $lc512@2.1 $p10752@0
+nop/3
+nop; wait i2a
+mvp/n512 $lc512@3.0 $p11264@0
+mvp/n512i2b $lc512@3.1 $p11776@0
+nop/3
+nop; wait i2b
+nop/5
+# 左方向 redistribute (Sec N → Sec N+1)
+mvp/n512 $p8192@0 $lc1024@0.1
+mvp/n512 $p8704@0 $lc1024@1.0
+mvp/n512 $p9216@0 $lc1024@1.1
+mvp/n512 $p9728@0 $lc1024@2.0
+mvp/n512 $p10240@0 $lc1024@2.1
+mvp/n512 $p10752@0 $lc1024@3.0
+mvp/n512i2c $p11264@0 $lc1024@3.1
+nop/2
+nop; wait i2c
+nop/5
+# L2BM → L1B0 (左隣: 前セクション L1B7)
+l2bmb@0 $lc1472 $lb128
+nop/6
+l1bmd+1 $lb128 $lr88v
+nop/24
+msr $lr88 $lr88
+nop
+nop
+msr $lr88 $lr88
+nop
+nop
+msr $lr88 $lr88
+nop
+nop
+
+# 右方向 redistribute (Sec N+1 → Sec N)
+mvp/n512 $p8704@0 $lc2048@0.0
+mvp/n512 $p9216@0 $lc2048@0.1
+mvp/n512 $p9728@0 $lc2048@1.0
+mvp/n512 $p10240@0 $lc2048@1.1
+mvp/n512 $p10752@0 $lc2048@2.0
+mvp/n512 $p11264@0 $lc2048@2.1
+mvp/n512i2d $p11776@0 $lc2048@3.0
+nop/2
+nop; wait i2d
+nop/5
+# L2BM → L1B7 (右隣: 次セクション L1B0)
+l2bmb@7 $lc2048 $lb256
+nop/6
+l1bmd-1 $lb256 $lr160v
+nop/24
+msl $lr160 $lr160/1111
+nop
+nop
+msl $lr160 $lr160/1111
+nop
+nop
+msl $lr160 $lr160/1111
+nop
+nop
+
+# ============================================================
+# cross_L1B: cross L1B (左 → $lr96, 右 → $lr168)
+# ============================================================
+l1bmd $lr0v $lb128
+nop/10
+l2bm@0 $lb128 $lc512
+l2bm@1 $lb128 $lc576
+l2bm@2 $lb128 $lc640
+l2bm@3 $lb128 $lc704
+l2bm@4 $lb128 $lc768
+l2bm@5 $lb128 $lc832
+l2bm@6 $lb128 $lc896
+l2bm@7 $lb128 $lc960
+nop/3
+# 左: L1B N-1 → L1B N
+l2bmb@1 $lc512 $lb128
+l2bmb@2 $lc576 $lb128
+l2bmb@3 $lc640 $lb128
+l2bmb@4 $lc704 $lb128
+l2bmb@5 $lc768 $lb128
+l2bmb@6 $lc832 $lb128
+l2bmb@7 $lc896 $lb128
+nop/6
+l1bmd+1 $lb128 $lr96v
+nop/24
+msr $lr96 $lr96
+nop
+nop
+msr $lr96 $lr96
+nop
+nop
+msr $lr96 $lr96
+nop
+nop
+
+# 右: L1B N+1 → L1B N (bank 256)
+l1bmd $lr0v $lb256
+nop/10
+l2bm@0 $lb256 $lc512
+l2bm@1 $lb256 $lc576
+l2bm@2 $lb256 $lc640
+l2bm@3 $lb256 $lc704
+l2bm@4 $lb256 $lc768
+l2bm@5 $lb256 $lc832
+l2bm@6 $lb256 $lc896
+l2bm@7 $lb256 $lc960
+nop/3
+l2bmb@0 $lc576 $lb256
+l2bmb@1 $lc640 $lb256
+l2bmb@2 $lc704 $lb256
+l2bmb@3 $lc768 $lb256
+l2bmb@4 $lc832 $lb256
+l2bmb@5 $lc896 $lb256
+l2bmb@6 $lc960 $lb256
+nop/6
+l1bmd-1 $lb256 $lr168v
+nop/24
+msl $lr168 $lr168/1111
+nop
+nop
+msl $lr168 $lr168/1111
+nop
+nop
+msl $lr168 $lr168/1111
+nop
+nop
+
+# ============================================================
+# cross_MAB: cross MAB (左 → $lr16, 右 → $lr32)
+# within_MAB: msl → $lr8, msr → $lr24
+# ============================================================
+l1bmd $lr0v $lb0
+nop
+nop
+msl $lm0 $lr8/1111
+nop
+nop
+l1bmd+1 $lb0 $lr16v
+nop
+nop
+msr $lr16 $lr16
+nop
+nop
+msr $lr16 $lr16
+nop
+nop
+msr $lr16 $lr16
+nop
+nop
+
+msr $lm0 $lr24
+nop
+nop
+l1bmd-1 $lb0 $lr32v
+nop
+nop
+msl $lr32 $lr32/1111
+nop
+nop
+msl $lr32 $lr32/1111
+nop
+nop
+msl $lr32 $lr32/1111
+nop
+nop
+
+# ============================================================
+# 結果選択-左: $lr416 → omr (interior) → $lr400
+# ============================================================
+imm i"0" $r66                # $lr66 = (0, 672): L2B 以上の全左ビット
+imm i"672" $r67
+imm i"0" $r68                # $lr68 = (0, 680): L1B 以上の全左ビット
+imm i"680" $r69
+imm i"0" $r70                # $lr70 = (0, 682): MAB 以上の全左ビット
+imm i"682" $r71
+nop/2
+
+# omr5: interior_L2B_left
+lpassa $lr416 $ln0
+nop/2
+iand $ln0 $lr66 $lr432
+nop/2
+lpassa $lr432 $omr5
+
+# omr6: interior_L1B_left
+nop
+lpassa $lr416 $ln0
+nop/2
+iand $ln0 $lr68 $lr432
+nop/2
+lpassa $lr432 $omr6
+
+# omr7: interior_MAB_left
+nop
+lpassa $lr416 $ln0
+nop/2
+iand $ln0 $lr70 $lr432
+nop/2
+lpassa $lr432 $omr7
+
+# left 結果選択 → $lr400
+nop/2
+lpassa $lr88 $lr400           # default: cross_L2B/group
+nop/2
+  maskr 5
+ipassa $lr96 $lr400           # interior_L2B → cross_L1B
+  mask 0
+nop/2
+  maskr 6
+ipassa $lr16 $lr400           # interior_L1B → cross_MAB
+  mask 0
+nop/2
+  maskr 7
+ipassa $lr8 $lr400            # interior_MAB → within_MAB
+  mask 0
+nop
+nop
+
+# ============================================================
+# 結果選択-右: $lr416 → omr (interior) → $lr408
+# ============================================================
+imm i"0" $r66                # $lr66 = (0, 336): L2B 以上の全右ビット
+imm i"336" $r67
+imm i"0" $r68                # $lr68 = (0, 340): L1B 以上の全右ビット
+imm i"340" $r69
+imm i"0" $r70                # $lr70 = (0, 341): MAB 以上の全右ビット
+imm i"341" $r71
+nop/2
+
+# omr5: interior_L2B_right
+lpassa $lr416 $ln0
+nop/2
+iand $ln0 $lr66 $lr432
+nop/2
+lpassa $lr432 $omr5
+
+# omr6: interior_L1B_right
+nop
+lpassa $lr416 $ln0
+nop/2
+iand $ln0 $lr68 $lr432
+nop/2
+lpassa $lr432 $omr6
+
+# omr7: interior_MAB_right
+nop
+lpassa $lr416 $ln0
+nop/2
+iand $ln0 $lr70 $lr432
+nop/2
+lpassa $lr432 $omr7
+
+# right 結果選択 → $lr408
+nop/2
+lpassa $lr160 $lr408          # default: cross_L2B/group
+nop/2
+  maskr 5
+ipassa $lr168 $lr408          # interior_L2B → cross_L1B
+  mask 0
+nop/2
+  maskr 6
+ipassa $lr32 $lr408           # interior_L1B → cross_MAB
+  mask 0
+nop/2
+  maskr 7
+ipassa $lr24 $lr408           # interior_MAB → within_MAB
+  mask 0
+nop
+nop
+
+# ============================================================
+# max/min選択: max/min + 偶奇選択 + swap 検出
+# ============================================================
+lmax $lr400 $ln16 $lr200
+nop
+lmin $lr408 $ln16 $lr208
+nop
+nop
+
+# デフォルト: max (偶数PE)
+lxor $lr200 $ln8 $lr40
+nop
+nop
+
+# bit0 = subpeid & 1
+lpassa $lr50 $ln0             # $ln0 = (0, 1) を復元 ($lr50 は定数)
+nop/24
+iand $subpeid $ln0 $lr216
+nop/4
+lxor $lr216 $ln0 $omr5
+nop
+nop
+nop
+nop
+nop
+nop
+  maskr 5
+ipassa $lr208 $lr40
+  mask 0
+nop
+nop
+
+# swap 検出
+lxor $lr40 $ln16 $omr4
+nop
+nop
+imm i"0" $r48
+imm i"1" $r49
+nop
+nop
+  maskr 4
+ipassa $lr64 $lr48
+  mask 0
+nop
+nop
+
+# === 境界 PE 保護 (全レジスタ再計算) ===
+
+# --- PE0: subpeid | mabid | l1bid | l2bid == 0 ---
+lpassa $subpeid $lr130
+nop/4
+lpassa $lr130 $ln24
+nop/24
+ior $mabid $ln24 $lr130
+nop/4
+lpassa $lr130 $ln24
+nop/24
+ior $l1bid $ln24 $lr130
+nop/4
+lpassa $lr130 $ln24
+nop/24
+ior $l2bid $ln24 $lr130
+nop/4
+lxor $lr130 $ln32 $omr1
+nop
+nop
+nop
+nop
+nop
+nop
+  maskr 1
+lpassa $ln16 $lr40
+  mask 0
+nop
+nop
+  maskr 1
+ipassa $lr64 $lr48
+  mask 0
+nop
+nop
+
+# --- PE4095: (subpeid^3)|(mabid^15)|(l1bid^7)|(l2bid^7) == 0 ---
+lxor $subpeid $lr80 $lr130
+nop/4
+lpassa $lr130 $ln24
+nop/24
+lpassa $mabid $lr132
+nop/4
+lxor $lr132 $ln36 $lr132
+nop/4
+lpassa $lr132 $ln28
+nop/24
+ior $lr130 $ln28 $lr130
+nop/4
+lpassa $lr130 $ln24
+nop/24
+lpassa $l1bid $lr132
+nop/4
+lxor $lr132 $ln40 $lr132
+nop/4
+lpassa $lr132 $ln28
+nop/24
+ior $lr130 $ln28 $lr130
+nop/4
+lpassa $lr130 $ln24
+nop/24
+lpassa $l2bid $lr132
+nop/4
+lxor $lr132 $ln40 $lr132
+nop/4
+lpassa $lr132 $ln28
+nop/24
+ior $lr130 $ln28 $lr130
+nop/4
+lxor $lr130 $ln32 $omr8
+nop
+nop
+nop
+nop
+nop
+nop
+  maskr 8
+lpassa $ln16 $lr40
+  mask 0
+nop
+nop
+  maskr 8
+ipassa $lr64 $lr48
+  mask 0
+nop
+nop
+
+# --- 結果保存 ---
+lpassa $lr40 $lm0
+lpassa $lr48 $lm16
+nop
+nop
+nop/24

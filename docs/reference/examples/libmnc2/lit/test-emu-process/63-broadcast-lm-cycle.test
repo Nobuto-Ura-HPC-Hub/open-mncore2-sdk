@@ -1,0 +1,1 @@
+# RUN: ninja -C %examples/63-broadcast-lm-cycle test-emu

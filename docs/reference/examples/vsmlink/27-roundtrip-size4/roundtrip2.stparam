@@ -1,0 +1,6 @@
+;; roundtrip2: size 4 の往復（最小構成）
+((:version :0.0)
+ (:ndim 1)
+ (:pe_shape (4096))
+ (:pe_local (2))
+ (:data_layout :any))

@@ -1,0 +1,20 @@
+# build.ninja — vecadd_pfn example
+include ../../scripts/sdk.ninja
+include ../../scripts/examples.ninja
+
+# カーネル (data/vecadd.vsm → _build/)
+build $builddir/vecadd.asm: asm3_text data/vecadd.vsm
+build $builddir/vecadd.idma.dat: asm3_loader data/vecadd.vsm
+  stem = $builddir/vecadd
+
+# test driver
+build $builddir/test_vecadd_pfn.o: cc test_vecadd_pfn.c
+build $builddir/test_vecadd_pfn: link $builddir/test_vecadd_pfn.o | ${sdk_root}/lib/libmnc2.a
+
+# test targets
+build test-emu:     test_emu_process $builddir/test_vecadd_pfn | $builddir/vecadd.asm $builddir/vecadd.idma.dat
+build test-emu-lib: test_emu_lib     $builddir/test_vecadd_pfn | $builddir/vecadd.asm $builddir/vecadd.idma.dat
+build test-device:  test_device      $builddir/test_vecadd_pfn | $builddir/vecadd.asm $builddir/vecadd.idma.dat
+build test:         test_usage
+
+default $builddir/test_vecadd_pfn $builddir/vecadd.asm $builddir/vecadd.idma.dat

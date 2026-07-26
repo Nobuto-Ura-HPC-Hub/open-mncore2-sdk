@@ -1,0 +1,3 @@
+# 09-dmaid-conflict: emu:lib では async dmaid 衝突を検出しない（README.md 参照）
+# UNSUPPORTED: true
+# RUN: ninja -C %examples/09-dmaid-conflict test-emu-lib

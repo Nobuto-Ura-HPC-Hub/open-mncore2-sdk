@@ -1,0 +1,6 @@
+((:version :0.1)
+ (:reserved_wait_tag #x3f)
+ (:slot 8  :place :pdm0 :addr 4096  :send_wait_tag #x10)
+ (:slot 16 :place :pdm0 :addr 8192  :send_wait_tag #x10 :recv_wait_tag #x1e)
+ (:boundary_flags bf1 :place :pdm0 :addr 12288 :send_wait_tag #x10)
+ (:buffer nbuf0 :place :pdm0 :addr 16384 :buf_size 4160))

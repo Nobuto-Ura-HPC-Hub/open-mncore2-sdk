@@ -1,0 +1,72 @@
+# add1.vsm — 58 Kernel B: PDM@0 ↔ L2BM ↔ PE round trip (mvd 経由)
+#
+# 外部メモリ = PDM@0 のみ (4 group に分散しない)。
+# 56/57/59 と並ぶベンチ系列の 1 つ:
+#   58 = mvd PDM-L2BM 分配 (1 命令) + L2BM round trip + mvd L2BM-PDM 結合 (1 命令)
+#
+# Phase 1 と Phase 7 が「外部メモリ ↔ L2BM hop」で、各 1 命令 (mvd) で完結。
+# 56 (mvp 並列個別 × 2 + 4 group DRAM) や 57 (mvp 並列個別 × 2 + 4 group PDM)
+# や 59 (mvp 単独個別 × 8) との比較対象になる。
+
+# ===== Phase 1: PDM@0 → 8 L2BMs (mvd 分配 1 命令) =====
+# タグは i10。即 wait で capture B の単発所要時間として読める。
+	mvd/n4096i10 $p0@0 $lc0
+	nop; wait i10
+	nop/5
+
+# ===== Phase 2: L2BM → L1BM (8x l2bmb) =====
+	l2bmb@0 $lc0 $lb0
+	l2bmb@1 $lc64 $lb0
+	l2bmb@2 $lc128 $lb0
+	l2bmb@3 $lc192 $lb0
+	l2bmb@4 $lc256 $lb0
+	l2bmb@5 $lc320 $lb0
+	l2bmb@6 $lc384 $lb0
+	l2bmb@7 $lc448 $lb0
+	nop/5
+
+# ===== Phase 3: L1BM → LM =====
+	# 占有 L1BM [0, 256)。有効データは直前の l2bmb が埋めた
+	# cycle 0 の [0, 64) のみ。/1000 で cycle 1..3 の PE 側書き込みを
+	# 止める (L1BM 側の 256 u64 読み出しはマスクでは減らない)。
+	l1bmd $lb0 $lm0v/1000
+	nop/24
+
+# ===== Phase 4: PE compute (data + 1, 64-bit ladd) =====
+	lpassa $lm0 $lr2
+	imm i"1" $r1
+	imm i"0" $r0
+	nop/4
+	lpassa $lr0 $lm0
+	nop
+	nop
+	ladd $lr2 $lm0 $lr0
+	nop
+	nop
+
+# ===== Phase 5: LM → L1BM =====
+	lpassa $lr0 $lm0v
+	nop/4
+	# 占有 L1BM [256, 512)。結合方向にはマスクが効かないため、
+	# 4 cycle 分 256 u64 すべてが上書きされる。
+	# 回収するのは cycle 0 の [256, 320) のみ。
+	l1bmd $lm0v $lb256
+	nop/24
+
+# ===== Phase 6: L1BM → L2BM (8x l2bm) =====
+	l2bm@0 $lb256 $lc0
+	l2bm@1 $lb256 $lc64
+	l2bm@2 $lb256 $lc128
+	l2bm@3 $lb256 $lc192
+	l2bm@4 $lb256 $lc256
+	l2bm@5 $lb256 $lc320
+	l2bm@6 $lb256 $lc384
+	l2bm@7 $lb256 $lc448
+	nop/5
+
+# ===== Phase 7: 8 L2BMs → PDM@0 (mvd 結合 1 命令) =====
+# タグは i11 を使用。即 wait。
+	mvd/n4096i11 $lc0 $p0@0
+	nop; wait i11
+	nop/5
+	# pseudo ret

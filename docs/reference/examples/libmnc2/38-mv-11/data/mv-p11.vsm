@@ -1,0 +1,29 @@
+# mv-p11.vsm — Pattern 11: DRAM → L2BM グループ内放送 (3.5.8.13, mvb2)
+#
+# 動作:
+#   Setup:    PDM@G0[0..63] → DRAM@G0[0..63] (#6, tag i01)
+#   Test:     DRAM@G0[0..63] → L2BM@G0 全スロット (mvb2, 3.5.8.13) ← 検証対象
+#   Readback: L2BM@G0.0[0..63] → PDM@G0[0..63] (#4, tag i06) ← recv trigger
+# 結果: PDM@G0[0..63] = 元の入力
+# DMA: send_wait_tag=2, recv_wait_tag=6
+#
+# 注意: mvb2 はタグ i04 で同期。nop のみの待ちは実機で不十分。
+
+	nop; wait i02
+	nop/3
+	# Setup: PDM@G0[0..63] → DRAM@G0[0..63] (#6)
+	mvp/n64i01 $p0@0 $d0@0
+	nop/2
+	nop; wait i01
+	nop/5
+	# Test: DRAM@G0[0..63] → L2BM@G0 全スロット (mvb2)
+	mvb2/n64i04 $d0 $lc0
+	nop/2
+	nop; wait i04
+	nop/5
+	# Readback: L2BM@G0.0[0..63] → PDM@G0[0..63] (#4) → recv trigger
+	mvp/n64i06 $lc0@0.0 $p0@0
+	nop/2
+	nop; wait i06
+	nop/5
+	# pseudo ret

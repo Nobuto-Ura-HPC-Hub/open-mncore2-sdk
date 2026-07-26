@@ -1,0 +1,39 @@
+# build.ninja — 12-put-grf1
+# device テストは peek pipeline 方式 (07-put-l2bm/build.ninja のコメント参照)
+
+include ../../scripts/sdk.ninja
+include ../../scripts/examples.ninja
+
+rule run_put_device
+  command = LD_LIBRARY_PATH=${sdk_root}/lib ./$in
+  description = RUN [device] put $in
+
+rule run_peek_device
+  command = ${sdk_root}/bin/run-idma $in --no-reset
+  description = RUN [device] peek $in --no-reset
+
+rule peek_check_device
+  command = ${sdk_root}/bin/read-pdm 0 32 | od -An -v -tx8 --endian=little | diff - data/expected-peek.txt && echo "PASS: GRF1[0..3] matches expected"
+  description = CHECK [device] peek vs data/expected-peek.txt
+
+build $builddir/put_grf1.asm: asm3_text data/put_grf1.vsm
+build $builddir/put_grf1.idma.dat: asm3_loader data/put_grf1.vsm
+  stem = $builddir/put_grf1
+
+build $builddir/peek_grf1.asm: asm3_text data/peek_grf1.vsm
+build $builddir/peek_grf1.idma.dat: asm3_loader data/peek_grf1.vsm
+  stem = $builddir/peek_grf1
+
+build $builddir/ex_put_grf1.o: cc ex_put_grf1.c
+build $builddir/ex_put_grf1: link $builddir/ex_put_grf1.o | ${sdk_root}/lib/libmnc2.a
+
+build test:         test_usage
+build test-emu:     test_emu_process $builddir/ex_put_grf1 | $builddir/put_grf1.asm $builddir/put_grf1.idma.dat
+build test-emu-lib: test_emu_lib     $builddir/ex_put_grf1 | $builddir/put_grf1.asm $builddir/put_grf1.idma.dat
+
+build run-put-device: run_put_device $builddir/ex_put_grf1 | $builddir/put_grf1.idma.dat
+build run-peek-device: run_peek_device $builddir/peek_grf1.idma.dat | run-put-device
+build peek-check-device: peek_check_device | run-peek-device data/expected-peek.txt
+build test-device: phony peek-check-device
+
+default $builddir/ex_put_grf1 $builddir/put_grf1.asm $builddir/put_grf1.idma.dat $builddir/peek_grf1.asm $builddir/peek_grf1.idma.dat

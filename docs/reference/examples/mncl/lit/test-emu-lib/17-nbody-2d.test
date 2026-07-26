@@ -1,0 +1,2 @@
+# RUN: ninja -C %examples/17-nbody-2d build-e2e
+# RUN: ninja -C %examples/17-nbody-2d test-emu-lib

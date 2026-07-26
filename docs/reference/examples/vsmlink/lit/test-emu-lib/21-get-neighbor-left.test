@@ -1,0 +1,2 @@
+# 21-get-neighbor: 左隣取得テスト
+# RUN: ninja -C %root/examples/21-get-neighbor test-left

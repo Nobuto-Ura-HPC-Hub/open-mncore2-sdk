@@ -1,0 +1,2 @@
+# RUN: make -C %examples/01-vecadd-1d-4096 build-e2e
+# RUN: make -C %examples/01-vecadd-1d-4096 test-device

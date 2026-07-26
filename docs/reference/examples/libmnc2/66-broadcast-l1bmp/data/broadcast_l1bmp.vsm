@@ -1,0 +1,60 @@
+# 66-broadcast-l1bmp — PDM[0] を全 4096 PE に broadcast (l1bmp + v + /1000)、 collect で回収
+#
+# パス:
+#   PDM[0..511]  -- mvb (3.5.8.18)   --> 全 8 L2BM[0..511]
+#   L2BM[0..63]  -- l2bmb (3.6.7.2)  --> 全 64 L1BM[0..63]
+#   L1BM[0]      -- l1bmp (3.6.8.6)  --> 全 64 PE GRF0 ($lr0)
+#                  (v + /1000 = cycle 0 だけ通す = L1BM[0] が全 PE に。 sub_pe 分配なし)
+#   PE GRF0[0]   -- l1bmd -> l2bm@0..7 -> mvp x8 --> PDM[0..4095]  (GRF0 直 collect、 lpassa 不要)
+#
+# l1bmp は「全 PE に同値」を配る放送命令。 v + cycle mask (/1000) が broadcast の素直な形。
+# 60 (l1bmm、 周期 4 [12,13,14,15]) と対比: l1bmp は周期なしの完全同値。
+#
+# 入力 (host send): PDM[0] = broadcast する値 v (他は別値、 send_wait_tag=0x10)
+# 出力 (host recv): PDM[0..4095] = 全 PE の GRF0[0] = v (周期なしの完全同値)、 recv_wait_tag=0x1e
+
+	nop; wait i10
+	nop/3
+	# === broadcast: PDM[0] -> 全 4096 PE GRF0 (l1bmp + v + /1000) ===
+	mvb/n512i23 $p0@0 $lc0
+	nop/2
+	nop; wait i23
+	nop/5
+	l2bmb $lc0 $lb0
+	nop/5
+	l1bmp $lb0 $lr0v/1000
+	nop/24
+	# === collect: 全 PE GRF0[0] -> PDM[0..4095] (GRF0 直、 lpassa 不要) ===
+	# 占有 L1BM [256, 512)。結合方向にはマスクが効かないため、
+	# 4 cycle 分 256 u64 すべてが上書きされる。
+	# 回収するのは cycle 0 の [256, 320) のみ。
+	l1bmd $lr0v $lb256
+	nop/24
+	nop/24
+	l2bm@0 $lb256 $lc1024
+	l2bm@1 $lb256 $lc1088
+	l2bm@2 $lb256 $lc1152
+	l2bm@3 $lb256 $lc1216
+	l2bm@4 $lb256 $lc1280
+	l2bm@5 $lb256 $lc1344
+	l2bm@6 $lb256 $lc1408
+	l2bm@7 $lb256 $lc1472
+	nop/5
+	mvp/n512 $lc1024@0.0 $p0@0
+	mvp/n512i19 $lc1024@0.1 $p512@0
+	nop/3
+	nop; wait i19
+	mvp/n512 $lc1024@1.0 $p1024@0
+	mvp/n512i1a $lc1024@1.1 $p1536@0
+	nop/3
+	nop; wait i1a
+	mvp/n512 $lc1024@2.0 $p2048@0
+	mvp/n512i1c $lc1024@2.1 $p2560@0
+	nop/3
+	nop; wait i1c
+	mvp/n512 $lc1024@3.0 $p3072@0
+	mvp/n512i1e $lc1024@3.1 $p3584@0
+	nop/3
+	nop; wait i1e
+	nop/4
+	# pseudo ret

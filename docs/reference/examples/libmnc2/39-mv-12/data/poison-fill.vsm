@@ -1,0 +1,24 @@
+# poison-fill.vsm — L2BM を poison で先に汚しておくための前処理カーネル
+#
+# 目的: この後に走る broadcast テスト (mv-p12, mvb4) の転送先 L2BM に、事前に非ゼロの
+#       poison 値を書き込んでおく。broadcast (mvb4) がこれを正しく上書きすれば
+#       readback は入力どおりになるが、broadcast の wait が不足していると
+#       readback が完了前の L2BM (= poison) を拾い、テストが FAIL する。
+#       転送先メモリが初期値 0 だと wait 不足を見逃す問題 (単独実行で PASS) を、
+#       poison で塗ることで単独実行でも決定的に検出できるようにする。
+#
+#   動作: PDM@G0[0..63] (poison) → L2BM@G0 L2B0/slot0 (readback が読む場所)
+#   DMA: send_wait_tag=2 (host が poison を PDM に置くのを待つ)
+#
+# 注意: この kernel は L2BM を汚すだけで recv はしない (host 側は exec→free のみ)。
+#       効くのは L2BM 状態が exec 間で持続する emu:lib / device。emu:process は
+#       kernel 間で状態を持たないため不活性 (本体テストの検証はそのまま有効)。
+
+	nop; wait i02
+	nop/3
+	# poison: PDM@G0[0..63] → L2BM@G0 L2B0/slot0 (mvp, 3.5.8.9 の向き)
+	mvp/n64i01 $p0@0 $lc0@0.0
+	nop/2
+	nop; wait i01
+	nop/5
+	# pseudo ret

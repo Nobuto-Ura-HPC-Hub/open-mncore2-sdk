@@ -1,0 +1,36 @@
+# boundary-collect: 各 PE の $subpeid / $mabid / $l1bid をホスト側に回収する
+#
+# 目的: @boundary_flags distribute 版の初回フラグ値生成バイナリ。
+#       このバイナリをハードウェア上で一度実行すると、各 PE の HW レジスタ値が
+#       PDM に集まる。ホスト側でそれを読み出して、次回以降の distribute に使う。
+#
+# 出力:
+#   to_param 8:  $subpeid の値 (4096 PE × 1 LW)  — 0..3
+#   to_param 16: $mabid の値  (4096 PE × 1 LW)  — 0..15
+#   to_param 24: $l1bid の値  (4096 PE × 1 LW)  — 0..7
+#
+# 注意: vsm-linker 本体の改造なし。lpassa + @collect のみ使用。
+
+	# $subpeid を GRF 経由で LM に格納
+	lpassa $subpeid $lr0
+	nop
+	nop
+	lpassa $lr0 $lm0
+	nop/24
+	@collect _subpeid to_param 8 size 1 $lm0
+
+	# $mabid を GRF 経由で LM に格納
+	lpassa $mabid $lr0
+	nop
+	nop
+	lpassa $lr0 $lm8
+	nop/24
+	@collect _mabid to_param 16 size 1 $lm8
+
+	# $l1bid を GRF 経由で LM に格納
+	lpassa $l1bid $lr0
+	nop
+	nop
+	lpassa $lr0 $lm16
+	nop/24
+	@collect _l1bid to_param 24 size 1 $lm16

@@ -1,0 +1,3 @@
+# device でも broadcast (l1bmp + v + /1000、 全 PE 同値) を検証。
+# REQUIRES: device, assemble3
+# RUN: ninja -C %examples/66-broadcast-l1bmp test-device

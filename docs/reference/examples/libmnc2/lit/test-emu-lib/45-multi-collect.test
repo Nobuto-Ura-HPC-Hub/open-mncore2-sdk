@@ -1,0 +1,10 @@
+# 45-multi-collect — emu-lib (XFAIL)
+#
+# 同一 recv_wait_tag を 2 回再利用する pattern を exec する example。 これは
+# API の誤用で、 各 slot に distinct wait_tag を割り当てるのが正しい (実機実装、
+# vsm-linker 生成も同様)。 emu:lib backend は同タグ再利用を double_assert エラー
+# で弾く。 本 example は誤った pattern を exec しているため fail が期待される
+# (= XFAIL)。 本来は slot 別 tag で書き直すべき。
+#
+# XFAIL: *
+# RUN: ninja -C %examples/45-multi-collect test-emu-lib

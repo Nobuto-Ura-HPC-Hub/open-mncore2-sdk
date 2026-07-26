@@ -1,0 +1,39 @@
+# 09-abs: c[i] = |a[i]| (4096 PE, fp64, if/else)
+#
+# ninja              -> .cl -> ._vsm -> .vsm
+# ninja build-e2e    -> + vsmlink + assemble3 + host C
+# ninja test         -> usage 表示
+# ninja test-emu-lib -> emu:lib backend で実行・検証
+# ninja test-device  -> 実機 backend で実行・検証
+
+include ../scripts/mncl.ninja
+include ../../scripts/sdk.ninja
+builddir = _build
+
+# --- kernel ---
+build $builddir/abs._vsm: emit-vsm abs.cl
+
+build $builddir/abs.vsm: vsmlink $builddir/abs._vsm abs.param abs.stparam
+  vsm = $builddir/abs._vsm
+  param = abs.param
+  stparam = abs.stparam
+
+build $builddir/abs.asm: asm3 $builddir/abs.vsm
+build $builddir/abs.idma.dat: asm3_loader $builddir/abs.vsm
+  stem = $builddir/abs
+
+# --- host driver ---
+build $builddir/test_abs.o: cc test_abs.c
+build $builddir/test_abs: link $builddir/test_abs.o
+
+# --- ビルド段階 phony ---
+build build-e2e: phony $builddir/abs.asm $builddir/abs.idma.dat $builddir/test_abs
+
+# --- test 3 種 ---
+build test-emu-lib: test_emu_lib $builddir/test_abs | $builddir/abs.asm $builddir/abs.idma.dat
+build test-device:  test_device  $builddir/test_abs | $builddir/abs.asm $builddir/abs.idma.dat
+build test:         test_usage
+
+build clean: clean
+
+default $builddir/abs.asm $builddir/abs.idma.dat

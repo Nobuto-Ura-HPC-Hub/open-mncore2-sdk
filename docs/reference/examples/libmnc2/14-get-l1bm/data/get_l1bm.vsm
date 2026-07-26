@@ -1,0 +1,33 @@
+# get_l1bm: L1BM -> L2BM -> PDM (collect: l2bm + mvp)
+#
+# put_l1bm 実行後に使用。L1BM $lb0 の内容を L2BM 経由で PDM word 131072 に書き戻す。
+#
+# recv: recv_wait_tag=0x1e (最終 mvp done flag)
+
+	l2bm@0 $lb0 $lc1024
+	l2bm@1 $lb0 $lc1088
+	l2bm@2 $lb0 $lc1152
+	l2bm@3 $lb0 $lc1216
+	l2bm@4 $lb0 $lc1280
+	l2bm@5 $lb0 $lc1344
+	l2bm@6 $lb0 $lc1408
+	l2bm@7 $lb0 $lc1472
+	nop/5
+	mvp/n512 $lc1024@0.0 $p131072@0
+	mvp/n512i19 $lc1024@0.1 $p131584@0
+	nop/3
+	nop; wait i19
+	mvp/n512 $lc1024@1.0 $p132096@0
+	mvp/n512i1a $lc1024@1.1 $p132608@0
+	nop/3
+	nop; wait i1a
+	mvp/n512 $lc1024@2.0 $p133120@0
+	mvp/n512i1c $lc1024@2.1 $p133632@0
+	nop/3
+	nop; wait i1c
+	mvp/n512 $lc1024@3.0 $p134144@0
+	mvp/n512i1e $lc1024@3.1 $p134656@0
+	nop/3
+	nop; wait i1e
+	nop/4
+	# pseudo ret

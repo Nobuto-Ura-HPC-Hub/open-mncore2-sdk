@@ -1,0 +1,39 @@
+# 15-broadcast: out[id] = v + id (v は全 4096 PE 同値, broadcast + get_global_id)
+#
+# ninja              -> .cl -> ._vsm -> .vsm
+# ninja build-e2e    -> + vsmlink + assemble3 + host C
+# ninja test         -> usage 表示
+# ninja test-emu-lib -> emu:lib backend で実行・検証
+# ninja test-device  -> 実機 backend で実行・検証
+
+include ../scripts/mncl.ninja
+include ../../scripts/sdk.ninja
+builddir = _build
+
+# --- kernel ---
+build $builddir/broadcast._vsm: emit-vsm broadcast.cl
+
+build $builddir/broadcast.vsm: vsmlink $builddir/broadcast._vsm broadcast.param broadcast.stparam
+  vsm = $builddir/broadcast._vsm
+  param = broadcast.param
+  stparam = broadcast.stparam
+
+build $builddir/broadcast.asm: asm3 $builddir/broadcast.vsm
+build $builddir/broadcast.idma.dat: asm3_loader $builddir/broadcast.vsm
+  stem = $builddir/broadcast
+
+# --- host driver ---
+build $builddir/test_broadcast.o: cc test_broadcast.c
+build $builddir/test_broadcast: link $builddir/test_broadcast.o
+
+# --- ビルド段階 phony ---
+build build-e2e: phony $builddir/broadcast.asm $builddir/broadcast.idma.dat $builddir/test_broadcast
+
+# --- test 3 種 ---
+build test-emu-lib: test_emu_lib $builddir/test_broadcast | $builddir/broadcast.asm $builddir/broadcast.idma.dat
+build test-device:  test_device  $builddir/test_broadcast | $builddir/broadcast.asm $builddir/broadcast.idma.dat
+build test:         test_usage
+
+build clean: clean
+
+default $builddir/broadcast.asm $builddir/broadcast.idma.dat

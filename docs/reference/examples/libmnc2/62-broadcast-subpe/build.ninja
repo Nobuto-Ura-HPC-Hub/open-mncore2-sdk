@@ -1,0 +1,20 @@
+# build.ninja — 62-broadcast-subpe
+include ../../scripts/sdk.ninja
+include ../../scripts/examples.ninja
+
+# カーネル
+build $builddir/subpe.asm:      asm3_text   data/subpe.vsm
+build $builddir/subpe.idma.dat: asm3_loader data/subpe.vsm
+  stem = $builddir/subpe
+
+# test driver
+build $builddir/ex_subpe.o: cc ex_subpe.c
+build $builddir/ex_subpe:   link $builddir/ex_subpe.o | ${sdk_root}/lib/libmnc2.a
+
+# test targets (全 backend 対応)
+build test:         test_usage
+build test-emu:     test_emu_process $builddir/ex_subpe | $builddir/subpe.asm $builddir/subpe.idma.dat
+build test-emu-lib: test_emu_lib     $builddir/ex_subpe | $builddir/subpe.asm $builddir/subpe.idma.dat
+build test-device:  test_device      $builddir/ex_subpe | $builddir/subpe.asm $builddir/subpe.idma.dat
+
+default $builddir/ex_subpe $builddir/subpe.asm $builddir/subpe.idma.dat

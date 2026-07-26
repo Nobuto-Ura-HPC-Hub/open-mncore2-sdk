@@ -1,0 +1,524 @@
+# ABI PFN3_SBY64
+#
+# 1D 3-point stencil: output[i] = left[i] + center[i] + right[i]
+#
+# distribute.vsm — @distribute テンプレート
+# placeholder の意味は src/vsmlink.c の @distribute 展開部を参照
+
+	nop; wait i10
+	nop/3
+# @distribute _arg_a from_param 8 size 1 $lm0
+# === @distribute _arg_a: PDM $p0 → L2BM → L1BM → $lm0 ===
+# (:pdm :directive "@distribute" :id "_arg_a" :slot 8 :place :pdm0 :addr 0 :size 4096 :access :read)
+	mvp/n512 $p0@0 $lc0@0.0
+	mvp/n512 $p512@0 $lc0@0.1
+	mvp/n512 $p1024@0 $lc0@1.0
+	mvp/n512 $p1536@0 $lc0@1.1
+	mvp/n512 $p2048@0 $lc0@2.0
+	mvp/n512 $p2560@0 $lc0@2.1
+	mvp/n512 $p3072@0 $lc0@3.0
+	mvp/n512i3f $p3584@0 $lc0@3.1
+	nop/2
+	nop; wait i3f
+	nop/5
+	l2bmb@0 $lc0 $lb0
+	l2bmb@1 $lc64 $lb0
+	l2bmb@2 $lc128 $lb0
+	l2bmb@3 $lc192 $lb0
+	l2bmb@4 $lc256 $lb0
+	l2bmb@5 $lc320 $lb0
+	l2bmb@6 $lc384 $lb0
+	l2bmb@7 $lc448 $lb0
+	nop/5
+	l1bmd $lb0 $lm0v/1000
+	nop/24
+	lpassa $lm0 $lr0
+# boundary_flags.vsm — @boundary_flags テンプレート
+# placeholder の意味は src/vsmlink.c の @boundary_flags 展開部を参照
+
+# @boundary_flags bf1 0 $lr416 data_edge_left data_edge_right cross_chip_left cross_chip_right cross_L2B_left cross_L2B_right cross_L1B_left cross_L1B_right cross_MAB_left cross_MAB_right
+# === @boundary_flags bf1: PDM → $lr416 ===
+# -- @boundary_flags distribute: PDM $p8192 → L2BM → L1BM → $lr416 --
+	mvp/n512 $p8192@0 $lc0@0.0
+	mvp/n512 $p8704@0 $lc0@0.1
+	mvp/n512 $p9216@0 $lc0@1.0
+	mvp/n512 $p9728@0 $lc0@1.1
+	mvp/n512 $p10240@0 $lc0@2.0
+	mvp/n512 $p10752@0 $lc0@2.1
+	mvp/n512 $p11264@0 $lc0@3.0
+	mvp/n512i3f $p11776@0 $lc0@3.1
+	nop/2
+	nop; wait i3f
+	nop/5
+	l2bmb@0 $lc0 $lb0
+	l2bmb@1 $lc64 $lb0
+	l2bmb@2 $lc128 $lb0
+	l2bmb@3 $lc192 $lb0
+	l2bmb@4 $lc256 $lb0
+	l2bmb@5 $lc320 $lb0
+	l2bmb@6 $lc384 $lb0
+	l2bmb@7 $lc448 $lb0
+	nop/5
+	l1bmd $lb0 $lr416v/1000
+	nop/24
+#@ @alloc left :omr 9 10 11 12 :grf0 200 202 204 206 208 210 212 214 216 218 220 :n 0
+#@ @get_neighbor $lr400 -1 $lm0 bf1 nbuf0 left
+# get_neighbor_left_clamp.vsm — @get_neighbor offset=-1 clamp テンプレート
+#
+# put/get モデル: PDM0 上の専用バッファ（:buffer）を使用。
+# L1B7 のみ collect する minimal 方式。
+# clamp: data_edge の PE は自分自身の値を返す。
+#
+# omr 導出: ixor でワンホット完全一致を検出
+# 結果選択: within MAB をデフォルトにし、maskr で上書き
+#
+# バッファレイアウト (buf_size = 4160):
+#   512 u64 間隔で 9 スロット。各スロットの先頭 64 u64 のみ使用。
+#   put: offset 512, 1024, ..., 4096 (8 L2B の L1B7 データ)
+#   get: offset 0, 512, ..., 3584 (1 L2B 分ずらして読む = left)
+#   offset 0..63 は edge 領域（get 時のずらし先）
+#
+# レジスタ使用 (grf0: r0-r10, omr: omr0-omr3, n: n0):
+#   r0: 入力データ  r1: ゼロ  r2: cross_L2B  r3: cross_L1B
+#   r4: cross_MAB   r5: within_MAB  r6: omr 一時
+#   r7: imm cross_L2B マスク (_hi/_lo)
+#   r8: imm cross_L1B マスク (_hi/_lo)
+#   r9: imm cross_MAB マスク (_hi/_lo)
+#   r10: imm data_edge マスク (_hi/_lo)
+
+# ゼロレジスタ
+lxor $lr202 $lr202 $lr202
+
+# 入力データ → GRF
+lpassa $lm0 $lr200
+nop
+nop
+
+# ============================================================
+# put: PE → L1BM → L2BM → PDM（L1B7 のみ）
+# ============================================================
+l1bmd $lr200v $lb128
+nop/10
+
+l2bm@7 $lb128 $lc960
+nop/3
+
+mvp/n64 $lc960@0.0 $p16896@0
+mvp/n64i3f $lc960@0.1 $p17408@0
+nop/3
+nop; wait i3f
+mvp/n64 $lc960@1.0 $p17920@0
+mvp/n64i3f $lc960@1.1 $p18432@0
+nop/3
+nop; wait i3f
+mvp/n64 $lc960@2.0 $p18944@0
+mvp/n64i3f $lc960@2.1 $p19456@0
+nop/3
+nop; wait i3f
+mvp/n64 $lc960@3.0 $p19968@0
+mvp/n64i3f $lc960@3.1 $p20480@0
+nop/3
+nop; wait i3f
+nop/5
+
+# ============================================================
+# get: PDM → L2BM → L1BM → PE（1 L2B 分ずらして読む = left）
+# ============================================================
+mvp/n64 $p16384@0 $lc1472@0.0
+mvp/n64 $p16896@0 $lc1472@0.1
+mvp/n64 $p17408@0 $lc1472@1.0
+mvp/n64 $p17920@0 $lc1472@1.1
+mvp/n64 $p18432@0 $lc1472@2.0
+mvp/n64 $p18944@0 $lc1472@2.1
+mvp/n64 $p19456@0 $lc1472@3.0
+mvp/n64i3f $p19968@0 $lc1472@3.1
+nop/2
+nop; wait i3f
+nop/5
+
+# L2BM → L1BM → PE
+l2bmb@0 $lc1472 $lb128
+nop/6
+l1bmd+1 $lb128 $lr204v/1000
+nop/2
+msl $lr204 $lr204
+
+# ============================================================
+# cross L1B (L2BM 経由)
+# ============================================================
+nop/2
+l1bmd $lr200v $lb128
+nop/10
+
+l2bm@0 $lb128 $lc512
+l2bm@1 $lb128 $lc576
+l2bm@2 $lb128 $lc640
+l2bm@3 $lb128 $lc704
+l2bm@4 $lb128 $lc768
+l2bm@5 $lb128 $lc832
+l2bm@6 $lb128 $lc896
+l2bm@7 $lb128 $lc960
+nop/3
+
+l2bmb@1 $lc512 $lb128
+l2bmb@2 $lc576 $lb128
+l2bmb@3 $lc640 $lb128
+l2bmb@4 $lc704 $lb128
+l2bmb@5 $lc768 $lb128
+l2bmb@6 $lc832 $lb128
+l2bmb@7 $lc896 $lb128
+nop/6
+
+l1bmd+1 $lb128 $lr206v/1000
+nop/2
+msl $lr206 $lr206
+
+# ============================================================
+# cross MAB + within MAB
+# ============================================================
+nop/2
+l1bmd $lr200v $lb0
+nop/2
+
+l1bmd+1 $lb0 $lr208v/1000
+nop/2
+msl $lr208 $lr208
+
+nop/2
+msl $lm0 $lr210
+
+# ============================================================
+# omr 導出 (ixor ワンホット完全一致)
+# ============================================================
+# cross_L2B_left = bit5 = 32
+imm i"0" $r214
+imm i"32" $r215
+
+# cross_L1B_left = bit3 = 8
+imm i"0" $r216
+imm i"8" $r217
+
+# cross_MAB_left = bit1 = 2
+imm i"0" $r218
+imm i"2" $r219
+
+# data_edge_left = bit9 = 512
+imm i"0" $r220
+imm i"512" $r221
+
+nop/2
+
+# omr0: cross_L2B_left
+lpassa $lr416 $ln0
+nop/2
+ixor $ln0 $lr214 $lr212
+nop/2
+lpassa $lr212 $omr9
+
+# omr1: cross_L1B_left
+nop
+lpassa $lr416 $ln0
+nop/2
+ixor $ln0 $lr216 $lr212
+nop/2
+lpassa $lr212 $omr10
+
+# omr2: cross_MAB_left
+nop
+lpassa $lr416 $ln0
+nop/2
+ixor $ln0 $lr218 $lr212
+nop/2
+lpassa $lr212 $omr11
+
+# omr3: data_edge_left
+nop
+lpassa $lr416 $ln0
+nop/2
+ixor $ln0 $lr220 $lr212
+nop/2
+lpassa $lr212 $omr12
+
+# ============================================================
+# 結果選択 (within MAB デフォルト + maskr 上書き)
+# ============================================================
+
+# default: within MAB
+nop/2
+lpassa $lr210 $lr400
+
+# cross_MAB_left で上書き
+nop/2
+  maskr 11
+ipassa $lr208 $lr400
+  mask 0
+
+# cross_L1B_left で上書き
+nop/2
+  maskr 10
+ipassa $lr206 $lr400
+  mask 0
+
+# cross_L2B_left で上書き
+nop/2
+  maskr 9
+ipassa $lr204 $lr400
+  mask 0
+
+# clamp: data_edge_left → self で上書き
+nop/2
+  maskr 12
+ipassa $lm0 $lr400
+  mask 0
+
+# 暫定: 直後に $lr400 を使う命令が来ると hazard になるため。 後で精査して正確な数に置き換える
+nop/2
+#@ @free left
+#@ @alloc right :omr 9 10 11 12 :grf0 200 202 204 206 208 210 212 214 216 218 220 :n 0
+#@ @get_neighbor $lr408 +1 $lm0 bf1 nbuf0 right
+# get_neighbor_right_clamp.vsm — @get_neighbor offset=+1 clamp テンプレート
+#
+# put/get モデル: PDM0 上の専用バッファ（:buffer）を使用。
+# L1B0 のみ minimal。
+# clamp: data_edge の PE は自分自身の値を返す。
+#
+# omr 導出: ixor でワンホット完全一致を検出
+# 結果選択: within MAB をデフォルトにし、maskr で上書き
+#
+# レジスタ使用 (grf0: r0-r10, omr: omr0-omr3, n: n0):
+#   r0-r6: 作業用  r7-r10: imm マスク (_hi/_lo)
+
+# ゼロレジスタ
+lxor $lr202 $lr202 $lr202
+
+# 入力データ → GRF
+lpassa $lm0 $lr200
+nop
+nop
+
+# ============================================================
+# put: PE → L1BM → L2BM → PDM（L1B0 のみ）
+# ============================================================
+l1bmd $lr200v $lb128
+nop/10
+
+l2bm@0 $lb128 $lc0
+nop/3
+
+mvp/n64 $lc0@0.0 $p16384@0
+mvp/n64i3f $lc0@0.1 $p16896@0
+nop/3
+nop; wait i3f
+mvp/n64 $lc0@1.0 $p17408@0
+mvp/n64i3f $lc0@1.1 $p17920@0
+nop/3
+nop; wait i3f
+mvp/n64 $lc0@2.0 $p18432@0
+mvp/n64i3f $lc0@2.1 $p18944@0
+nop/3
+nop; wait i3f
+mvp/n64 $lc0@3.0 $p19456@0
+mvp/n64i3f $lc0@3.1 $p19968@0
+nop/3
+nop; wait i3f
+nop/5
+
+# ============================================================
+# get: PDM → L2BM → L1BM → PE（1 L2B 分ずらして読む = right）
+# ============================================================
+mvp/n64 $p16896@0 $lc1024@0.0
+mvp/n64 $p17408@0 $lc1024@0.1
+mvp/n64 $p17920@0 $lc1024@1.0
+mvp/n64 $p18432@0 $lc1024@1.1
+mvp/n64 $p18944@0 $lc1024@2.0
+mvp/n64 $p19456@0 $lc1024@2.1
+mvp/n64 $p19968@0 $lc1024@3.0
+mvp/n64i3f $p20480@0 $lc1024@3.1
+nop/2
+nop; wait i3f
+nop/5
+
+# L2BM → L1BM → PE
+l2bmb@7 $lc1024 $lb128
+nop/6
+l1bmd-1 $lb128 $lr204v/1000
+nop/2
+msr $lr204 $lr204
+
+# ============================================================
+# cross L1B (L2BM 経由)
+# ============================================================
+nop/2
+l1bmd $lr200v $lb128
+nop/10
+
+l2bm@0 $lb128 $lc512
+l2bm@1 $lb128 $lc576
+l2bm@2 $lb128 $lc640
+l2bm@3 $lb128 $lc704
+l2bm@4 $lb128 $lc768
+l2bm@5 $lb128 $lc832
+l2bm@6 $lb128 $lc896
+l2bm@7 $lb128 $lc960
+nop/3
+
+l2bmb@0 $lc576 $lb128
+l2bmb@1 $lc640 $lb128
+l2bmb@2 $lc704 $lb128
+l2bmb@3 $lc768 $lb128
+l2bmb@4 $lc832 $lb128
+l2bmb@5 $lc896 $lb128
+l2bmb@6 $lc960 $lb128
+nop/6
+
+l1bmd-1 $lb128 $lr206v/1000
+nop/2
+msr $lr206 $lr206
+
+# ============================================================
+# cross MAB + within MAB
+# ============================================================
+nop/2
+l1bmd $lr200v $lb0
+nop/2
+
+l1bmd-1 $lb0 $lr208v/1000
+nop/2
+msr $lr208 $lr208
+
+nop/2
+msr $lm0 $lr210
+
+# ============================================================
+# omr 導出 (ixor ワンホット完全一致)
+# ============================================================
+# cross_L2B_right = bit4 = 16
+imm i"0" $r214
+imm i"16" $r215
+
+# cross_L1B_right = bit2 = 4
+imm i"0" $r216
+imm i"4" $r217
+
+# cross_MAB_right = bit0 = 1
+imm i"0" $r218
+imm i"1" $r219
+
+# data_edge_right = bit8 = 256
+imm i"0" $r220
+imm i"256" $r221
+
+nop/2
+
+# omr0: cross_L2B_right
+lpassa $lr416 $ln0
+nop/2
+ixor $ln0 $lr214 $lr212
+nop/2
+lpassa $lr212 $omr9
+
+# omr1: cross_L1B_right
+nop
+lpassa $lr416 $ln0
+nop/2
+ixor $ln0 $lr216 $lr212
+nop/2
+lpassa $lr212 $omr10
+
+# omr2: cross_MAB_right
+nop
+lpassa $lr416 $ln0
+nop/2
+ixor $ln0 $lr218 $lr212
+nop/2
+lpassa $lr212 $omr11
+
+# omr3: data_edge_right
+nop
+lpassa $lr416 $ln0
+nop/2
+ixor $ln0 $lr220 $lr212
+nop/2
+lpassa $lr212 $omr12
+
+# ============================================================
+# 結果選択 (within MAB デフォルト + maskr 上書き)
+# ============================================================
+
+# default: within MAB
+nop/2
+lpassa $lr210 $lr408
+
+# cross_MAB_right で上書き
+nop/2
+  maskr 11
+ipassa $lr208 $lr408
+  mask 0
+
+# cross_L1B_right で上書き
+nop/2
+  maskr 10
+ipassa $lr206 $lr408
+  mask 0
+
+# cross_L2B_right で上書き
+nop/2
+  maskr 9
+ipassa $lr204 $lr408
+  mask 0
+
+# clamp: data_edge_right → self で上書き
+nop/2
+  maskr 12
+ipassa $lm0 $lr408
+  mask 0
+
+# 暫定: 直後に $lr408 を使う命令が来ると hazard になるため。 後で精査して正確な数に置き換える
+nop/2
+#@ @free right
+	lpassa $lr400 $lm0
+	nop
+	nop
+	dvadd $lr0 $lm0 $lr0
+	lpassa $lr408 $lm0
+	nop
+	nop
+	dvadd $lr0 $lm0 $lr0
+	nop
+	nop
+	lpassa $lr0 $ln4088
+# collect.vsm — @collect テンプレート
+# placeholder の意味は src/vsmlink.c の @collect 展開部を参照
+
+# @collect _arg_c to_param 16 size 1 $ln4088
+# === @collect _arg_c: $ln4088 → L1BM → L2BM → PDM $p4096 ===
+# (:pdm :directive "@collect" :id "_arg_c" :slot 16 :place :pdm0 :addr 4096 :size 4096 :access :write)
+	nop/24
+	l1bmd $ln4088v $lb0
+	nop/24
+	l2bm@0 $lb0 $lc0
+	l2bm@1 $lb0 $lc64
+	l2bm@2 $lb0 $lc128
+	l2bm@3 $lb0 $lc192
+	l2bm@4 $lb0 $lc256
+	l2bm@5 $lb0 $lc320
+	l2bm@6 $lb0 $lc384
+	l2bm@7 $lb0 $lc448
+	nop/5
+	mvp/n512 $lc0@0.0 $p4096@0
+	mvp/n512i3f $lc0@0.1 $p4608@0
+	nop/3
+	nop; wait i3f
+	mvp/n512 $lc0@1.0 $p5120@0
+	mvp/n512i3f $lc0@1.1 $p5632@0
+	nop/3
+	nop; wait i3f
+	mvp/n512 $lc0@2.0 $p6144@0
+	mvp/n512i3f $lc0@2.1 $p6656@0
+	nop/3
+	nop; wait i3f
+	mvp/n512 $lc0@3.0 $p7168@0
+	mvp/n512i1e $lc0@3.1 $p7680@0
+	nop/3
+	nop; wait i1e
+	nop/4

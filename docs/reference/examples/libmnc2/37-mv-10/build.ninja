@@ -1,0 +1,20 @@
+# build.ninja — 37-mv-10
+include ../../scripts/sdk.ninja
+include ../../scripts/examples.ninja
+
+# カーネル
+build $builddir/mv-p10.asm: asm3_text data/mv-p10.vsm
+build $builddir/mv-p10.idma.dat: asm3_loader data/mv-p10.vsm
+  stem = $builddir/mv-p10
+
+# test driver
+build $builddir/ex_mv_10.o: cc ex_mv_10.c
+build $builddir/ex_mv_10: link $builddir/ex_mv_10.o | ${sdk_root}/lib/libmnc2.a
+
+# test targets
+build test-emu:     test_emu_process $builddir/ex_mv_10 | $builddir/mv-p10.asm $builddir/mv-p10.idma.dat
+build test-emu-lib: test_emu_lib     $builddir/ex_mv_10 | $builddir/mv-p10.asm $builddir/mv-p10.idma.dat
+build test-device:  test_device      $builddir/ex_mv_10 | $builddir/mv-p10.asm $builddir/mv-p10.idma.dat
+build test:         test_usage
+
+default $builddir/ex_mv_10 $builddir/mv-p10.asm $builddir/mv-p10.idma.dat

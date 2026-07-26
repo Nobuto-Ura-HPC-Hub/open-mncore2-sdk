@@ -1,0 +1,17 @@
+# build.ninja — 22-t4-l1bmd-minus1
+include ../../scripts/sdk.ninja
+include ../../scripts/examples.ninja
+
+build $builddir/t4_l1bmd_minus1.asm: asm3_text data/t4_l1bmd_minus1.vsm
+build $builddir/t4_l1bmd_minus1.idma.dat: asm3_loader data/t4_l1bmd_minus1.vsm
+  stem = $builddir/t4_l1bmd_minus1
+
+build $builddir/ex_t4_l1bmd_minus1.o: cc ex_t4_l1bmd_minus1.c
+build $builddir/ex_t4_l1bmd_minus1: link $builddir/ex_t4_l1bmd_minus1.o | ${sdk_root}/lib/libmnc2.a
+
+build test:         test_usage
+build test-emu:     test_emu_process $builddir/ex_t4_l1bmd_minus1 | $builddir/t4_l1bmd_minus1.asm $builddir/t4_l1bmd_minus1.idma.dat
+build test-emu-lib: test_emu_lib     $builddir/ex_t4_l1bmd_minus1 | $builddir/t4_l1bmd_minus1.asm $builddir/t4_l1bmd_minus1.idma.dat
+build test-device:  test_device      $builddir/ex_t4_l1bmd_minus1 | $builddir/t4_l1bmd_minus1.asm $builddir/t4_l1bmd_minus1.idma.dat
+
+default $builddir/ex_t4_l1bmd_minus1 $builddir/t4_l1bmd_minus1.idma.dat

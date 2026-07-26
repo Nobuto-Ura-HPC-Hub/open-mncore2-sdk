@@ -1,0 +1,53 @@
+# data/build.ninja — golden データを sha256 ID で生成
+#
+# Usage:
+#   ninja                # default = all (boundary_flags golden 2 個生成)
+#   ninja all            # 同上
+#   ninja verify         # sha256 検証
+#   ninja 57b42dea.bin   # 個別生成 (data_edge なし)
+#   ninja 75c77b0f.bin   # 個別生成 (data_edge あり)
+#
+# 中間生成物 (.o, 実行ファイル) は _build/ に集約。
+# 生成 bin は created/ に集約 (git 管理外)。
+
+builddir = _build
+
+rule cc_host
+  command = gcc -Wall -Wextra -c $in -o $out
+  description = CC $out
+
+rule link_host
+  command = gcc $in -o $out
+  description = LINK $out
+
+rule gen
+  command = ./$builddir/$exe ok $out $args
+  description = GEN $out
+
+rule sha256_check
+  command = echo "$expected  $in" | sha256sum -c -
+  description = SHA256 $in
+
+# --- boundary_flags golden (gen_bf_golden) ---
+build $builddir/gen_bf_golden.o: cc_host gen_bf_golden.c
+build $builddir/gen_bf_golden: link_host $builddir/gen_bf_golden.o
+
+# data_edge なし (10bit, 中間チャンク)
+build created/57b42dea.bin: gen $builddir/gen_bf_golden
+  exe = gen_bf_golden
+  args =
+build verify-57b42dea: sha256_check created/57b42dea.bin
+  expected = 57b42dea9b158e8e1b9de447a9c54b522ebdef7b8da8ab3779edd9ca55b4d6eb
+
+# data_edge あり (10bit, 全体が 1 チャンク、 4096 PE)
+build created/75c77b0f.bin: gen $builddir/gen_bf_golden
+  exe = gen_bf_golden
+  args = --edge-left --edge-right
+build verify-75c77b0f: sha256_check created/75c77b0f.bin
+  expected = 75c77b0f06bb635fb67d50f8b0ee5cf035723d9429a231a5409d6a587c0fe5ac
+
+# --- aggregate ---
+build all: phony created/57b42dea.bin created/75c77b0f.bin
+build verify: phony verify-57b42dea verify-75c77b0f
+
+default all

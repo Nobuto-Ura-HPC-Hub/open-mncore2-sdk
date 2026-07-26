@@ -1,0 +1,5 @@
+((:version :0.1)
+ (:reserved_wait_tag #x3f)
+ (:identify 0 :place :pdm0 :addr 0     :send_wait_tag #x10)
+ (:slot 16    :place :pdm0 :addr 4096  :send_wait_tag #x10)
+ (:slot 24    :place :pdm0 :addr 8192  :recv_wait_tag #x06))

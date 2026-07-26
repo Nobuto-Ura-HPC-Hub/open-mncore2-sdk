@@ -1,0 +1,18 @@
+# build.ninja — 47-debug-read-write
+include ../../scripts/sdk.ninja
+include ../../scripts/examples.ninja
+
+# カーネル
+build $builddir/even_msl.asm: asm3_text data/even_msl.vsm
+build $builddir/even_msl.idma.dat: asm3_loader data/even_msl.vsm
+  stem = $builddir/even_msl
+
+# test driver
+build $builddir/ex_debug_read_write.o: cc ex_debug_read_write.c
+build $builddir/ex_debug_read_write: link $builddir/ex_debug_read_write.o | ${sdk_root}/lib/libmnc2.a
+
+# test targets (emu:lib 専用 example: debug_read/write API が emu:lib のみ対応)
+build test-emu-lib: test_emu_lib     $builddir/ex_debug_read_write | $builddir/even_msl.asm $builddir/even_msl.idma.dat
+build test:         test_usage_emu_lib_only
+
+default $builddir/ex_debug_read_write $builddir/even_msl.asm $builddir/even_msl.idma.dat

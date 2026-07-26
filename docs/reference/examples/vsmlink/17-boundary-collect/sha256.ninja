@@ -1,0 +1,4 @@
+# collected_flags.bin の期待 sha256 (cross_group 廃止後 10bit レイアウト)
+#
+# 再生成: gen_bf_golden ok /tmp/golden.bin && sha256sum /tmp/golden.bin
+sha256_collected_flags = 57b42dea9b158e8e1b9de447a9c54b522ebdef7b8da8ab3779edd9ca55b4d6eb

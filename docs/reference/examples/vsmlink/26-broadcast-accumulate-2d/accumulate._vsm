@@ -1,0 +1,43 @@
+# ABI PFN3_SBY64
+#
+# 段階3b accumulate: 他粒子 (xj,yj,mj) を broadcast で受け取り、自粒子 (LM 常駐) との
+# 質量重み付き総和を accumulator ax,ay に加算する。ホストが N 回実行する。
+# LM0 常駐: xi=$lm0, yi=$lm2, ax=$lm4, ay=$lm6, mi=$lm10
+# バンク: LM0=$lm LM1=$ln GRF0=$lr GRF1=$ls
+#
+# rsqrt を使わない。rsqrt は精度 5 ビット程度の近似で、これが唯一のビット不一致要因に
+# なる。加算と乗算だけで組めばホストが同じ順序で再現でき、許容誤差ゼロで照合できる。
+# したがって逆二乗則の 1/r^3 は落とし、次を計算する。
+#
+#   ax += mj * (xi - xj),  ay += mj * (yi - yj)
+#
+# 重力ではないが、全対全総和のデータの流れは N 体と同じである。
+#
+	# 他粒子を 2 つの broadcast に分けて配る。位置は j ごとに変わり、質量は星ごとに
+	# 決まる値なので、ホスト側で別々の配列から別々の PDM 領域へ送る。
+	@broadcast _pj from_param 8  size 2 $lr16    # xj -> $lr16, yj -> $lr18
+	@broadcast _mj from_param 16 size 1 $lr20    # mj -> $lr20
+	# dx = xi - xj  (LM0 - GRF0 -> LM1)
+	dvadd $lm0 -$lr16 $ln0
+	nop/2
+	# dy = yi - yj  (LM0 - GRF0 -> LM1)
+	dvadd $lm2 -$lr18 $ln2
+	nop/2
+	# fx = mj * dx  (GRF0 * LM1 -> GRF1)
+	dvmulu $lr20 $ln0 $nowrite
+	dvfmad $lr20 $ln0 $mauf $ls0
+	nop/2
+	# fy = mj * dy  (GRF0 * LM1 -> GRF1)
+	dvmulu $lr20 $ln2 $nowrite
+	dvfmad $lr20 $ln2 $mauf $ls2
+	nop/2
+	# ax += fx  (LM0 + GRF1 -> LM1, LM0 に書き戻し)
+	dvadd $lm4 $ls0 $ln4
+	nop/2
+	lpassa $ln4 $lm4
+	nop/24
+	# ay += fy
+	dvadd $lm6 $ls2 $ln6
+	nop/2
+	lpassa $ln6 $lm6
+	nop/24

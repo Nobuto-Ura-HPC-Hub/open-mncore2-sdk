@@ -1,0 +1,22 @@
+# distribute.vsm — 57 Kernel A: PDM@0 → PDM@0/1/2/3 連続スライス分配
+#
+# 56 の mvd PDM-DRAM (16 LW round-robin) と違い、PDM-PDM 単独個別 cross-group を
+# 3 命令だけ発行する。各 PDM@G に PDM@0 の連続 1024 LW スライスをコピー:
+#
+#   PDM@0[0..1023]    そのまま (移動不要、PDM@0 → PDM@0 同 group 単独個別は未検証)
+#   PDM@1[0..1023]  ← PDM@0[1024..2047]
+#   PDM@2[0..1023]  ← PDM@0[2048..3071]
+#   PDM@3[0..1023]  ← PDM@0[3072..4095]
+#
+# host send は PDM@0 に 4096 LW (= i << 16 for i in 0..4095) 配置済みが前提。
+# DMA: send_wait_tag = 2
+
+	nop; wait i02
+	nop/3
+	mvp/n1024    $p1024@0 $p0@1
+	mvp/n1024    $p2048@0 $p0@2
+	mvp/n1024i01 $p3072@0 $p0@3
+	nop/2
+	nop; wait i01
+	nop/5
+	# pseudo ret
