@@ -50,3 +50,8 @@ build test-device: test_device_k $builddir/identify_reduce.idma.dat | $builddir/
   kernel = $builddir/identify_reduce.idma.dat
 
 default $builddir/identify_reduce.vsm
+
+# --- verify: golden data ---
+build verify: verify_cmd $builddir/identify_reduce.vsm
+  expected = expected.vsm
+  actual = $builddir/identify_reduce.vsm

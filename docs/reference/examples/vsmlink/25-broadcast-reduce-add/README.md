@@ -19,7 +19,7 @@
 
 ## vsmlink がこれを vsm にどう展開するか
 
-`src/templates/broadcast.vsm` で 3 段の転送に展開される (要点):
+vsmlink が 3 段の転送に展開する (要点):
 
 ```asm
 mvb/n64<tag> <pdm> $lc<lc>    # PDM から全 8 L2BM へ

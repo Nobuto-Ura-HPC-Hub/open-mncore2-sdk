@@ -1,11 +1,13 @@
-/* test_dmaid_conflict.c — dmaid=0x23 タグ衝突の検証
+/* test_dmaid_conflict.c — 予約タグとのタグ衝突の検証
  *
- * @distribute を含むカーネルでは、mvp done flag として 0x23 を内部使用する。
- * ホスト側 send で dmaid=0x23 を渡すとタグが衝突し、recv が失敗する。
+ * vsmlink は kernel の中の転送 (@distribute / @collect の PDM と L2BM の間の転送) の待ちに
+ * 予約タグを使う。予約タグの値は roundtrip.param の :reserved_wait_tag で決まり、build が
+ * reserved_wait_tag.h (RESERVED_WAIT_TAG) として渡す。ホストが同じ値で send すると
+ * タグが衝突し、失敗する。
  *
  * このテストは以下の 2 ケースを実行する:
- *   1. dmaid=0x10 → PASS（衝突なし）
- *   2. dmaid=0x23 → FAIL expected（mvp done flag と衝突）
+ *   1. dmaid=0x10 → PASS（衝突なし。.param の :send_wait_tag と対応）
+ *   2. dmaid=RESERVED_WAIT_TAG → FAIL expected（予約タグと衝突）
  *
  * カーネル: 01-roundtrip と同一（PDM -> LM -> PDM）
  */
@@ -14,6 +16,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include "mnc2.h"
+#include "reserved_wait_tag.h"
 
 #define ELEM_COUNT  4096
 #define ELEM_BYTES  (ELEM_COUNT * sizeof(double))
@@ -88,8 +91,8 @@ int main(void)
     int pass1 = (rc1 == MNC2_SUCCESS);
     printf("  result: %s\n\n", pass1 ? "PASS" : "FAIL");
 
-    /* Case 2: dmaid=0x23 — should FAIL (tag conflict with mvp done flag) */
-    int rc2 = run_roundtrip(dev, 0x23, "conflict");
+    /* Case 2: dmaid=RESERVED_WAIT_TAG — should FAIL (tag conflict with the reserved wait tag) */
+    int rc2 = run_roundtrip(dev, RESERVED_WAIT_TAG, "conflict");
     int fail2 = (rc2 != MNC2_SUCCESS);
     printf("  result: %s (expected FAIL)\n\n", fail2 ? "FAIL as expected" : "unexpected PASS");
 
@@ -99,7 +102,8 @@ int main(void)
     mnc2_close(dev);
 
     if (pass1 && fail2) {
-        printf("PASS: dmaid=0x10 succeeded, dmaid=0x23 correctly failed\n");
+        printf("PASS: dmaid=0x10 succeeded, dmaid=0x%02x (reserved wait tag) correctly failed\n",
+               RESERVED_WAIT_TAG);
         return 0;
     } else {
         fprintf(stderr, "UNEXPECTED: pass1=%d fail2=%d\n", pass1, fail2);

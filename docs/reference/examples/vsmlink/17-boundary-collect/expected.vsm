@@ -1,0 +1,290 @@
+# boundary-collect: @boundary_flags_compute で生成した排他的 10bit フラグを PDM に回収する
+#
+# 排他的フラグ: 各 PE に最大 1 ビット (cross_group 廃止)
+#   bit[0] = cross_MAB_right   bit[1] = cross_MAB_left
+#   bit[2] = cross_L1B_right   bit[3] = cross_L1B_left
+#   bit[4] = cross_L2B_right   bit[5] = cross_L2B_left
+#   bit[6] = cross_chip_right  bit[7] = cross_chip_left
+#   bit[8] = data_edge_right   bit[9] = data_edge_left
+#
+# 出力:
+#   to_param 8: 10bit 境界フラグ (4096 PE × 1 LW)
+
+#@ @alloc bfcomp :omr 1 2 3 4 :grf0 200 32 34 40 42 44 46 :n 0
+#@ @boundary_flags_compute bf1 0 $lr416 bfcomp
+# boundary_flags_compute.vsm — @boundary_flags_compute テンプレート
+#
+# HW レジスタ ($subpeid, $mabid, $l1bid, $l2bid) から
+# 排他的 10bit ワンホットフラグを計算し $lr416 に書き込む。
+#
+# レジスタ使用 (grf0: r0-r4, omr: omr0-omr3, n: n0):
+#   r0: 出力中間  r1: ゼロ  r2: imm (_hi/_lo)
+#   r3: acc (_hi/_lo)  r4: T1
+#   omr0-omr3: 条件計算用（left/right で使い回し）
+#   n0: LM1 作業用
+# -- @boundary_flags_compute: 排他的 10bit → $lr416 --
+lxor $lr32 $lr32 $lr32
+nop/4
+lpassa $lr32 $ln0
+nop/24
+imm i"0" $r200
+imm i"0" $r201
+nop/4
+# -- right flags --
+imm i"0" $r34
+imm i"3" $r35
+nop/4
+lpassa $lr34 $ln0
+lpassa $subpeid $lr40
+nop/24
+lxor $lr40 $ln0 $omr1
+imm i"0" $r34
+imm i"3" $r35
+nop/4
+lpassa $lr34 $ln0
+lpassa $subpeid $lr40
+nop/24
+lxor $lr40 $ln0 $lr40
+nop/4
+imm i"0" $r34
+imm i"15" $r35
+nop/4
+lpassa $lr34 $ln0
+lpassa $mabid $lr42
+nop/24
+lxor $lr42 $ln0 $lr42
+nop/4
+lpassa $lr40 $ln0
+nop/24
+ior $lr42 $ln0 $lr40
+nop/4
+lpassa $lr32 $ln0
+nop/24
+lxor $lr40 $ln0 $omr2
+imm i"0" $r34
+imm i"3" $r35
+nop/4
+lpassa $lr34 $ln0
+lpassa $subpeid $lr40
+nop/24
+lxor $lr40 $ln0 $lr40
+nop/4
+imm i"0" $r34
+imm i"15" $r35
+nop/4
+lpassa $lr34 $ln0
+lpassa $mabid $lr42
+nop/24
+lxor $lr42 $ln0 $lr42
+nop/4
+lpassa $lr40 $ln0
+nop/24
+ior $lr42 $ln0 $lr40
+nop/4
+imm i"0" $r34
+imm i"7" $r35
+nop/4
+lpassa $lr34 $ln0
+lpassa $l1bid $lr42
+nop/24
+lxor $lr42 $ln0 $lr42
+nop/4
+lpassa $lr40 $ln0
+nop/24
+ior $lr42 $ln0 $lr40
+nop/4
+lpassa $lr32 $ln0
+nop/24
+lxor $lr40 $ln0 $omr3
+imm i"0" $r34
+imm i"3" $r35
+nop/4
+lpassa $lr34 $ln0
+lpassa $subpeid $lr40
+nop/24
+lxor $lr40 $ln0 $lr40
+nop/4
+imm i"0" $r34
+imm i"15" $r35
+nop/4
+lpassa $lr34 $ln0
+lpassa $mabid $lr42
+nop/24
+lxor $lr42 $ln0 $lr42
+nop/4
+lpassa $lr40 $ln0
+nop/24
+ior $lr42 $ln0 $lr40
+nop/4
+imm i"0" $r34
+imm i"7" $r35
+nop/4
+lpassa $lr34 $ln0
+lpassa $l1bid $lr42
+nop/24
+lxor $lr42 $ln0 $lr42
+nop/4
+lpassa $lr40 $ln0
+nop/24
+ior $lr42 $ln0 $lr40
+nop/4
+imm i"0" $r34
+imm i"7" $r35
+nop/4
+lpassa $lr34 $ln0
+lpassa $l2bid $lr42
+nop/24
+lxor $lr42 $ln0 $lr42
+nop/4
+lpassa $lr40 $ln0
+nop/24
+ior $lr42 $ln0 $lr40
+nop/4
+lpassa $lr32 $ln0
+nop/24
+lxor $lr40 $ln0 $omr4
+imm i"0" $r40
+imm i"1" $r41
+nop/4
+  maskr 1
+ipassa $lr40 $lr200
+  mask 0
+nop
+nop
+imm i"0" $r40
+imm i"4" $r41
+nop/4
+  maskr 2
+ipassa $lr40 $lr200
+  mask 0
+nop
+nop
+imm i"0" $r40
+imm i"16" $r41
+nop/4
+  maskr 3
+ipassa $lr40 $lr200
+  mask 0
+nop
+nop
+imm i"0" $r40
+imm i"64" $r41
+nop/4
+  maskr 4
+ipassa $lr40 $lr200
+  mask 0
+nop
+nop
+# -- left flags --
+lpassa $lr32 $ln0
+lpassa $subpeid $lr40
+nop/24
+lxor $lr40 $ln0 $omr1
+lpassa $mabid $ln0
+nop/24
+ior $subpeid $ln0 $lr40
+nop/4
+lpassa $lr32 $ln0
+nop/24
+lxor $lr40 $ln0 $omr2
+lpassa $mabid $ln0
+nop/24
+ior $l1bid $ln0 $lr40
+nop/4
+lpassa $lr40 $ln0
+nop/24
+ior $subpeid $ln0 $lr40
+nop/4
+lpassa $lr32 $ln0
+nop/24
+lxor $lr40 $ln0 $omr3
+lpassa $mabid $ln0
+nop/24
+ior $l1bid $ln0 $lr40
+nop/4
+lpassa $lr40 $ln0
+nop/24
+ior $subpeid $ln0 $lr40
+nop/4
+lpassa $lr40 $ln0
+nop/24
+ior $l2bid $ln0 $lr40
+nop/4
+lpassa $lr32 $ln0
+nop/24
+lxor $lr40 $ln0 $omr4
+imm i"0" $r40
+imm i"2" $r41
+nop/4
+  maskr 1
+ipassa $lr40 $lr200
+  mask 0
+nop
+nop
+imm i"0" $r40
+imm i"8" $r41
+nop/4
+  maskr 2
+ipassa $lr40 $lr200
+  mask 0
+nop
+nop
+imm i"0" $r40
+imm i"32" $r41
+nop/4
+  maskr 3
+ipassa $lr40 $lr200
+  mask 0
+nop
+nop
+imm i"0" $r40
+imm i"128" $r41
+nop/4
+  maskr 4
+ipassa $lr40 $lr200
+  mask 0
+nop
+nop
+	lpassa $lr200 $lr416
+	nop
+	nop
+	nop/4
+#@ @free bfcomp
+
+	# $lr416 → LM → @collect
+	lpassa $lr416 $lm0
+	nop/24
+# collect.vsm — @collect テンプレート
+
+# @collect _flags to_param 8 size 1 $lm0
+# === @collect _flags: $lm0 → L1BM → L2BM → PDM $p131072 ===
+# (:pdm :directive "@collect" :id "_flags" :slot 8 :place :pdm0 :addr 131072 :size 4096 :access :write)
+	nop/24
+	l1bmd $lm0v $lb0
+	nop/24
+	l2bm@0 $lb0 $lc0
+	l2bm@1 $lb0 $lc64
+	l2bm@2 $lb0 $lc128
+	l2bm@3 $lb0 $lc192
+	l2bm@4 $lb0 $lc256
+	l2bm@5 $lb0 $lc320
+	l2bm@6 $lb0 $lc384
+	l2bm@7 $lb0 $lc448
+	nop/5
+	mvp/n512 $lc0@0.0 $p131072@0
+	mvp/n512i3f $lc0@0.1 $p131584@0
+	nop/3
+	nop; wait i3f
+	mvp/n512 $lc0@1.0 $p132096@0
+	mvp/n512i3f $lc0@1.1 $p132608@0
+	nop/3
+	nop; wait i3f
+	mvp/n512 $lc0@2.0 $p133120@0
+	mvp/n512i3f $lc0@2.1 $p133632@0
+	nop/3
+	nop; wait i3f
+	mvp/n512 $lc0@3.0 $p134144@0
+	mvp/n512i1e $lc0@3.1 $p134656@0
+	nop/3
+	nop; wait i1e
+	nop/4

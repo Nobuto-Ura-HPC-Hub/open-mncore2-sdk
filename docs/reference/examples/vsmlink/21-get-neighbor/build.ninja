@@ -63,3 +63,12 @@ build test-device: phony test-left-device test-right-device
 build test: test_usage
 
 default $builddir/get_left.vsm $builddir/get_right.vsm
+
+# --- verify: golden data (複数出力) ---
+build verify-get_left: verify_cmd $builddir/get_left.vsm
+  expected = expected_get_left.vsm
+  actual = $builddir/get_left.vsm
+build verify-get_right: verify_cmd $builddir/get_right.vsm
+  expected = expected_get_right.vsm
+  actual = $builddir/get_right.vsm
+build verify: phony verify-get_left verify-get_right 

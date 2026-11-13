@@ -1,0 +1,11 @@
+# ABI PFN3_SBY64
+#
+# pe_order: @distribute_aos2soa で配った値を、転置の無い @collect size 4 で PE の順に書く。
+# 配る側を通すと番号 k のデータが PE 4 * (k % 1024) + k / 1024 に入ることを、ホストが
+# 成分ごとの並びの出力から確かめる (share/vsmlink/directives-spec.md の
+# 「データと PE の対応が変わる」)。
+#
+# LM0 の割り当ては roundtrip._vsm と同じ。@collect の展開は先頭に nop/24 を持つので、
+# dmread の後の待ちはそれが兼ねる。
+	@distribute_aos2soa _in from_param 8 $lm0 $lm8
+	@collect _out to_param 16 size 4 $lm0

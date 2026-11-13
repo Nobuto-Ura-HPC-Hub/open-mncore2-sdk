@@ -6,7 +6,7 @@
 ;; **このカーネルは triggerless（send_wait_tag をどこにも付けない）。** 入力（pos/vel/acc/dt）は
 ;; すべて PDM 常駐で、host から新しく送るデータが無い。send_wait_tag を付けないと vsm-linker は
 ;; 先頭の起動ゲート wait を出さず、`mnc2_exec_kernel` 単独でカーネルが走る（10-odd-even-sort の
-;; reduce カーネルと同じ正攻法。ISS-213 参照）。**順序は host の sync recv で担保する**（力フェーズの
+;; reduce カーネルと同じ正攻法）。**順序は host の sync recv で担保する**（力フェーズの
 ;; recv acc が force 完了を保証し、その後に積分を exec する）。値として不要なダミー送信は要らない。
 ;;
 ;; slot 8  = 位置 (pos)。size 3 の in-place 更新（distribute で読み collect で書く）。

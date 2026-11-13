@@ -17,7 +17,7 @@ build $builddir/bcast_vec.vsm: vsmlink $builddir/bcast_vec._vsm bcast_vec.param 
   stparam = bcast_vec.stparam
 
 build $builddir/bcast_vec.asm: asm3 $builddir/bcast_vec.vsm
-build $builddir/bcast_vec.idma.dat: asm3_loader $builddir/bcast_vec.vsm
+build $builddir/bcast_vec.idma.dat | $builddir/bcast_vec.idma.inst $builddir/bcast_vec.idma.inst.txt $builddir/bcast_vec.ddma.dat $builddir/bcast_vec.ddma.inst $builddir/bcast_vec.ddma.inst.txt: asm3_loader $builddir/bcast_vec.vsm
   stem = $builddir/bcast_vec
 
 # --- host driver ---
@@ -32,6 +32,5 @@ build test-emu-lib: test_emu_lib $builddir/test_bcast_vec | $builddir/bcast_vec.
 build test-device:  test_device  $builddir/test_bcast_vec | $builddir/bcast_vec.asm $builddir/bcast_vec.idma.dat
 build test:         test_usage
 
-build clean: clean
 
 default $builddir/bcast_vec.asm $builddir/bcast_vec.idma.dat

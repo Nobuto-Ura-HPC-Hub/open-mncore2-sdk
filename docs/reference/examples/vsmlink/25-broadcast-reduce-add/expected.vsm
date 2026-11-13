@@ -1,0 +1,80 @@
+# ABI PFN3_SBY64
+#
+# @broadcast (全 PE 同値, l1bmp) + @reduce の検証
+#
+# 各 PE で:
+#   id = PE ID (0..4095)     @identify で配布
+#   C  = 全 PE 同値の定数     @broadcast (l1bmp) で放送
+#   PE 内で id + C を計算する。
+# 全 PE 合計を @reduce :liadd で取ると、 sub_pe_id 別の 4 部分和になる
+# (reduce が MAB 内 4 PE 単位を保つため出力は 4 u64)。
+#
+# 用途: @broadcast が全 PE に同値を放送することを reduce で検証する。
+#
+# distribute.vsm — @distribute テンプレート
+
+	nop; wait i10
+	nop/3
+# @identify  0 $lr8 4096                       # $lr8  ← PE ID
+# === @identify 0: PDM $p0 → L2BM → L1BM → $lr8 ===
+	mvp/n512 $p0@0 $lc0@0.0
+	mvp/n512 $p512@0 $lc0@0.1
+	mvp/n512 $p1024@0 $lc0@1.0
+	mvp/n512 $p1536@0 $lc0@1.1
+	mvp/n512 $p2048@0 $lc0@2.0
+	mvp/n512 $p2560@0 $lc0@2.1
+	mvp/n512 $p3072@0 $lc0@3.0
+	mvp/n512i3f $p3584@0 $lc0@3.1
+	nop/2
+	nop; wait i3f
+	nop/5
+	l2bmb@0 $lc0 $lb0
+	l2bmb@1 $lc64 $lb0
+	l2bmb@2 $lc128 $lb0
+	l2bmb@3 $lc192 $lb0
+	l2bmb@4 $lc256 $lb0
+	l2bmb@5 $lc320 $lb0
+	l2bmb@6 $lc384 $lb0
+	l2bmb@7 $lc448 $lb0
+	nop/5
+	l1bmd $lb0 $lr8v/1000
+# broadcast_load.vsm — @broadcast: PDM の区画を L1BM に載せる部分
+# その区画がまだ L1BM に載っていないときだけ展開される
+# HW パス: PDM から mvb で全 8 L2BM、 l2bmb で全 64 L1BM へ (64 u64 の区画ごと)
+
+	nop/4
+# @broadcast _C from_param 16 size 1 $lr16     # $lr16 に C (全 PE 同値、 l1bmp で放送)
+# === @broadcast _C: PDM $p4096 → 全 4096 PE $lr16 ===
+	mvb/n64i3f $p4096@0 $lc0
+	nop/2
+	nop; wait i3f
+	nop/5
+	l2bmb $lc0 $lb0
+# broadcast_use.vsm — @broadcast: L1BM に載っている値を PE に配る部分
+# 毎回展開される。載っていなかった場合は直前に broadcast_load.vsm が展開されている
+# L1BM の番地は区画の先頭ではなく要求された位置 (ずれは vsmlink が加える)
+
+
+	nop/5
+	l1bmp $lb0 $lr16v/1000
+	nop/24
+	# id + C_p → $lr32 (iadd の src1 は $ln 系経由が必要)
+	nop/24
+	lpassa $lr16 $ln0
+	nop/24
+	iadd $ln0 $lr8 $lr32
+	nop/4
+# reduce.vsm — @reduce テンプレート
+
+# @reduce _sum to_param 24 $lr32 liadd          # sub_pe_id 別の 4 部分和 → PDM
+# === @reduce _sum: $lr32 → L1BM → L2BM → PDM $p8192 (liadd) ===
+# (:pdm :directive "@reduce" :id "_sum" :slot 24 :place :pdm0 :addr 8192 :size 64 :access :write)
+	l1bmrliadd $lr32 $lb64
+	nop/24
+	l2bmrliadd $lb64 $lc0
+	nop/24
+	mvrliadd/n64i06 $lc0 $p8192@0
+	nop/2
+	nop; wait i06
+	nop/5
+# (:pdm :directive "@broadcast" :id "_C" :slot 16 :place :pdm0 :addr 4096 :size 1 :access :read)

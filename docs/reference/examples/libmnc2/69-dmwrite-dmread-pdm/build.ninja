@@ -1,0 +1,33 @@
+# build.ninja — 69-dmwrite-dmread-pdm
+include ../../scripts/sdk.ninja
+include ../../scripts/examples.ninja
+
+# カーネル 2 本 (どちらも gen_dm_pdm.py の出力。コミット済みのものを使う)
+#   dm_pdm      配る -> 添字の交換 -> 集める
+#   dm_pdm_nop  配る -> 集める (経路が並びを変えないことの確認用)
+build $builddir/dm_pdm.asm:          asm3_text   data/dm_pdm.vsm
+build $builddir/dm_pdm.idma.dat:     asm3_loader data/dm_pdm.vsm
+  stem = $builddir/dm_pdm
+build $builddir/dm_pdm_nop.asm:      asm3_text   data/dm_pdm_nop.vsm
+build $builddir/dm_pdm_nop.idma.dat: asm3_loader data/dm_pdm_nop.vsm
+  stem = $builddir/dm_pdm_nop
+
+# test driver
+build $builddir/ex_dm_pdm.o: cc ex_dm_pdm.c
+build $builddir/ex_dm_pdm:   link $builddir/ex_dm_pdm.o | ${sdk_root}/lib/libmnc2.a
+
+# test targets (PDM 経由なので 3 backend すべてで走る)
+build test:         test_usage
+build test-emu:     test_emu_process $builddir/ex_dm_pdm | $
+    $builddir/dm_pdm.asm $builddir/dm_pdm.idma.dat $
+    $builddir/dm_pdm_nop.asm $builddir/dm_pdm_nop.idma.dat
+build test-emu-lib: test_emu_lib     $builddir/ex_dm_pdm | $
+    $builddir/dm_pdm.asm $builddir/dm_pdm.idma.dat $
+    $builddir/dm_pdm_nop.asm $builddir/dm_pdm_nop.idma.dat
+build test-device:  test_device      $builddir/ex_dm_pdm | $
+    $builddir/dm_pdm.asm $builddir/dm_pdm.idma.dat $
+    $builddir/dm_pdm_nop.asm $builddir/dm_pdm_nop.idma.dat
+
+default $builddir/ex_dm_pdm $
+    $builddir/dm_pdm.asm $builddir/dm_pdm.idma.dat $
+    $builddir/dm_pdm_nop.asm $builddir/dm_pdm_nop.idma.dat

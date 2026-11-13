@@ -3,7 +3,7 @@
 # SoA -> AoS 変換カーネル。collect の成分ごと (SoA) 出力を、device 上で粒子ごと (AoS) に
 # 並べ替える。distribute size 4 で各 PE に struct {x,y,z,m} を載せ、MAB 内 4x4 転置
 # (dmwrite/dmread) を挟み、collect size 4 で書き戻すと AoS で出る (粒子順は順列)。
-# 設計は docs/broadcast-collect-layout.md。
+# 並びは share/vsmlink/directives-spec.md の「@distribute_aos2soa / @collect_soa2aos」。
 #
 # 転置のミソ: dmwrite/dmread は src/dst 両方に v (サイクルインクリメント) が要る。
 # 無いと全サイクル同番地に上書きで壊れる (dev manual 3.6.1.6)。

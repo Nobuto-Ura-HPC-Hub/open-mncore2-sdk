@@ -23,7 +23,7 @@ build $builddir/reduce.vsm: vsmlink $builddir/reduce._vsm reduce.param reduce.st
   stparam = reduce.stparam
 
 build $builddir/reduce.asm: asm3 $builddir/reduce.vsm
-build $builddir/reduce.idma.dat: asm3_loader $builddir/reduce.vsm
+build $builddir/reduce.idma.dat | $builddir/reduce.idma.inst $builddir/reduce.idma.inst.txt $builddir/reduce.ddma.dat $builddir/reduce.ddma.inst $builddir/reduce.ddma.inst.txt: asm3_loader $builddir/reduce.vsm
   stem = $builddir/reduce
 
 # --- host driver ---
@@ -57,6 +57,5 @@ build test-device:  test_device_verify  $builddir/test_reduce | $builddir/reduce
   args = $builddir/input.bin
 build test:         test_usage
 
-build clean: clean
 
 default $builddir/reduce.asm $builddir/reduce.idma.dat

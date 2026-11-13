@@ -3,7 +3,6 @@
 # 1D 3-point stencil: output[i] = left[i] + center[i] + right[i]
 #
 # distribute.vsm — @distribute テンプレート
-# placeholder の意味は src/vsmlink.c の @distribute 展開部を参照
 
 	nop; wait i10
 	nop/3
@@ -34,7 +33,6 @@
 	nop/24
 	lpassa $lm0 $lr0
 # boundary_flags.vsm — @boundary_flags テンプレート
-# placeholder の意味は src/vsmlink.c の @boundary_flags 展開部を参照
 
 # @boundary_flags bf1 0 $lr416 data_edge_left data_edge_right cross_chip_left cross_chip_right cross_L2B_left cross_L2B_right cross_L1B_left cross_L1B_right cross_MAB_left cross_MAB_right
 # === @boundary_flags bf1: PDM → $lr416 ===
@@ -488,7 +486,6 @@ nop/2
 	nop
 	lpassa $lr0 $ln4088
 # collect.vsm — @collect テンプレート
-# placeholder の意味は src/vsmlink.c の @collect 展開部を参照
 
 # @collect _arg_c to_param 16 size 1 $ln4088
 # === @collect _arg_c: $ln4088 → L1BM → L2BM → PDM $p4096 ===

@@ -1,7 +1,7 @@
-/* test_stencil1d.c -- stencil1d (neighbor) E2E test (emu:lib)
+/* test_stencil1d.c -- stencil1d (load_neighbor) E2E test (emu:lib)
  *
  * Kernel: c[i] = left + self + right
- *   where left = neighbor(a, -1), right = neighbor(a, +1)
+ *   where left = load_neighbor(a, -1), right = load_neighbor(a, +1)
  *
  * Boundary: :clamp — 端の PE は端の値を返す
  *   PE[0]:    left = a[0] (self)

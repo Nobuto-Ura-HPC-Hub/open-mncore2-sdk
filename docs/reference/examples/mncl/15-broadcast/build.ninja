@@ -19,7 +19,7 @@ build $builddir/broadcast.vsm: vsmlink $builddir/broadcast._vsm broadcast.param 
   stparam = broadcast.stparam
 
 build $builddir/broadcast.asm: asm3 $builddir/broadcast.vsm
-build $builddir/broadcast.idma.dat: asm3_loader $builddir/broadcast.vsm
+build $builddir/broadcast.idma.dat | $builddir/broadcast.idma.inst $builddir/broadcast.idma.inst.txt $builddir/broadcast.ddma.dat $builddir/broadcast.ddma.inst $builddir/broadcast.ddma.inst.txt: asm3_loader $builddir/broadcast.vsm
   stem = $builddir/broadcast
 
 # --- host driver ---
@@ -34,6 +34,5 @@ build test-emu-lib: test_emu_lib $builddir/test_broadcast | $builddir/broadcast.
 build test-device:  test_device  $builddir/test_broadcast | $builddir/broadcast.asm $builddir/broadcast.idma.dat
 build test:         test_usage
 
-build clean: clean
 
 default $builddir/broadcast.asm $builddir/broadcast.idma.dat

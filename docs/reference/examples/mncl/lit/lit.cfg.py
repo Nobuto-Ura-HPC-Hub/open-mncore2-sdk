@@ -8,7 +8,9 @@ import os
 import lit.formats
 
 config.name = "MNCL examples"
-config.test_format = lit.formats.ShTest(execute_external=True)
+# RUN 行は lit の内部のシェルで実行する。外部のシェル（execute_external=True）は lit 23 で廃止予定になり、
+# 指定すると lit が止まる。内部のシェルは $(...) などのシェルの展開をしないので、RUN 行では使わない。
+config.test_format = lit.formats.ShTest(execute_external=False)
 config.suffixes = ['.test']
 
 # %examples = share/examples/mncl/ (.test ファイルから ../.. で到達)

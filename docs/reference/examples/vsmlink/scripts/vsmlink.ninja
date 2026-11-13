@@ -6,6 +6,10 @@ rule vsmlink
   command = vsmlink $vsm $param $stparam $out
   description = VSMLINK $out
 
+rule verify_cmd
+  command = diff -u $expected $actual && echo "OK: $actual matches expected"
+  description = VERIFY $actual
+
 rule asm3
   command = assemble3 $in --output-file $out
   description = ASM3 $out

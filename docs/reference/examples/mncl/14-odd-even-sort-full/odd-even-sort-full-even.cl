@@ -8,7 +8,7 @@
 // even フェーズ: PE 番号が偶数の PE がペアの左メンバ（is_left = ((id & 1) == 0)）。
 // ping-pong: data_in を読み data_out へ書く（odd は逆向き）。境界は boundary_flags の clamp。
 //
-// data_in:    in  (このフェーズの入力配列。 distribute / neighbor が読む)
+// data_in:    in  (このフェーズの入力配列。 distribute / load_neighbor が読む)
 // data_out:   out (1 フェーズ後の配列。 collect 先)
 // swap_count: out (全 PE の swap 有無を reduce_add した 4 partial sum。 host が合計して収束判定)
 __kernel void odd_even_sort_full_even(__global double* data_in,
@@ -16,8 +16,8 @@ __kernel void odd_even_sort_full_even(__global double* data_in,
                                       __global double* swap_count) {
     long id = get_global_id(0);
     double self  = distribute(data_in);
-    double right = neighbor(data_in, 1);
-    double left  = neighbor(data_in, -1);
+    double right = load_neighbor(data_in, 1);
+    double left  = load_neighbor(data_in, -1);
     double is_left = ((id & 1) == 0) ? 1.0 : 0.0;   // 偶数 PE がペアの左メンバ
 
     double left_swap;

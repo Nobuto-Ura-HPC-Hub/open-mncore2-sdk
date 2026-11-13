@@ -17,7 +17,7 @@ build $builddir/nbody2d.vsm: vsmlink $builddir/nbody2d._vsm nbody2d.param nbody2
   stparam = nbody2d.stparam
 
 build $builddir/nbody2d.asm: asm3 $builddir/nbody2d.vsm
-build $builddir/nbody2d.idma.dat: asm3_loader $builddir/nbody2d.vsm
+build $builddir/nbody2d.idma.dat | $builddir/nbody2d.idma.inst $builddir/nbody2d.idma.inst.txt $builddir/nbody2d.ddma.dat $builddir/nbody2d.ddma.inst $builddir/nbody2d.ddma.inst.txt: asm3_loader $builddir/nbody2d.vsm
   stem = $builddir/nbody2d
 
 # --- host driver ---
@@ -32,6 +32,5 @@ build test-emu-lib: test_emu_lib $builddir/test_nbody2d | $builddir/nbody2d.asm 
 build test-device:  test_device  $builddir/test_nbody2d | $builddir/nbody2d.asm $builddir/nbody2d.idma.dat
 build test:         test_usage
 
-build clean: clean
 
 default $builddir/nbody2d.asm $builddir/nbody2d.idma.dat

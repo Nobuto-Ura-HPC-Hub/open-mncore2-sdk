@@ -1,4 +1,4 @@
-# 21-get-neighbor-left
+# 21-get-neighbor
 
 ## 目的
 
@@ -74,8 +74,8 @@ edge 処理における隣接値の扱いは TBD。
 
 ```bash
 source scripts/overlay
-ninja -C examples/21-get-neighbor-left build-e2e
-ninja -C examples/21-get-neighbor-left test
+ninja -C examples/21-get-neighbor build-e2e
+ninja -C examples/21-get-neighbor test
 ```
 
 前提: `examples/17-boundary-collect` の `collected_flags.bin` が必要。

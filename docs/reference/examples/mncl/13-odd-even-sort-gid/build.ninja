@@ -1,4 +1,4 @@
-# 13-odd-even-sort-gid: 奇偶転置ソート 1 ステップ (4096 PE, fp64, neighbor + if/else)
+# 13-odd-even-sort-gid: 奇偶転置ソート 1 ステップ (4096 PE, fp64, load_neighbor + if/else)
 # 10-odd-even-sort の get_global_id 版。 左メンバ判定を host flag ではなく PE 自身が
 # get_global_id で行う。 kernel 本体・境界処理・3 kernel 構成は例 10 と同一。
 
@@ -15,7 +15,7 @@ build $builddir/odd-even-sort-gid-even.vsm: vsmlink $builddir/odd-even-sort-gid-
   param = odd-even-sort-gid-even.param
   stparam = odd-even-sort-gid.stparam
 build $builddir/odd-even-sort-gid-even.asm: asm3 $builddir/odd-even-sort-gid-even.vsm
-build $builddir/odd-even-sort-gid-even.idma.dat: asm3_loader $builddir/odd-even-sort-gid-even.vsm
+build $builddir/odd-even-sort-gid-even.idma.dat | $builddir/odd-even-sort-gid-even.idma.inst $builddir/odd-even-sort-gid-even.idma.inst.txt $builddir/odd-even-sort-gid-even.ddma.dat $builddir/odd-even-sort-gid-even.ddma.inst $builddir/odd-even-sort-gid-even.ddma.inst.txt: asm3_loader $builddir/odd-even-sort-gid-even.vsm
   stem = $builddir/odd-even-sort-gid-even
 
 # --- odd kernel ---
@@ -25,7 +25,7 @@ build $builddir/odd-even-sort-gid-odd.vsm: vsmlink $builddir/odd-even-sort-gid-o
   param = odd-even-sort-gid-odd.param
   stparam = odd-even-sort-gid.stparam
 build $builddir/odd-even-sort-gid-odd.asm: asm3 $builddir/odd-even-sort-gid-odd.vsm
-build $builddir/odd-even-sort-gid-odd.idma.dat: asm3_loader $builddir/odd-even-sort-gid-odd.vsm
+build $builddir/odd-even-sort-gid-odd.idma.dat | $builddir/odd-even-sort-gid-odd.idma.inst $builddir/odd-even-sort-gid-odd.idma.inst.txt $builddir/odd-even-sort-gid-odd.ddma.dat $builddir/odd-even-sort-gid-odd.ddma.inst $builddir/odd-even-sort-gid-odd.ddma.inst.txt: asm3_loader $builddir/odd-even-sort-gid-odd.vsm
   stem = $builddir/odd-even-sort-gid-odd
 
 # --- reduce kernel ---
@@ -35,7 +35,7 @@ build $builddir/odd-even-sort-gid-reduce.vsm: vsmlink $builddir/odd-even-sort-gi
   param = odd-even-sort-gid-reduce.param
   stparam = odd-even-sort-gid.stparam
 build $builddir/odd-even-sort-gid-reduce.asm: asm3 $builddir/odd-even-sort-gid-reduce.vsm
-build $builddir/odd-even-sort-gid-reduce.idma.dat: asm3_loader $builddir/odd-even-sort-gid-reduce.vsm
+build $builddir/odd-even-sort-gid-reduce.idma.dat | $builddir/odd-even-sort-gid-reduce.idma.inst $builddir/odd-even-sort-gid-reduce.idma.inst.txt $builddir/odd-even-sort-gid-reduce.ddma.dat $builddir/odd-even-sort-gid-reduce.ddma.inst $builddir/odd-even-sort-gid-reduce.ddma.inst.txt: asm3_loader $builddir/odd-even-sort-gid-reduce.vsm
   stem = $builddir/odd-even-sort-gid-reduce
 
 # --- host ---
@@ -61,7 +61,6 @@ build test-device:  test_device  $builddir/test_odd-even-sort-gid | $
     $builddir/odd-even-sort-gid-reduce.idma.dat $builddir/collected_flags.bin
 build test:         test_usage
 
-build clean: clean
 
 default $builddir/odd-even-sort-gid-even.asm $builddir/odd-even-sort-gid-even.idma.dat $
     $builddir/odd-even-sort-gid-odd.asm $builddir/odd-even-sort-gid-odd.idma.dat $

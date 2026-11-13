@@ -12,8 +12,8 @@ __kernel void odd_even_sort_full_odd(__global double* data_in,
                                      __global double* swap_count) {
     long id = get_global_id(0);
     double self  = distribute(data_in);
-    double right = neighbor(data_in, 1);
-    double left  = neighbor(data_in, -1);
+    double right = load_neighbor(data_in, 1);
+    double left  = load_neighbor(data_in, -1);
     double is_left = ((id & 1) != 0) ? 1.0 : 0.0;   // 奇数 PE がペアの左メンバ
 
     double left_swap;

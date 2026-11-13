@@ -1,5 +1,5 @@
 {% raw %}
-# vsm-linker テストガイド
+# vsmlink コマンド テストガイド
 
 vsmlink が生成した `.vsm` が正しいことをどう確かめるかをまとめる。
 
@@ -91,7 +91,7 @@ diff /tmp/out.vsm expected.vsm
 | `@distribute` | PDM から L1BM を経て PE へ届く転送が並ぶ。サイクルマスクで 1 個だけ書く |
 | `@collect` | `@distribute` の逆向きの転送が並ぶ |
 | `@alias` | 別名が元のバッファと同じ番地に解決される |
-| `@broadcast` | 放送命令が出る。size に応じたサイクルマスクが付く（size 1 なら `/1000`、2 なら `/1100`、3 なら `/1110`、4 ならマスク無し）。着地先は指定レジスタから 2 ずつ進む |
+| `@broadcast` | 放送命令が出る。size に応じたサイクルマスクが付く（size 1 なら `/1000`、2 なら `/1100`、4 ならマスク無し（size 3 は E227））。着地先は指定レジスタから 2 ずつ進む |
 | `@identify` | 次元ごとの識別値が PE に配られる |
 | `@access_pattern` | 指定したパターンに対応するテンプレートが選ばれている |
 | `@boundary_flags` | 境界の判定に使うビット列が配られる。ビットレイアウトは `directives-spec.md` を参照 |
@@ -142,7 +142,7 @@ host-dma との連携、複数カーネルの実行、debug read/write による
 
 ```lisp
 (:error "reserved_wait_tags[0] = #x00 out of range (must be 0x01..0x3f)" :id "E102")
-(:error "@broadcast: size must be 1..4" :id "E227" :line 5)
+(:error "@broadcast: size は 1, 2, 4 のいずれかでなければならない" :id "E227" :line 5)
 ```
 
 配置パラメタとリンク解決のエラーが E1xx、ディレクティブのエラーが E2xx である。

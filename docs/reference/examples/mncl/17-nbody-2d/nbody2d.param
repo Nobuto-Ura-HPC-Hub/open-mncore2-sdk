@@ -15,9 +15,11 @@
 ;;           **以前は fx / fy を別スロットに分けて distribute 2 本 collect 2 本を出していた。**
 ;;           send_wait_tag は付けない（前回カーネルが collect した PDM 常駐値を読む。
 ;;           10-odd-even-sort と同じ）。初期化 0 は host が初回に送る。
+;; send_wait_tag は、ホストが 0 以外のタグで送るエントリにだけ付ける（タグ 0 で exec の前に送り終えるもの、
+;; kernel が PDM に書いたものを読むものには付けない）。vsmlink 0.10.2 の E120（param-spec.md「待ちのタグの規則」）
 ((:version :0.1)
  (:reserved_wait_tag #x3f)
- (:slot 8  :place :pdm0 :addr 0     :send_wait_tag #x10)
- (:slot 16 :place :pdm0 :addr 8192  :send_wait_tag #x10)
+ (:slot 8  :place :pdm0 :addr 0)
+ (:slot 16 :place :pdm0 :addr 8192)
  (:slot 24 :place :pdm0 :addr 8320  :send_wait_tag #x10)
  (:slot 32 :place :pdm0 :addr 12288 :recv_wait_tag #x1e))

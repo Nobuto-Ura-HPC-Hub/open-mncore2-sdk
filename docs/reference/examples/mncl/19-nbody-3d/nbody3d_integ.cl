@@ -10,7 +10,7 @@
 //
 // **このカーネルは triggerless（起動トリガの送信が不要）。** 入力（pos/vel/acc/dt）はすべて PDM
 // 常駐で、host から新しく送るデータが無い。.param に send_wait_tag を付けないと vsm-linker は先頭の
-// 起動ゲート wait を出さず、mnc2_exec_kernel 単独でカーネルが走る（ISS-213。10-odd-even-sort の reduce
+// 起動ゲート wait を出さず、mnc2_exec_kernel 単独でカーネルが走る（10-odd-even-sort の reduce
 // カーネルと同じ正攻法）。順序は host の sync recv で担保する。
 //
 // **dt は broadcast で受けるが、host が init で 1 回だけ送る常駐値である**（毎ステップは送らない）。

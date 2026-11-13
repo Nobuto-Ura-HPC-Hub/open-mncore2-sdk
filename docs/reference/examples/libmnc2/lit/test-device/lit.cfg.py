@@ -12,7 +12,7 @@ import shutil
 import lit.formats
 
 config.name = "mncore2-sdk-device"
-config.test_format = lit.formats.ShTest(execute_external=True)
+config.test_format = lit.formats.ShTest(execute_external=False)
 config.suffixes = ['.test']
 
 # device は HW 共有資源なので並列実行不可。この suite の全テストを 1 worker に

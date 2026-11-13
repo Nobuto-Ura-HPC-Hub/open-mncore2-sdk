@@ -14,7 +14,7 @@
  *
  * **積分カーネルは triggerless（起動トリガの送信が不要）。** 入力はすべて PDM 常駐で、host から
  * 新しく送るデータが無い。積分カーネルの .param に send_wait_tag を付けないと先頭の起動ゲート wait が
- * 出ず、mnc2_exec_kernel 単独で走る（ISS-213。10-odd-even-sort の reduce カーネルと同型）。dt は init で
+ * 出ず、mnc2_exec_kernel 単独で走る（10-odd-even-sort の reduce カーネルと同型）。dt は init で
  * 1 回だけ送って常駐させ、毎ステップ常駐値として読む。順序は力フェーズの recv acc（force 完了保証）で担保。
  *
  * **PDM 上の並びは「成分が外側、PE が内側」である。**

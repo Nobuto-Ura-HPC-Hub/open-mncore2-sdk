@@ -3,7 +3,7 @@
 # soa2aos の --use-global-id 版。SoA -> AoS 並べ替えに加え、各 PE が自分の global_id
 # (flat_id 0..4095) を on-device で計算し、m ($lm6) を上書きする (distribute を使わない)。
 # 出力 struct の m は「その粒子を処理した PE の flat_id」になる。
-# 設計は docs/broadcast-collect-layout.md。
+# 並びは share/vsmlink/directives-spec.md の「@distribute_aos2soa / @collect_soa2aos」。
 #
 # flat_id = peid + (l1bid<<6) + (l2bid<<9)   ($peid = mabid*4 + subpeid)
 # 固定値オペランドは ALU 第 1 入力専用なので lpassa 退避。ilsl の shift 量と iadd は別バンク(LM1)経由。
@@ -46,7 +46,7 @@
 	nop/4
 	dvadd $lr4 -$ls0 $lm6      # (2^52+id) - 2^52 = (double)id => m を上書き
 	nop/24
-	# --- SoA -> AoS 転置 (aos._vsm と同じ) ---
+	# --- SoA -> AoS レイアウト変換 (aos._vsm と同じ) ---
 	dmwrite $lm0v $lx0
 	nop/24
 	dmread  $lx0 $lm8v

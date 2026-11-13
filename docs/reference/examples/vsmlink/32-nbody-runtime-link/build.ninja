@@ -1,0 +1,136 @@
+# 32-nbody-runtime-link: host が実行時に vsmlink を呼び直す 3D N 体
+#
+# accumulate_PH kernel は @broadcast のスロット番号がまだ確定していない。ビルド時に
+# link できるのはそれ以外の 5 kernel だけで、accumulate_PH は host (test_nbody32.c) が
+# chunk ごとにスロット番号を埋め、その場で vsmlink + assemble3 を呼んで link する。
+#
+# ninja              vsmlink (kernel 分割) + 5 kernel の link
+# ninja build-e2e    + assemble3 (5 kernel ぶん) + host C ビルド
+# ninja test-emu-lib + emu:lib で実行・検証 (CI は N=32)
+# ninja test-device  + 実機で実行 (N=32)
+# ninja test-device-n{128,1024,4096}  大きい N を実機で (手動。lit には入れない)
+
+include ../../scripts/sdk.ninja
+include ../scripts/vsmlink.ninja
+builddir = _build
+
+# rsqrt のニュートン補正の反復数。0 で補正なし。
+newton = 3
+# 時間積分のステップ数。emu の CI は数ステップ (値照合)。
+nstep = 3
+# accumulate_PH の 1 exec ぶんの粒子数。16 なら @broadcast の 1 回の移動 (64 u64 = 粒子 16 個)
+# と一致し、PDM 転送が 1 回になる (31 と同じ)。
+chunk = 16
+
+rule gen_nbody32
+  command = python3 gen_nbody32.py $n $chunk $newton $out_vsm $out_param
+  description = GEN nbody32 (n=$n chunk=$chunk newton=$newton)
+
+# @broadcast のスロット番号が未確定な accumulate_PH を含むため、通常の vsmlink
+# (link() を伴う) ではなく --split-only を使う (README.md 参照)。
+rule vsmlink_split_only
+  command = vsmlink --split-only $vsm $outdir
+  description = VSMLINK [split-only] $outdir
+
+# --split-only の出力は @kernel_begin/@kernel_end の行をそのまま残す (分割の
+# 組み立てルールどおり)。これを含んだまま通常の vsmlink に渡すと、入力がまた
+# 複数kernel入りだと判定され、出力がファイルではなくディレクトリになってしまう。
+# この 2 行を取り除いてから通常の vsmlink に渡す。
+rule strip_kernel_markers
+  command = sed '/^@kernel_begin /d; /^@kernel_end /d' $in > $out
+  description = STRIP $out
+
+# CI 用の入力 (束縛系) を struct 形バイナリで生成。
+rule gen_ic
+  command = python3 gen_ic.py $unroll $out
+  description = GEN ic (N=$unroll)
+
+# --- 統合 _vsm / .param 生成 (N ごと。31 と異なり .param のスロット数が N に依存する) ---
+build $builddir/nbody32_n32._vsm $builddir/nbody32_n32.param: gen_nbody32 gen_nbody32.py init._vsm reset_acc._vsm kick._vsm drift._vsm collect_pos._vsm
+  n = 32
+  out_vsm = $builddir/nbody32_n32._vsm
+  out_param = $builddir/nbody32_n32.param
+
+# --- kernel 分割 (--split-only。6 個の ._vsm を出力、@kernel_begin/@kernel_end 付き) ---
+build $builddir/k/nbody32_n32-init._vsm $builddir/k/nbody32_n32-reset_acc._vsm $builddir/k/nbody32_n32-accumulate_PH._vsm $builddir/k/nbody32_n32-kick._vsm $builddir/k/nbody32_n32-drift._vsm $builddir/k/nbody32_n32-collect_pos._vsm: vsmlink_split_only $builddir/nbody32_n32._vsm
+  vsm = $builddir/nbody32_n32._vsm
+  outdir = $builddir/k
+
+# --- @kernel_begin/@kernel_end の除去 (6 個とも。accumulate_PH は host の実行時
+#     テンプレートとしてこの形のまま使う。他の 5 個はこのあと通常の vsmlink にかける) ---
+build $builddir/k/stripped/nbody32_n32-init._vsm: strip_kernel_markers $builddir/k/nbody32_n32-init._vsm
+build $builddir/k/stripped/nbody32_n32-reset_acc._vsm: strip_kernel_markers $builddir/k/nbody32_n32-reset_acc._vsm
+build $builddir/k/stripped/nbody32_n32-accumulate_PH._vsm: strip_kernel_markers $builddir/k/nbody32_n32-accumulate_PH._vsm
+build $builddir/k/stripped/nbody32_n32-kick._vsm: strip_kernel_markers $builddir/k/nbody32_n32-kick._vsm
+build $builddir/k/stripped/nbody32_n32-drift._vsm: strip_kernel_markers $builddir/k/nbody32_n32-drift._vsm
+build $builddir/k/stripped/nbody32_n32-collect_pos._vsm: strip_kernel_markers $builddir/k/nbody32_n32-collect_pos._vsm
+
+# --- 通常の vsmlink (5 kernel。accumulate_PH は host が実行時に行うためここには無い) ---
+build $builddir/k/nbody32_n32-init.vsm: vsmlink $builddir/k/stripped/nbody32_n32-init._vsm $builddir/nbody32_n32.param nbody32.stparam
+  vsm = $builddir/k/stripped/nbody32_n32-init._vsm
+  param = $builddir/nbody32_n32.param
+  stparam = nbody32.stparam
+  out = $builddir/k/nbody32_n32-init.vsm
+build $builddir/k/nbody32_n32-reset_acc.vsm: vsmlink $builddir/k/stripped/nbody32_n32-reset_acc._vsm $builddir/nbody32_n32.param nbody32.stparam
+  vsm = $builddir/k/stripped/nbody32_n32-reset_acc._vsm
+  param = $builddir/nbody32_n32.param
+  stparam = nbody32.stparam
+  out = $builddir/k/nbody32_n32-reset_acc.vsm
+build $builddir/k/nbody32_n32-kick.vsm: vsmlink $builddir/k/stripped/nbody32_n32-kick._vsm $builddir/nbody32_n32.param nbody32.stparam
+  vsm = $builddir/k/stripped/nbody32_n32-kick._vsm
+  param = $builddir/nbody32_n32.param
+  stparam = nbody32.stparam
+  out = $builddir/k/nbody32_n32-kick.vsm
+build $builddir/k/nbody32_n32-drift.vsm: vsmlink $builddir/k/stripped/nbody32_n32-drift._vsm $builddir/nbody32_n32.param nbody32.stparam
+  vsm = $builddir/k/stripped/nbody32_n32-drift._vsm
+  param = $builddir/nbody32_n32.param
+  stparam = nbody32.stparam
+  out = $builddir/k/nbody32_n32-drift.vsm
+build $builddir/k/nbody32_n32-collect_pos.vsm: vsmlink $builddir/k/stripped/nbody32_n32-collect_pos._vsm $builddir/nbody32_n32.param nbody32.stparam
+  vsm = $builddir/k/stripped/nbody32_n32-collect_pos._vsm
+  param = $builddir/nbody32_n32.param
+  stparam = nbody32.stparam
+  out = $builddir/k/nbody32_n32-collect_pos.vsm
+
+# --- assemble3 (5 kernel ぶん。accumulate_PH は host が実行時に呼ぶためここには無い) ---
+build $builddir/k/nbody32_n32-init.idma.dat: asm3_loader $builddir/k/nbody32_n32-init.vsm
+  stem = $builddir/k/nbody32_n32-init
+build $builddir/k/nbody32_n32-reset_acc.idma.dat: asm3_loader $builddir/k/nbody32_n32-reset_acc.vsm
+  stem = $builddir/k/nbody32_n32-reset_acc
+build $builddir/k/nbody32_n32-kick.idma.dat: asm3_loader $builddir/k/nbody32_n32-kick.vsm
+  stem = $builddir/k/nbody32_n32-kick
+build $builddir/k/nbody32_n32-drift.idma.dat: asm3_loader $builddir/k/nbody32_n32-drift.vsm
+  stem = $builddir/k/nbody32_n32-drift
+build $builddir/k/nbody32_n32-collect_pos.idma.dat: asm3_loader $builddir/k/nbody32_n32-collect_pos.vsm
+  stem = $builddir/k/nbody32_n32-collect_pos
+
+build kernels: phony $builddir/k/nbody32_n32-init.idma.dat $builddir/k/nbody32_n32-reset_acc.idma.dat $builddir/k/nbody32_n32-kick.idma.dat $builddir/k/nbody32_n32-drift.idma.dat $builddir/k/nbody32_n32-collect_pos.idma.dat $builddir/k/stripped/nbody32_n32-accumulate_PH._vsm
+
+# --- 入力 IC ---
+build $builddir/ic_n32.bin: gen_ic gen_ic.py
+  unroll = 32
+
+# --- host C ---
+# accumulate_PH のテンプレートパス・共有 .param/.stparam のパスを -D で渡す。host は
+# chunk ごとにテンプレートのスロット番号を埋め、vsmlink + assemble3 をサブプロセスとして
+# 呼び出す (README.md 参照)。
+build $builddir/test_nbody32_n32.o: cc test_nbody32.c
+  cflags = -DUNROLL=32 -DCHUNK=$chunk -DNEWTON=$newton -DNSTEP=$nstep -DIC_DEFAULT=\"_build/ic_n32.bin\" -DRESULT_DIR=\"_result_n32\" -DACC_TEMPLATE=\"_build/k/stripped/nbody32_n32-accumulate_PH._vsm\" -DSHARED_PARAM=\"_build/nbody32_n32.param\" -DSHARED_STPARAM=\"nbody32.stparam\" -DLIVE_STEM=\"_build/k/nbody32_n32-accumulate-live\"
+build $builddir/test_nbody32_n32: link_exe $builddir/test_nbody32_n32.o
+
+# --- ビルド段階 phony (CI = N=32) ---
+build build-e2e: phony kernels $builddir/test_nbody32_n32 $builddir/ic_n32.bin
+
+# --- test targets ---
+build test: test_usage
+build test-emu-lib: test_emu_lib $builddir/test_nbody32_n32 | kernels $builddir/ic_n32.bin
+build test-device: test_device $builddir/test_nbody32_n32 | kernels $builddir/ic_n32.bin
+
+build clean: clean
+
+default $builddir/k/nbody32_n32-init.vsm
+
+# --- verify: golden data (init kernel の展開結果を固定する) ---
+build verify: verify_cmd $builddir/k/nbody32_n32-init.vsm
+  expected = expected-init.vsm
+  actual = $builddir/k/nbody32_n32-init.vsm

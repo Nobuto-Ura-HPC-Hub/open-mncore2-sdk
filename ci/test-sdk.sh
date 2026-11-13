@@ -5,14 +5,14 @@
 #   - Ubuntu 22.04 + libgomp1
 #   - assemble3, gpfn3_package_main が PATH に存在
 #   - build-essential, ninja-build, curl, jq, ca-certificates がインストール済み
-#   - 環境変数: GH_TOKEN, RELEASE_TAG (任意、デフォルト v0.3.0)
+#   - 環境変数: GH_TOKEN, RELEASE_TAG (任意、デフォルト v0.6.0)
 set -eu
 
 PREFIX=/opt/mncore2-sdk
 WORK=/tmp/kits
 EXAMPLES=/tmp/examples
 REPO="${REPO:-Nobuto-Ura-HPC-Hub/open-mncore2-sdk}"
-RELEASE_TAG="${RELEASE_TAG:-v0.3.0}"
+RELEASE_TAG="${RELEASE_TAG:-v0.6.0}"
 
 mkdir -p "$WORK" "$EXAMPLES"
 
@@ -38,31 +38,24 @@ cd "$WORK"
 tar xzf sdk-base-kit-*.tar.gz
 sdk-base-kit-*/install.sh "$PREFIX"
 
-# 2. mncore2-emuenv-kit — PFN バイナリはベースイメージに含まれている
-mkdir -p "$PREFIX/bin"
-ln -sf "$(which assemble3)" "$PREFIX/bin/assemble3"
-ln -sf "$(which gpfn3_package_main)" "$PREFIX/bin/gpfn3_package_main"
-printf 'mncore2-emuenv-kit\t20240826.3\n' >> "$PREFIX/.sdk-versions"
+# assemble3 / gpfn3_package_main はベースイメージ（/usr/local/bin）に入っている。
+# mncore2-emuenv-kit は v0.6.0 から使わない（PFN の mncore-sdk に移行）
 
-# 3. mnc2-inspect-kit
+# 2. mnc2-inspect-kit
 tar xzf mnc2-inspect-kit-*.tar.gz
 mnc2-inspect-kit-*/install.sh "$PREFIX"
 
-# 4. libmnc2-kit
+# 3. libmnc2-kit
 tar xzf libmnc2-kit-*.tar.gz
 libmnc2-kit-*/install.sh "$PREFIX"
 
-# 5. vsmlink-kit
+# 4. vsmlink-kit
 tar xzf vsmlink-kit-*.tar.gz
 vsmlink-kit-*/install.sh "$PREFIX"
 
-# 6. mncl-kit
+# 5. mncl-kit
 tar xzf mncl-kit-*.tar.gz
 mncl-kit-*/install.sh "$PREFIX"
-
-# 7. openacc-c-kit
-tar xzf openacc-c-kit-*.tar.gz
-openacc-c-kit-*/install.sh "$PREFIX"
 
 # --- 環境を有効化 ---
 echo "=== Activating SDK ==="

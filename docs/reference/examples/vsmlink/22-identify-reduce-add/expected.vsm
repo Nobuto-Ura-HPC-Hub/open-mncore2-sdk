@@ -1,0 +1,47 @@
+# ABI PFN3_SBY64
+#
+# @identify → @reduce :liadd
+# PE ID [0..4095] を配布し、全 PE の合計を reduce で取得する。
+#
+# distribute.vsm — @distribute テンプレート
+
+	nop; wait i10
+	nop/3
+# @identify 0 $lr8 4096
+# === @identify 0: PDM $p0 → L2BM → L1BM → $lr8 ===
+	mvp/n512 $p0@0 $lc0@0.0
+	mvp/n512 $p512@0 $lc0@0.1
+	mvp/n512 $p1024@0 $lc0@1.0
+	mvp/n512 $p1536@0 $lc0@1.1
+	mvp/n512 $p2048@0 $lc0@2.0
+	mvp/n512 $p2560@0 $lc0@2.1
+	mvp/n512 $p3072@0 $lc0@3.0
+	mvp/n512i3f $p3584@0 $lc0@3.1
+	nop/2
+	nop; wait i3f
+	nop/5
+	l2bmb@0 $lc0 $lb0
+	l2bmb@1 $lc64 $lb0
+	l2bmb@2 $lc128 $lb0
+	l2bmb@3 $lc192 $lb0
+	l2bmb@4 $lc256 $lb0
+	l2bmb@5 $lc320 $lb0
+	l2bmb@6 $lc384 $lb0
+	l2bmb@7 $lc448 $lb0
+	nop/5
+	l1bmd $lb0 $lr8v/1000
+	nop/24
+	nop
+# reduce.vsm — @reduce テンプレート
+
+# @reduce _sum to_param 8 $lr8 liadd
+# === @reduce _sum: $lr8 → L1BM → L2BM → PDM $p4096 (liadd) ===
+# (:pdm :directive "@reduce" :id "_sum" :slot 8 :place :pdm0 :addr 4096 :size 64 :access :write)
+	l1bmrliadd $lr8 $lb0
+	nop/24
+	l2bmrliadd $lb0 $lc0
+	nop/24
+	mvrliadd/n64i06 $lc0 $p4096@0
+	nop/2
+	nop; wait i06
+	nop/5

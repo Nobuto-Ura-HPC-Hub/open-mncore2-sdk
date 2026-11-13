@@ -6,14 +6,16 @@ MN-Core 2 はループが無いので、他粒子ぶんの力の評価を書き�
 そこで粒子を count 個ずつの分割に切り、host が分割を順に exec する。この生成器は 1 分割
 (グローバル粒子 start..start+count-1) を出す。
 
-各ローカルブロック j は粒子 (start+j) を PDM の粒子ごと並び (BASE + (start+j)*4) から
-@broadcast size 4 で受け、softening 付き重力の加速度を LM の accumulator に累積する。
+各ローカルブロック j は粒子 (start+j) を @broadcast size 4 で受け、softening 付き重力の
+加速度を LM の accumulator に累積する。@broadcast は全ブロックで同じ slot (8) を使う。
+同じ slot の 2 回目以降は、PDM の粒子ごと並びの続き (次の粒子) を読む。slot の :addr は
+この分割の先頭粒子 (BASE + start*4) にする (kernel の実行ごとに :addr から読み始める)。
 
 rsqrt は 5 ビット近似なので、drsqrt の後にニュートン補正を N 反復入れて精度を上げる。
   y <- y * (1.5 - 0.5 * r2 * y^2)   (N 回)
 
-first=1 の分割だけ accumulator を 0 にリセットし、先頭ブロックで送信を wait する
-(host は全 N 粒子を 1 回だけ PDM に置く)。first=0 の分割は accumulator に加算するだけ。
+first=1 の分割だけ accumulator を 0 にリセットし、送信を wait する (slot 8 に
+:send_wait_tag を付ける。host は全 N 粒子を 1 回だけ PDM に置く)。first=0 の分割は accumulator に加算するだけ。
 
 Usage: gen_accumulate.py <start> <count> <newton> <first> <out_vsm> <out_param>
 """
@@ -21,6 +23,8 @@ import sys
 
 # 粒子ごと並び [x,y,z,m] x N の PDM 先頭番地 (distribute 0..16383, 定数 16384 と別)
 BASE = 20480
+# 他粒子を読む @broadcast の slot。全ブロックで同じ slot を使い、続きを読む。
+SLOT = 8
 
 HEADER = """\
 # ABI PFN3_SBY64
@@ -149,7 +153,7 @@ def main():
     if first:
         vsm.append(PREAMBLE)
     for j in range(count):
-        vsm.append(PRE.format(k=start + j, slot=8 + j * 8))
+        vsm.append(PRE.format(k=start + j, slot=SLOT))
         for _ in range(newton):
             vsm.append(NEWTON)
         vsm.append(POST)
@@ -157,11 +161,8 @@ def main():
         f.write("".join(vsm))
 
     param = ["((:version :0.1)", " (:reserved_wait_tag #x3f)"]
-    for j in range(count):
-        slot = 8 + j * 8
-        addr = BASE + (start + j) * 4
-        tag = " :send_wait_tag #x10" if (first and j == 0) else ""
-        param.append(" (:slot {} :place :pdm0 :addr {}{})".format(slot, addr, tag))
+    tag = " :send_wait_tag #x10" if first else ""
+    param.append(" (:slot {} :place :pdm0 :addr {}{})".format(SLOT, BASE + start * 4, tag))
     with open(out_param, "w") as f:
         f.write("\n".join(param) + ")\n")
     return 0

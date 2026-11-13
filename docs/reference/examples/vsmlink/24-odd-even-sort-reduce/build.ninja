@@ -68,3 +68,12 @@ build test-device: test_device $builddir/sort | $
 build clean: clean
 
 default $builddir/exec_odd.vsm $builddir/reduce.vsm
+
+# --- verify: golden data (複数出力) ---
+build verify-exec_odd: verify_cmd $builddir/exec_odd.vsm
+  expected = expected_exec_odd.vsm
+  actual = $builddir/exec_odd.vsm
+build verify-reduce: verify_cmd $builddir/reduce.vsm
+  expected = expected_reduce.vsm
+  actual = $builddir/reduce.vsm
+build verify: phony verify-exec_odd verify-reduce 

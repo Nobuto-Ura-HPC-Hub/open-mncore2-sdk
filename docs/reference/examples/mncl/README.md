@@ -20,6 +20,11 @@ MNCL コンパイラの使用例。OpenCL C (.cl) から _vsm を生成し、E2E
 | 12-vecadd-i64 | c[i] = a[i] + b[i] (i64 整数。XREG の add=ladd) | 1D, 4096 PE | 4096 要素 |
 | 13-odd-even-sort-gid | 10 の get_global_id 版。左メンバ判定を host flag でなく PE が `((id&1)==0)` で自前計算 | 1D, 4096 PE (boundary_flags) | 4096 要素、 3 テスト (desc / sorted / dup)。例 10 と同一結果 |
 | 14-odd-even-sort-full | 13 の full 版。host が even/odd を収束まで回して完全ソート (get_global_id + inline reduce_add) | 1D, 4096 PE (boundary_flags) | 4096 要素、 収束後 qsort と全一致 + 昇順確認 |
+| 15-broadcast | broadcast の最小デモ。host のある1つの値vを全4096 PEに配り、out[id] = v + id | 1D, 4096 PE | 4096 要素 |
+| 16-broadcast-f64 | out[i] = v + w + x[i]。1カーネルに broadcast を2本置く確認（f64） | 1D, 4096 PE | 4096 要素 |
+| 17-nbody-2d | 2D 重力多体（f64）。各 PE が1粒子、position/forceを double2 でベクタ計算 | 1D, 4096 PE | 4096 要素 |
+| 18-broadcast-vec | broadcast の size N 確認。1回の broadcast で double3 を配る | 1D, 4096 PE | 4096 要素 |
+| 19-nbody-3d | 3D 重力多体（f64）。position/velocity を double3（HWはv4f64）で保持し、semi-implicit Euler で時間積分 | 1D, 4096 PE | 4096 要素 |
 
 layout :any のため MNCL の ._vsm 出力は 1D/2D/3D で同一。.stparam の pe_shape のみ異なる。
 04 はホスト側でカーネルを N 回呼び出し、4096*N 要素を処理する。

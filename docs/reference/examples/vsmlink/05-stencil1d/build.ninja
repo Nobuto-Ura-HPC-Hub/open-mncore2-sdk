@@ -11,10 +11,6 @@ include ../../scripts/sdk.ninja
 include ../scripts/vsmlink.ninja
 builddir = _build
 
-rule verify_cmd
-  command = diff -u $expected $actual && echo "OK: stencil1d output matches expected"
-  description = VERIFY $actual
-
 # --- default: vsmlink only ---
 build $builddir/stencil1d.vsm: vsmlink stencil1d._vsm stencil1d.param stencil1d.stparam
   vsm = stencil1d._vsm

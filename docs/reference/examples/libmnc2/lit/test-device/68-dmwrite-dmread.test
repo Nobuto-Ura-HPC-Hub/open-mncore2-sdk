@@ -1,0 +1,3 @@
+# 68-dmwrite-dmread: device 非対応 (mnc2_debug_read/write は emu-only API、HW 対応機構なし)
+# UNSUPPORTED: true
+# RUN: ninja -C %examples/68-dmwrite-dmread test-device

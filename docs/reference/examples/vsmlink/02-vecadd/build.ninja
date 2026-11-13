@@ -11,10 +11,6 @@ include ../../scripts/sdk.ninja
 include ../scripts/vsmlink.ninja
 builddir = _build
 
-rule verify_cmd
-  command = diff -u $expected $actual && echo "OK: vecadd output matches expected"
-  description = VERIFY $actual
-
 # --- default: vsmlink only ---
 build $builddir/vecadd.vsm: vsmlink vecadd._vsm vecadd.param vecadd.stparam
   vsm = vecadd._vsm

@@ -2,7 +2,7 @@
 #
 # distribute size4 (SoA -> 各 PE の struct) + MAB 内 4x4 転置 (dmwrite/dmread) + collect size4
 # で、粒子ごと (AoS) の struct 配列を device 上で作る (粒子順は順列)。カーネルは対合で
-# 2 回適用すると元に戻る。設計は docs/broadcast-collect-layout.md。
+# 2 回適用すると元に戻る。並びは share/vsmlink/directives-spec.md。
 #
 # ninja              vsmlink (.vsm 生成)
 # ninja build-e2e    + assemble3 + host C ビルド
@@ -44,3 +44,8 @@ build test-device-id: test_device $builddir/soa2aos | $builddir/aos_id.idma.dat
 
 build clean: clean
 default $builddir/aos.vsm
+
+# --- verify: golden data ---
+build verify: verify_cmd $builddir/aos.vsm
+  expected = expected.vsm
+  actual = $builddir/aos.vsm

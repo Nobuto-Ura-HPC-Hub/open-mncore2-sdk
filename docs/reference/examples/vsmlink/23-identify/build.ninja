@@ -52,3 +52,8 @@ build test-device: test_device_k $builddir/test1_identify.idma.dat | $builddir/t
 build clean: clean
 
 default $builddir/test1_identify.vsm
+
+# --- verify: golden data ---
+build verify: verify_cmd $builddir/test1_identify.vsm
+  expected = expected.vsm
+  actual = $builddir/test1_identify.vsm

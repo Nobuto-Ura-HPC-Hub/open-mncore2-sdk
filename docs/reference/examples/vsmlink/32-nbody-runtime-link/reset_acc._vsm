@@ -1,0 +1,16 @@
+# ABI PFN3_SBY64
+#
+# reset_acc: accumulator ax,ay,az を 0 にリセットする。力の評価 1 回の先頭で毎回実行する。
+# LM0 常駐: ax=$lm8 ay=$lm10 az=$lm12
+#
+# 28-nbody-3d は先頭分割 (first=1) のときだけこのリセットを埋め込んでいたが、31 は
+# accumulate が全区間で同じ 1 個の kernel なので、リセットを kernel 分割の外に独立させる。
+#
+	imm i"0" $r0
+	nop/4
+	lpassa $lr0 $lm8
+	nop/24
+	lpassa $lr0 $lm10
+	nop/24
+	lpassa $lr0 $lm12
+	nop/24

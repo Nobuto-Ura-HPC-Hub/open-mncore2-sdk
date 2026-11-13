@@ -38,3 +38,8 @@ build test-device: test_device $builddir/test_T4 | $builddir/T4.idma.dat $buildd
 build clean: clean
 
 default $builddir/T4.vsm
+
+# --- verify: golden data ---
+build verify: verify_cmd $builddir/T4.vsm
+  expected = expected.vsm
+  actual = $builddir/T4.vsm

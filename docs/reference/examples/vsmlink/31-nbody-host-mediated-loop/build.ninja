@@ -1,0 +1,120 @@
+# 31-nbody-host-mediated-loop: kernel 分割機能を使った 3D N 体
+#
+# accumulate は CHUNK 粒子ずつ固定 PDM 領域を読む 1 個の kernel にし、host が
+# 「次の区間を送信 -> 同じ kernel を exec」を繰り返す (ループが host 側)。28-nbody-3d は
+# 分割ごとに別々の kernel を生成し、host が全分割をロードして順に exec していた
+# (kernel 数が N に依存)。31 は kernel が 6 個で N に依存しない。
+#
+# ninja              vsmlink (kernel 分割による .vsm 生成)
+# ninja build-e2e    + assemble3 + host C ビルド
+# ninja test-emu-lib + emu:lib で実行・検証 (CI は N=32)
+# ninja test-device  + 実機で実行 (N=32)
+# ninja test-device-n{128,1024,4096}  大きい N を実機で (手動。lit には入れない)
+
+include ../../scripts/sdk.ninja
+include ../scripts/vsmlink.ninja
+builddir = _build
+
+# rsqrt のニュートン補正の反復数。0 で補正なし。
+newton = 3
+# 時間積分のステップ数。emu の CI は数ステップ (値照合)。
+nstep = 3
+# accumulate の分割単位 (粒子数)。gen_nbody31.py に渡す値と一致させること。
+# 16 なら @broadcast の 1 回の移動 (64 u64 = 粒子 16 個) と一致し、PDM 転送が 1 回になる
+# (README 参照)。
+chunk = 16
+
+rule gen_nbody31
+  command = python3 gen_nbody31.py $chunk $newton $out_vsm $out_param
+  description = GEN nbody31 (chunk=$chunk newton=$newton)
+
+# vsmlink.ninja の vsmlink rule は $out (単一ファイル) 前提なので、kernel 分割
+# (第 4 引数がディレクトリ、出力が複数ファイル) 用にここでローカルに定義する。
+rule vsmlink_split
+  command = vsmlink $vsm $param $stparam $outdir
+  description = VSMLINK [split] $outdir
+
+# CI 用の入力 (束縛系) を struct 形バイナリで生成。
+rule gen_ic
+  command = python3 gen_ic.py $unroll $out
+  description = GEN ic (N=$unroll)
+
+# --- 統合 _vsm / .param 生成 (手書き kernel 5 個 + 生成 accumulate) ---
+build $builddir/nbody31._vsm $builddir/nbody31.param: gen_nbody31 gen_nbody31.py init._vsm reset_acc._vsm kick._vsm drift._vsm collect_pos._vsm
+  out_vsm = $builddir/nbody31._vsm
+  out_param = $builddir/nbody31.param
+
+# --- kernel 分割 (vsmlink 1 回の呼び出しで 6 個の .vsm を出力) ---
+# 出力ディレクトリ自体を ninja の output にはしない (ディレクトリを output に
+# すると依存追跡から外れ ninja -t clean が壊れるため)。6 個のファイルを個別に列挙する。
+build $builddir/k/nbody31-init.vsm $builddir/k/nbody31-reset_acc.vsm $builddir/k/nbody31-accumulate.vsm $builddir/k/nbody31-kick.vsm $builddir/k/nbody31-drift.vsm $builddir/k/nbody31-collect_pos.vsm: vsmlink_split $builddir/nbody31._vsm $builddir/nbody31.param nbody31.stparam
+  vsm = $builddir/nbody31._vsm
+  param = $builddir/nbody31.param
+  stparam = nbody31.stparam
+  outdir = $builddir/k
+
+# --- assemble3 (kernel ごと) ---
+build $builddir/k/nbody31-init.idma.dat: asm3_loader $builddir/k/nbody31-init.vsm
+  stem = $builddir/k/nbody31-init
+build $builddir/k/nbody31-reset_acc.idma.dat: asm3_loader $builddir/k/nbody31-reset_acc.vsm
+  stem = $builddir/k/nbody31-reset_acc
+build $builddir/k/nbody31-accumulate.idma.dat: asm3_loader $builddir/k/nbody31-accumulate.vsm
+  stem = $builddir/k/nbody31-accumulate
+build $builddir/k/nbody31-kick.idma.dat: asm3_loader $builddir/k/nbody31-kick.vsm
+  stem = $builddir/k/nbody31-kick
+build $builddir/k/nbody31-drift.idma.dat: asm3_loader $builddir/k/nbody31-drift.vsm
+  stem = $builddir/k/nbody31-drift
+build $builddir/k/nbody31-collect_pos.idma.dat: asm3_loader $builddir/k/nbody31-collect_pos.vsm
+  stem = $builddir/k/nbody31-collect_pos
+
+# 6 kernel を 1 つの phony に束ねる (test 依存に使う)
+build kernels: phony $builddir/k/nbody31-init.idma.dat $builddir/k/nbody31-reset_acc.idma.dat $builddir/k/nbody31-accumulate.idma.dat $builddir/k/nbody31-kick.idma.dat $builddir/k/nbody31-drift.idma.dat $builddir/k/nbody31-collect_pos.idma.dat
+
+# --- 入力 IC (N 別) ---
+build $builddir/ic_n32.bin: gen_ic gen_ic.py
+  unroll = 32
+build $builddir/ic_n128.bin: gen_ic gen_ic.py
+  unroll = 128
+build $builddir/ic_n1024.bin: gen_ic gen_ic.py
+  unroll = 1024
+build $builddir/ic_n4096.bin: gen_ic gen_ic.py
+  unroll = 4096
+
+# --- host C (N 別) ---
+# 各 N: -DUNROLL=N -DCHUNK -DNEWTON -DNSTEP を渡す。host は kernel を 1 回ずつロードし、
+# accumulate だけ NCHUNK(N) 回 (送信 -> exec) を繰り返す。28 と違い ACC_FMT は不要
+# (accumulate の kernel ファイルは 1 個で N に依存しない)。
+build $builddir/test_nbody31_n32.o: cc test_nbody31.c
+  cflags = -DUNROLL=32 -DCHUNK=$chunk -DNEWTON=$newton -DNSTEP=$nstep -DIC_DEFAULT=\"_build/ic_n32.bin\" -DRESULT_DIR=\"_result_n32\"
+build $builddir/test_nbody31_n32: link_exe $builddir/test_nbody31_n32.o
+build $builddir/test_nbody31_n128.o: cc test_nbody31.c
+  cflags = -DUNROLL=128 -DCHUNK=$chunk -DNEWTON=$newton -DNSTEP=$nstep -DIC_DEFAULT=\"_build/ic_n128.bin\" -DRESULT_DIR=\"_result_n128\"
+build $builddir/test_nbody31_n128: link_exe $builddir/test_nbody31_n128.o
+build $builddir/test_nbody31_n1024.o: cc test_nbody31.c
+  cflags = -DUNROLL=1024 -DCHUNK=$chunk -DNEWTON=$newton -DNSTEP=$nstep -DIC_DEFAULT=\"_build/ic_n1024.bin\" -DRESULT_DIR=\"_result_n1024\"
+build $builddir/test_nbody31_n1024: link_exe $builddir/test_nbody31_n1024.o
+build $builddir/test_nbody31_n4096.o: cc test_nbody31.c
+  cflags = -DUNROLL=4096 -DCHUNK=$chunk -DNEWTON=$newton -DNSTEP=$nstep -DIC_DEFAULT=\"_build/ic_n4096.bin\" -DRESULT_DIR=\"_result_n4096\"
+build $builddir/test_nbody31_n4096: link_exe $builddir/test_nbody31_n4096.o
+
+# --- ビルド段階 phony (CI = N=32) ---
+build build-e2e: phony kernels $builddir/test_nbody31_n32 $builddir/ic_n32.bin
+
+# --- test targets ---
+build test: test_usage
+build test-emu-lib: test_emu_lib $builddir/test_nbody31_n32 | kernels $builddir/ic_n32.bin
+build test-device: test_device $builddir/test_nbody31_n32 | kernels $builddir/ic_n32.bin
+
+# 大きい N を実機で (手動。lit には入れない。名指ししたときだけ build される)
+build test-device-n128: test_device $builddir/test_nbody31_n128 | kernels $builddir/ic_n128.bin
+build test-device-n1024: test_device $builddir/test_nbody31_n1024 | kernels $builddir/ic_n1024.bin
+build test-device-n4096: test_device $builddir/test_nbody31_n4096 | kernels $builddir/ic_n4096.bin
+
+build clean: clean
+
+default $builddir/k/nbody31-init.vsm
+
+# --- verify: golden data (init kernel の展開結果を固定する) ---
+build verify: verify_cmd $builddir/k/nbody31-init.vsm
+  expected = expected-init.vsm
+  actual = $builddir/k/nbody31-init.vsm

@@ -2,7 +2,7 @@
 
 `@broadcast` で全 PE に配った struct を各 PE で加工し、`@collect` で PDM に集めて回収する
 最小の往復 example。集める側 (collect) のレイアウトとハードウェア経路の説明は
-`docs/broadcast-collect-layout.md` にある (この example の設計メモ)。
+`share/vsmlink/directives-spec.md` の「@distribute / @collect」の「PDM 上の並び」にある。
 
 ## やること
 
@@ -17,7 +17,7 @@
 `l1bmd` (PE -> L1BM) -> `l2bm@` (L1BM -> L2BM) -> `mvp` (L2BM -> PDM) に展開して行い、
 出力は成分ごと (SoA) `[x×4096][y×4096][z×4096][m×4096]` に固定される (選べない)。
 broadcast の源は AoS (struct 連続 4 u64) なので、往復は AoS -> SoA でレイアウトが変わる。
-詳細は `docs/broadcast-collect-layout.md`。
+詳細は `share/vsmlink/directives-spec.md` の「@distribute / @collect」の「PDM 上の並び」。
 
 ## ファイル構成
 
@@ -53,4 +53,4 @@ ninja -C examples/29-broadcast-collect test-device    # 実機で検証
 - 2 段 send: broadcast 源は非トリガー send、distribute 源をトリガー send (`#x10`) にして
   両ディレクティブの wait を同時に解除する (両領域が PDM に揃った状態で kernel が進む)。
 - (おまけ) m を distribute でなく PE 自身の global_id から作る案は
-  `docs/broadcast-collect-layout.md` の「おまけ」節を参照 (itof 命令が無いのでマジックナンバー法)。
+  `30-soa2aos/README.md` の `--use-global-id` を参照 (itof 命令が無いのでマジックナンバー法)。

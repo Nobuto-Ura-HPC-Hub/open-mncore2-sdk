@@ -7,7 +7,6 @@
 
 # %bb.0:                                # %entry
 # distribute.vsm — @distribute テンプレート
-# placeholder の意味は src/vsmlink.c の @distribute 展開部を参照
 
 	nop; wait i10
 	nop/3
@@ -36,7 +35,6 @@
 	nop/5
 	l1bmd $lb0 $lm0v/1000
 # distribute.vsm — @distribute テンプレート
-# placeholder の意味は src/vsmlink.c の @distribute 展開部を参照
 
 	nop/4
 # @distribute _arg_b from_param 16 size 1 $ln0
@@ -79,7 +77,6 @@
 	nop
 	nop
 # collect.vsm — @collect テンプレート
-# placeholder の意味は src/vsmlink.c の @collect 展開部を参照
 
 # @collect _arg_c to_param 24 size 1 $ln4090
 # === @collect _arg_c: $ln4090 → L1BM → L2BM → PDM $p131072 ===

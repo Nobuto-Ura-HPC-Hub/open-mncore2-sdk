@@ -1,0 +1,225 @@
+# ABI PFN3_SBY64
+#
+# nbody31: kernel 分割版の 3D N 体 vsm。init / reset_acc / accumulate / kick /
+# drift / collect_pos の 6 kernel を @kernel_begin/@kernel_end で束ねる。vsmlink がこれを
+# kernel ごとの .vsm に分割し、host が accumulate を CHUNK 粒子ずつ繰り返し exec する。
+# ** 自動生成: gen_nbody31.py。手で編集しない **
+#
+#@ @kernel_begin init
+# ABI PFN3_SBY64
+#
+# init: 自粒子 (x,y,z,m) と速度 (vx,vy,vz) を distribute で LM 常駐、定数 (eps2,0.5,1.5,dt)
+# を broadcast で LM 常駐、accumulator ax,ay,az を 0 初期化。ホストが 1 回だけ実行する。
+# LM0 レイアウト: xi=$lm0 yi=$lm2 zi=$lm4 mi=$lm6 ax=$lm8 ay=$lm10 az=$lm12
+#              eps2=$lm14 c_half=$lm16 c_onehalf=$lm18 dt=$lm20
+#              vx=$lm22 vy=$lm24 vz=$lm26 dthalf=$lm28
+#
+# 位置は size 4 [x][y][z][m]、速度は size 3 [vx][vy][vz] の並びで配る。定数 0.5/1.5 は
+# rsqrt のニュートン補正、dt は時間積分で使う。dthalf = dt*0.5 は leapfrog の kick 用に
+# ここで一度計算する (定数 broadcast は size 4 で満杯なので送らず、dt と 0.5 から作る)。
+# 速度の slot には send_wait_tag を付けない (トリガー前に送るので、先頭の wait i10 の
+# 時点で PDM に載っている)。
+#
+# distribute.vsm — @distribute テンプレート
+
+	nop; wait i10
+	nop/3
+# @distribute _p     from_param 8  size 4 $lm0     # x,y,z,m -> $lm0,2,4,6
+# === @distribute _p: PDM $p0 → L2BM → L1BM → $lm0 ===
+# (:pdm :directive "@distribute" :id "_p" :slot 8 :place :pdm0 :addr 0 :size 16384 :access :read)
+	mvp/n512 $p0@0 $lc0@0.0
+	mvp/n512 $p512@0 $lc0@0.1
+	mvp/n512 $p1024@0 $lc0@1.0
+	mvp/n512 $p1536@0 $lc0@1.1
+	mvp/n512 $p2048@0 $lc0@2.0
+	mvp/n512 $p2560@0 $lc0@2.1
+	mvp/n512 $p3072@0 $lc0@3.0
+	mvp/n512i3f $p3584@0 $lc0@3.1
+	nop/2
+	nop; wait i3f
+	nop/5
+	l2bmb@0 $lc0 $lb0
+	l2bmb@1 $lc64 $lb0
+	l2bmb@2 $lc128 $lb0
+	l2bmb@3 $lc192 $lb0
+	l2bmb@4 $lc256 $lb0
+	l2bmb@5 $lc320 $lb0
+	l2bmb@6 $lc384 $lb0
+	l2bmb@7 $lc448 $lb0
+	nop/5
+	mvp/n512 $p4096@0 $lc512@0.0
+	mvp/n512 $p4608@0 $lc512@0.1
+	mvp/n512 $p5120@0 $lc512@1.0
+	mvp/n512 $p5632@0 $lc512@1.1
+	mvp/n512 $p6144@0 $lc512@2.0
+	mvp/n512 $p6656@0 $lc512@2.1
+	mvp/n512 $p7168@0 $lc512@3.0
+	mvp/n512i3f $p7680@0 $lc512@3.1
+	nop/2
+	nop; wait i3f
+	nop/5
+	l2bmb@0 $lc512 $lb64
+	l2bmb@1 $lc576 $lb64
+	l2bmb@2 $lc640 $lb64
+	l2bmb@3 $lc704 $lb64
+	l2bmb@4 $lc768 $lb64
+	l2bmb@5 $lc832 $lb64
+	l2bmb@6 $lc896 $lb64
+	l2bmb@7 $lc960 $lb64
+	nop/5
+	mvp/n512 $p8192@0 $lc1024@0.0
+	mvp/n512 $p8704@0 $lc1024@0.1
+	mvp/n512 $p9216@0 $lc1024@1.0
+	mvp/n512 $p9728@0 $lc1024@1.1
+	mvp/n512 $p10240@0 $lc1024@2.0
+	mvp/n512 $p10752@0 $lc1024@2.1
+	mvp/n512 $p11264@0 $lc1024@3.0
+	mvp/n512i3f $p11776@0 $lc1024@3.1
+	nop/2
+	nop; wait i3f
+	nop/5
+	l2bmb@0 $lc1024 $lb128
+	l2bmb@1 $lc1088 $lb128
+	l2bmb@2 $lc1152 $lb128
+	l2bmb@3 $lc1216 $lb128
+	l2bmb@4 $lc1280 $lb128
+	l2bmb@5 $lc1344 $lb128
+	l2bmb@6 $lc1408 $lb128
+	l2bmb@7 $lc1472 $lb128
+	nop/5
+	mvp/n512 $p12288@0 $lc1536@0.0
+	mvp/n512 $p12800@0 $lc1536@0.1
+	mvp/n512 $p13312@0 $lc1536@1.0
+	mvp/n512 $p13824@0 $lc1536@1.1
+	mvp/n512 $p14336@0 $lc1536@2.0
+	mvp/n512 $p14848@0 $lc1536@2.1
+	mvp/n512 $p15360@0 $lc1536@3.0
+	mvp/n512i3f $p15872@0 $lc1536@3.1
+	nop/2
+	nop; wait i3f
+	nop/5
+	l2bmb@0 $lc1536 $lb192
+	l2bmb@1 $lc1600 $lb192
+	l2bmb@2 $lc1664 $lb192
+	l2bmb@3 $lc1728 $lb192
+	l2bmb@4 $lc1792 $lb192
+	l2bmb@5 $lc1856 $lb192
+	l2bmb@6 $lc1920 $lb192
+	l2bmb@7 $lc1984 $lb192
+	nop/5
+	l1bmd $lb0 $lm0v
+# distribute.vsm — @distribute テンプレート
+
+	nop/4
+# @distribute _v     from_param 24 size 3 $lm22    # vx,vy,vz -> $lm22,24,26
+# === @distribute _v: PDM $p40960 → L2BM → L1BM → $lm22 ===
+# (:pdm :directive "@distribute" :id "_v" :slot 24 :place :pdm0 :addr 40960 :size 12288 :access :read)
+	mvp/n512 $p40960@0 $lc0@0.0
+	mvp/n512 $p41472@0 $lc0@0.1
+	mvp/n512 $p41984@0 $lc0@1.0
+	mvp/n512 $p42496@0 $lc0@1.1
+	mvp/n512 $p43008@0 $lc0@2.0
+	mvp/n512 $p43520@0 $lc0@2.1
+	mvp/n512 $p44032@0 $lc0@3.0
+	mvp/n512i3f $p44544@0 $lc0@3.1
+	nop/2
+	nop; wait i3f
+	nop/5
+	l2bmb@0 $lc0 $lb0
+	l2bmb@1 $lc64 $lb0
+	l2bmb@2 $lc128 $lb0
+	l2bmb@3 $lc192 $lb0
+	l2bmb@4 $lc256 $lb0
+	l2bmb@5 $lc320 $lb0
+	l2bmb@6 $lc384 $lb0
+	l2bmb@7 $lc448 $lb0
+	nop/5
+	mvp/n512 $p45056@0 $lc512@0.0
+	mvp/n512 $p45568@0 $lc512@0.1
+	mvp/n512 $p46080@0 $lc512@1.0
+	mvp/n512 $p46592@0 $lc512@1.1
+	mvp/n512 $p47104@0 $lc512@2.0
+	mvp/n512 $p47616@0 $lc512@2.1
+	mvp/n512 $p48128@0 $lc512@3.0
+	mvp/n512i3f $p48640@0 $lc512@3.1
+	nop/2
+	nop; wait i3f
+	nop/5
+	l2bmb@0 $lc512 $lb64
+	l2bmb@1 $lc576 $lb64
+	l2bmb@2 $lc640 $lb64
+	l2bmb@3 $lc704 $lb64
+	l2bmb@4 $lc768 $lb64
+	l2bmb@5 $lc832 $lb64
+	l2bmb@6 $lc896 $lb64
+	l2bmb@7 $lc960 $lb64
+	nop/5
+	mvp/n512 $p49152@0 $lc1024@0.0
+	mvp/n512 $p49664@0 $lc1024@0.1
+	mvp/n512 $p50176@0 $lc1024@1.0
+	mvp/n512 $p50688@0 $lc1024@1.1
+	mvp/n512 $p51200@0 $lc1024@2.0
+	mvp/n512 $p51712@0 $lc1024@2.1
+	mvp/n512 $p52224@0 $lc1024@3.0
+	mvp/n512i3f $p52736@0 $lc1024@3.1
+	nop/2
+	nop; wait i3f
+	nop/5
+	l2bmb@0 $lc1024 $lb128
+	l2bmb@1 $lc1088 $lb128
+	l2bmb@2 $lc1152 $lb128
+	l2bmb@3 $lc1216 $lb128
+	l2bmb@4 $lc1280 $lb128
+	l2bmb@5 $lc1344 $lb128
+	l2bmb@6 $lc1408 $lb128
+	l2bmb@7 $lc1472 $lb128
+	nop/5
+	l1bmd $lb0 $lm22v/1110
+# broadcast_load.vsm — @broadcast: PDM の区画を L1BM に載せる部分
+# その区画がまだ L1BM に載っていないときだけ展開される
+# HW パス: PDM から mvb で全 8 L2BM、 l2bmb で全 64 L1BM へ (64 u64 の区画ごと)
+
+	nop/4
+# @broadcast  _const from_param 16 size 4 $lr16    # eps2=$lr16 0.5=$lr18 1.5=$lr20 dt=$lr22
+# === @broadcast _const: PDM $p16384 → 全 4096 PE $lr16 ===
+	mvb/n64i3f $p16384@0 $lc0
+	nop/2
+	nop; wait i3f
+	nop/5
+	l2bmb $lc0 $lb0
+# broadcast_use.vsm — @broadcast: L1BM に載っている値を PE に配る部分
+# 毎回展開される。載っていなかった場合は直前に broadcast_load.vsm が展開されている
+# L1BM の番地は区画の先頭ではなく要求された位置 (ずれは vsmlink が加える)
+
+
+	nop/5
+	l1bmp $lb0 $lr16v
+	nop/24
+	nop/24
+	lpassa $lr16 $lm14       # eps2 -> LM0[7]
+	nop/24
+	lpassa $lr18 $lm16       # 0.5  -> LM0[8]
+	nop/24
+	lpassa $lr20 $lm18       # 1.5  -> LM0[9]
+	nop/24
+	lpassa $lr22 $lm20       # dt   -> LM0[10]
+	nop/24
+	# dthalf = dt * 0.5  (dt を GRF0 に写す。積は LM1 に出して LM0 の入出力衝突を避け、
+	# そのあと LM0[14] に写す)
+	lpassa $lm20 $lr0
+	nop/2
+	dvmulu $lr0 $lm16 $nowrite
+	dvfmad $lr0 $lm16 $mauf $ln0
+	nop/2
+	lpassa $ln0 $lm28
+	nop/24
+	imm i"0" $r0
+	nop/4
+	lpassa $lr0 $lm8         # ax = 0 -> LM0[4]
+	nop/24
+	lpassa $lr0 $lm10        # ay = 0 -> LM0[5]
+	nop/24
+	lpassa $lr0 $lm12        # az = 0 -> LM0[6]
+	nop/24
+#@ @kernel_end init
+# (:pdm :directive "@broadcast" :id "_const" :slot 16 :place :pdm0 :addr 16384 :size 4 :access :read)

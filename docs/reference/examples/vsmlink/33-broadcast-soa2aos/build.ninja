@@ -1,0 +1,82 @@
+# 33-broadcast-soa2aos: broadcast -> 計算 -> soa2aos -> collect のループを閉じる
+#
+# examples/30-soa2aos は転置単体 (PDM から読んで PDM へ書く) の確認で止まっており、その
+# 出力を @broadcast で読み直すところまで繋がっていない。ここではダブルバッファで
+# 2 タイムステップ回し、転置が対合であること (2 回で順列が戻ること) を確認する。
+#
+# 1 kernel = 16 粒子 (64 u64) = PDM からの転送 1 回、で刻んである。仕組みが
+# そのまま読める形を優先した刻み方で、性能のためではない (README 参照)。
+#
+# ninja                    vsmlink (.vsm 生成)
+# ninja build-e2e          + assemble3 + host C ビルド
+# ninja test-emu-lib       + emu:lib で 2 タイムステップ (転置あり。これが本命)
+# ninja test-emu-lib-plain + 転置なしで骨格だけ確認 (順列が発生しない)
+# ninja test-emu-lib-log   + 計算部分を logistic に差し替えて確認
+# ninja measure            転送回数を数える (実行しない。生成物を grep するだけ)
+
+include ../../scripts/sdk.ninja
+include ../scripts/vsmlink.ninja
+builddir = _build
+
+# 1 タイムステップを刻んだ kernel。gen_chunks_ninja.py が生成する (N=64、4 分割)。
+rule gen_step
+  command = python3 gen_step.py $n 16 $start $last $compute $transpose $out_a $param_a $out_b $param_b
+  description = GEN step (start=$start last=$last $compute transpose=$transpose)
+
+include steps.ninja
+
+# --- init (distribute で PE ID を配る。1 回だけ) ---
+build $builddir/init.vsm: vsmlink init._vsm init.param step.stparam
+  vsm = init._vsm
+  param = init.param
+  stparam = step.stparam
+build $builddir/init.idma.dat: asm3_loader $builddir/init.vsm
+  stem = $builddir/init
+
+# --- host ---
+build $builddir/bcast_soa2aos.o: cc bcast_soa2aos.c
+build $builddir/bcast_soa2aos: link_exe $builddir/bcast_soa2aos.o
+
+build build-e2e: phony $builddir/init.idma.dat steps-rot-a steps-rot-b steps-rotx-a steps-rotx-b steps-logx-a steps-logx-b $builddir/bcast_soa2aos
+
+# --- test targets ---
+build test: test_usage
+# 本命: 転置あり。2 タイムステップ回して順列が戻ることを確認する
+build test-emu-lib: test_emu_lib $builddir/bcast_soa2aos | $builddir/init.idma.dat steps-rotx-a steps-rotx-b
+  args = --variant=rotx
+build test-device: test_device $builddir/bcast_soa2aos | $builddir/init.idma.dat steps-rotx-a steps-rotx-b
+  args = --variant=rotx
+# 段階 1: 転置なし。順列が発生しないので値がそのまま巡回する
+build test-emu-lib-plain: test_emu_lib $builddir/bcast_soa2aos | $builddir/init.idma.dat steps-rot-a steps-rot-b
+  args = --variant=rot
+# 計算部分の差し替え確認 (未解決。値が inf になる。README の「未解決」節を参照)
+# ビルドは通るので生成物は作られるが、テストとしては通らない。名指ししたときだけ実行される。
+build test-emu-lib-log: test_emu_lib $builddir/bcast_soa2aos | $builddir/init.idma.dat steps-logx-a steps-logx-b
+  args = --variant=logx
+
+# --- 転送回数の測定 ---
+# 1 回の転送 (mvb) で 64 u64 = 16 粒子ぶんが L1BM に移動し、同じ slot の 2 回目以降の
+# @broadcast はその続きを消費して、使い切るまで転送を出さない。これが効いていれば n 粒子で mvb は n/16 回になる。
+# 分割した状態では 1 kernel あたり 1 回なので、N=4096 の単一 kernel を別途生成して数える。
+rule gen_measure
+  command = python3 gen_step.py 4096 4096 0 1 rotate._vsm 0 $out_a $param_a $out_b $param_b
+  description = GEN measure (N=4096 を 1 kernel に)
+build $builddir/m4096_a._vsm $builddir/m4096_a.param $builddir/m4096_b._vsm $builddir/m4096_b.param: gen_measure gen_step.py rotate._vsm
+  out_a = $builddir/m4096_a._vsm
+  param_a = $builddir/m4096_a.param
+  out_b = $builddir/m4096_b._vsm
+  param_b = $builddir/m4096_b.param
+build $builddir/m4096_a.vsm: vsmlink $builddir/m4096_a._vsm $builddir/m4096_a.param step.stparam
+  vsm = $builddir/m4096_a._vsm
+  param = $builddir/m4096_a.param
+  stparam = step.stparam
+
+rule count_transfers
+  command = printf '  %-28s mvb=%s l1bmp=%s\n' "$desc" "$$(grep -c 'mvb/n64' $in)" "$$(grep -c 'l1bmp' $in)"
+  description = MEASURE $desc
+
+build measure: count_transfers $builddir/m4096_a.vsm
+  desc = 4096 粒子 (1 kernel)
+
+build clean: clean
+default $builddir/init.vsm

@@ -1,0 +1,3 @@
+# device でも PDM 上の並びの変化を検証する。 debug API を使わないので実機で走る。
+# REQUIRES: device, assemble3
+# RUN: ninja -C %examples/69-dmwrite-dmread-pdm test-device

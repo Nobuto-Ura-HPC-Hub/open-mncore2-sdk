@@ -1,0 +1,242 @@
+# 69-dmwrite-dmread-pdm — PDM 上の並びが添字の交換でどう変わるか
+#
+# このファイルは gen_dm_pdm.py の出力。 手で編集せず、 スクリプトを直して生成し直すこと。
+#
+# これは行列の転置ではない。 行列演算の機能ではなく、 起きるのは 2 次元配列の
+# 添字の交換だけである。 命令そのものの説明は 68-dmwrite-dmread を参照。
+#
+# 経路
+#   PDM -> L2BM -> L1BM -> 各 PE の LM0 に 4 語  (distribute)
+#   dmwrite / dmread                              (添字の交換)
+#   LM0 -> L1BM -> L2BM -> PDM                    (collect)
+#
+# PDM の並び。 p を通し PE 番号 (0..4095)、 c を語番号 (0..3) として
+#
+#   入力  PDM[4096 * c + p]
+#   出力  PDM[16384 + 4096 * c + p]
+#
+# 交換は MAB 内で閉じるので、 s = p の下位 2 ビット (MAB 内の PE 番号)、
+# b = p - s (MAB の先頭) と置くと、 host から見た移動は
+#
+#   入力 PDM[4096 * s + b + c]  ->  出力 PDM[16384 + 4096 * c + b + s]
+#
+# s と c が入れ替わる。 PDM のアドレスをビットで書くと bit13-12 (4096 の位) と
+# bit1-0 (下位 2 ビット) の交換になる。 詳しくは ../README.md を参照。
+#
+# L1BM 割り当て (l1bmd 1 命令の占有は addr_b から 256 u64、 addr_b は 64 u64 アライン)
+#   $lb0    [   0,  256)  分配入力。 語 c が cycle c のブロック [0 + 64c, +64) に入る
+#                       4 サイクルとも有効データなのでマスクは付けない
+#   $lb256  [ 256,  512)  結合出力。 cycle c の出力が [256 + 64c) に入る
+#
+# wait タグ: send=0x10、 distribute=0x11..0x14、 collect の 4 ブロックが
+#   0x19, 0x21, 0x29, 0x31。 recv_wait_tag=0x36
+
+	nop; wait i10
+	nop/3
+	# === distribute 1/4: 語 0 = PDM[0..4095] -> L2BM $lc0 ===
+	mvp/n512 $p0@0 $lc0@0.0
+	mvp/n512 $p512@0 $lc0@0.1
+	mvp/n512 $p1024@0 $lc0@1.0
+	mvp/n512 $p1536@0 $lc0@1.1
+	mvp/n512 $p2048@0 $lc0@2.0
+	mvp/n512 $p2560@0 $lc0@2.1
+	mvp/n512 $p3072@0 $lc0@3.0
+	mvp/n512i11 $p3584@0 $lc0@3.1
+	nop/2
+	nop; wait i11
+	nop/5
+	# === distribute 2/4: 語 1 = PDM[4096..8191] -> L2BM $lc512 ===
+	mvp/n512 $p4096@0 $lc512@0.0
+	mvp/n512 $p4608@0 $lc512@0.1
+	mvp/n512 $p5120@0 $lc512@1.0
+	mvp/n512 $p5632@0 $lc512@1.1
+	mvp/n512 $p6144@0 $lc512@2.0
+	mvp/n512 $p6656@0 $lc512@2.1
+	mvp/n512 $p7168@0 $lc512@3.0
+	mvp/n512i12 $p7680@0 $lc512@3.1
+	nop/2
+	nop; wait i12
+	nop/5
+	# === distribute 3/4: 語 2 = PDM[8192..12287] -> L2BM $lc1024 ===
+	mvp/n512 $p8192@0 $lc1024@0.0
+	mvp/n512 $p8704@0 $lc1024@0.1
+	mvp/n512 $p9216@0 $lc1024@1.0
+	mvp/n512 $p9728@0 $lc1024@1.1
+	mvp/n512 $p10240@0 $lc1024@2.0
+	mvp/n512 $p10752@0 $lc1024@2.1
+	mvp/n512 $p11264@0 $lc1024@3.0
+	mvp/n512i13 $p11776@0 $lc1024@3.1
+	nop/2
+	nop; wait i13
+	nop/5
+	# === distribute 4/4: 語 3 = PDM[12288..16383] -> L2BM $lc1536 ===
+	mvp/n512 $p12288@0 $lc1536@0.0
+	mvp/n512 $p12800@0 $lc1536@0.1
+	mvp/n512 $p13312@0 $lc1536@1.0
+	mvp/n512 $p13824@0 $lc1536@1.1
+	mvp/n512 $p14336@0 $lc1536@2.0
+	mvp/n512 $p14848@0 $lc1536@2.1
+	mvp/n512 $p15360@0 $lc1536@3.0
+	mvp/n512i14 $p15872@0 $lc1536@3.1
+	nop/2
+	nop; wait i14
+	nop/5
+	# === L2BM -> L1BM: 語 c を cycle c のブロック [0 + 64c) へ ===
+	l2bmb@0 $lc0 $lb0
+	l2bmb@1 $lc64 $lb0
+	l2bmb@2 $lc128 $lb0
+	l2bmb@3 $lc192 $lb0
+	l2bmb@4 $lc256 $lb0
+	l2bmb@5 $lc320 $lb0
+	l2bmb@6 $lc384 $lb0
+	l2bmb@7 $lc448 $lb0
+	l2bmb@0 $lc512 $lb64
+	l2bmb@1 $lc576 $lb64
+	l2bmb@2 $lc640 $lb64
+	l2bmb@3 $lc704 $lb64
+	l2bmb@4 $lc768 $lb64
+	l2bmb@5 $lc832 $lb64
+	l2bmb@6 $lc896 $lb64
+	l2bmb@7 $lc960 $lb64
+	l2bmb@0 $lc1024 $lb128
+	l2bmb@1 $lc1088 $lb128
+	l2bmb@2 $lc1152 $lb128
+	l2bmb@3 $lc1216 $lb128
+	l2bmb@4 $lc1280 $lb128
+	l2bmb@5 $lc1344 $lb128
+	l2bmb@6 $lc1408 $lb128
+	l2bmb@7 $lc1472 $lb128
+	l2bmb@0 $lc1536 $lb192
+	l2bmb@1 $lc1600 $lb192
+	l2bmb@2 $lc1664 $lb192
+	l2bmb@3 $lc1728 $lb192
+	l2bmb@4 $lc1792 $lb192
+	l2bmb@5 $lc1856 $lb192
+	l2bmb@6 $lc1920 $lb192
+	l2bmb@7 $lc1984 $lb192
+	nop/5
+	# 占有 L1BM [0, 256)。 4 サイクルとも有効データなのでマスク無し。
+	# cycle c が L1BM[0 + 64c] を読み、 LM0 の u32 アドレス 2c に書く。
+	l1bmd $lb0 $lm0v
+	nop/24
+	nop/24
+	# === 添字の交換: MAB 内で PE 番号 s と語番号 c を入れ替える ===
+	# 入力 LM0 u32 アドレス 0,2,4,6 -> 出力 LM0 u32 アドレス 30,32,34,36
+	dmwrite $lm0v $lx0
+	nop/24
+	dmread $lx0 $lm30v
+	nop/24
+	# === collect: LM0 u32 アドレス 30,32,34,36 の 4 語を L1BM の 4 ブロックへ ===
+	# 占有 L1BM [256, 512)。 結合方向にはマスクが効かないため 4 サイクル分すべてが書かれる。
+	l1bmd $lm30v $lb256
+	nop/24
+	nop/24
+	# --- 語 0: L1BM[256] -> PDM[16384..20479] ---
+	l2bm@0 $lb256 $lc2048
+	l2bm@1 $lb256 $lc2112
+	l2bm@2 $lb256 $lc2176
+	l2bm@3 $lb256 $lc2240
+	l2bm@4 $lb256 $lc2304
+	l2bm@5 $lb256 $lc2368
+	l2bm@6 $lb256 $lc2432
+	l2bm@7 $lb256 $lc2496
+	nop/5
+	mvp/n512 $lc2048@0.0 $p16384@0
+	mvp/n512i19 $lc2048@0.1 $p16896@0
+	nop/3
+	nop; wait i19
+	mvp/n512 $lc2048@1.0 $p17408@0
+	mvp/n512i1a $lc2048@1.1 $p17920@0
+	nop/3
+	nop; wait i1a
+	mvp/n512 $lc2048@2.0 $p18432@0
+	mvp/n512i1c $lc2048@2.1 $p18944@0
+	nop/3
+	nop; wait i1c
+	mvp/n512 $lc2048@3.0 $p19456@0
+	mvp/n512i1e $lc2048@3.1 $p19968@0
+	nop/3
+	nop; wait i1e
+	nop/4
+	# --- 語 1: L1BM[320] -> PDM[20480..24575] ---
+	l2bm@0 $lb320 $lc2048
+	l2bm@1 $lb320 $lc2112
+	l2bm@2 $lb320 $lc2176
+	l2bm@3 $lb320 $lc2240
+	l2bm@4 $lb320 $lc2304
+	l2bm@5 $lb320 $lc2368
+	l2bm@6 $lb320 $lc2432
+	l2bm@7 $lb320 $lc2496
+	nop/5
+	mvp/n512 $lc2048@0.0 $p20480@0
+	mvp/n512i21 $lc2048@0.1 $p20992@0
+	nop/3
+	nop; wait i21
+	mvp/n512 $lc2048@1.0 $p21504@0
+	mvp/n512i22 $lc2048@1.1 $p22016@0
+	nop/3
+	nop; wait i22
+	mvp/n512 $lc2048@2.0 $p22528@0
+	mvp/n512i24 $lc2048@2.1 $p23040@0
+	nop/3
+	nop; wait i24
+	mvp/n512 $lc2048@3.0 $p23552@0
+	mvp/n512i26 $lc2048@3.1 $p24064@0
+	nop/3
+	nop; wait i26
+	nop/4
+	# --- 語 2: L1BM[384] -> PDM[24576..28671] ---
+	l2bm@0 $lb384 $lc2048
+	l2bm@1 $lb384 $lc2112
+	l2bm@2 $lb384 $lc2176
+	l2bm@3 $lb384 $lc2240
+	l2bm@4 $lb384 $lc2304
+	l2bm@5 $lb384 $lc2368
+	l2bm@6 $lb384 $lc2432
+	l2bm@7 $lb384 $lc2496
+	nop/5
+	mvp/n512 $lc2048@0.0 $p24576@0
+	mvp/n512i29 $lc2048@0.1 $p25088@0
+	nop/3
+	nop; wait i29
+	mvp/n512 $lc2048@1.0 $p25600@0
+	mvp/n512i2a $lc2048@1.1 $p26112@0
+	nop/3
+	nop; wait i2a
+	mvp/n512 $lc2048@2.0 $p26624@0
+	mvp/n512i2c $lc2048@2.1 $p27136@0
+	nop/3
+	nop; wait i2c
+	mvp/n512 $lc2048@3.0 $p27648@0
+	mvp/n512i2e $lc2048@3.1 $p28160@0
+	nop/3
+	nop; wait i2e
+	nop/4
+	# --- 語 3: L1BM[448] -> PDM[28672..32767] ---
+	l2bm@0 $lb448 $lc2048
+	l2bm@1 $lb448 $lc2112
+	l2bm@2 $lb448 $lc2176
+	l2bm@3 $lb448 $lc2240
+	l2bm@4 $lb448 $lc2304
+	l2bm@5 $lb448 $lc2368
+	l2bm@6 $lb448 $lc2432
+	l2bm@7 $lb448 $lc2496
+	nop/5
+	mvp/n512 $lc2048@0.0 $p28672@0
+	mvp/n512i31 $lc2048@0.1 $p29184@0
+	nop/3
+	nop; wait i31
+	mvp/n512 $lc2048@1.0 $p29696@0
+	mvp/n512i32 $lc2048@1.1 $p30208@0
+	nop/3
+	nop; wait i32
+	mvp/n512 $lc2048@2.0 $p30720@0
+	mvp/n512i34 $lc2048@2.1 $p31232@0
+	nop/3
+	nop; wait i34
+	mvp/n512 $lc2048@3.0 $p31744@0
+	mvp/n512i36 $lc2048@3.1 $p32256@0
+	nop/3
+	nop; wait i36
+	nop/4
+	# pseudo ret

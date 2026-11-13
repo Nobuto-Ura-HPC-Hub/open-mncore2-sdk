@@ -112,3 +112,8 @@ build test-device-n4096: test_device $builddir/test_nbody3d_n4096 | shared-kerne
 build clean: clean
 
 default $builddir/accumulate_n32_g0.vsm
+
+# --- verify: golden data ---
+build verify: verify_cmd $builddir/accumulate_n32_g0.vsm
+  expected = expected.vsm
+  actual = $builddir/accumulate_n32_g0.vsm

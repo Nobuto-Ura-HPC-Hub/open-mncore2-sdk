@@ -9,7 +9,7 @@ import shutil
 import lit.formats
 
 config.name = "mncore2-sdk-emu-lib"
-config.test_format = lit.formats.ShTest(execute_external=True)
+config.test_format = lit.formats.ShTest(execute_external=False)
 config.suffixes = ['.test']
 
 # examples テストには assemble3 と sdk.ninja が必要

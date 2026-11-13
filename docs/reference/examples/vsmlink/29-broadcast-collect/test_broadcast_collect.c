@@ -4,7 +4,7 @@
  * @distribute した per-PE の id で差し替え、@collect size 4 で PDM (成分ごと) に集める。
  * ホストは成分ごと出力を struct に組み直し、x,y,z が broadcast 値 (全 PE 同一)、m が per-PE
  * の id (0..4095) になっていることを確認する。
- * 設計とレイアウトは docs/broadcast-collect-layout.md を参照。
+ * レイアウトは share/vsmlink/directives-spec.md の「PDM 上の並び」。
  *
  * PDM レイアウト (broadcast_collect.param):
  *   slot 8  (broadcast 源): PDM[0..63]      先頭 4 u64 に x,y,z,m (AoS)

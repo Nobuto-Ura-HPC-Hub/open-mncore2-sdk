@@ -1,0 +1,236 @@
+# ABI PFN3_SBY64
+#
+# roundtrip: PDM に番号の順で並んだデータ (1 個 = 連続 4 u64) を @distribute_aos2soa で
+# 各 PE の連続 4 本へ配り、何も計算せずに @collect_soa2aos で PDM へ書き戻す。
+# 対で使うと PDM の並びが元に戻ることを確かめる (share/vsmlink/directives-spec.md の
+# 「@distribute_aos2soa / @collect_soa2aos」)。
+#
+# LM0 の割り当て:
+#   $lm0 $lm2 $lm4 $lm6    データの 4 値
+#   $lm8 $lm10 $lm12 $lm14 転置の作業の場所 (2 つの directive で共用。中身は壊れる)
+#
+# @distribute_aos2soa の末尾は dmread で $lm0..6 を書く。直後の @collect_soa2aos の
+# dmwrite が同じ 4 本を読むので、LM の書き込み → 読み出しの待ち 2 ステップを置く
+# (dev manual 3.6.3.9。assemble3 が検査する)。
+# distribute.vsm — @distribute テンプレート
+
+	nop; wait i10
+	nop/3
+# @distribute_aos2soa _in from_param 8 $lm0 $lm8
+# === @distribute_aos2soa _in: PDM $p0 → L2BM → L1BM → $lm8 → 転置 → $lm0 ===
+# (:pdm :directive "@distribute_aos2soa" :id "_in" :slot 8 :place :pdm0 :addr 0 :size 16384 :access :read)
+	mvp/n512 $p0@0 $lc0@0.0
+	mvp/n512 $p512@0 $lc0@0.1
+	mvp/n512 $p1024@0 $lc0@1.0
+	mvp/n512 $p1536@0 $lc0@1.1
+	mvp/n512 $p2048@0 $lc0@2.0
+	mvp/n512 $p2560@0 $lc0@2.1
+	mvp/n512 $p3072@0 $lc0@3.0
+	mvp/n512i3f $p3584@0 $lc0@3.1
+	nop/2
+	nop; wait i3f
+	nop/5
+	l2bmb@0 $lc0 $lb0
+	l2bmb@1 $lc64 $lb0
+	l2bmb@2 $lc128 $lb0
+	l2bmb@3 $lc192 $lb0
+	l2bmb@4 $lc256 $lb0
+	l2bmb@5 $lc320 $lb0
+	l2bmb@6 $lc384 $lb0
+	l2bmb@7 $lc448 $lb0
+	nop/5
+	mvp/n512 $p4096@0 $lc512@0.0
+	mvp/n512 $p4608@0 $lc512@0.1
+	mvp/n512 $p5120@0 $lc512@1.0
+	mvp/n512 $p5632@0 $lc512@1.1
+	mvp/n512 $p6144@0 $lc512@2.0
+	mvp/n512 $p6656@0 $lc512@2.1
+	mvp/n512 $p7168@0 $lc512@3.0
+	mvp/n512i3f $p7680@0 $lc512@3.1
+	nop/2
+	nop; wait i3f
+	nop/5
+	l2bmb@0 $lc512 $lb64
+	l2bmb@1 $lc576 $lb64
+	l2bmb@2 $lc640 $lb64
+	l2bmb@3 $lc704 $lb64
+	l2bmb@4 $lc768 $lb64
+	l2bmb@5 $lc832 $lb64
+	l2bmb@6 $lc896 $lb64
+	l2bmb@7 $lc960 $lb64
+	nop/5
+	mvp/n512 $p8192@0 $lc1024@0.0
+	mvp/n512 $p8704@0 $lc1024@0.1
+	mvp/n512 $p9216@0 $lc1024@1.0
+	mvp/n512 $p9728@0 $lc1024@1.1
+	mvp/n512 $p10240@0 $lc1024@2.0
+	mvp/n512 $p10752@0 $lc1024@2.1
+	mvp/n512 $p11264@0 $lc1024@3.0
+	mvp/n512i3f $p11776@0 $lc1024@3.1
+	nop/2
+	nop; wait i3f
+	nop/5
+	l2bmb@0 $lc1024 $lb128
+	l2bmb@1 $lc1088 $lb128
+	l2bmb@2 $lc1152 $lb128
+	l2bmb@3 $lc1216 $lb128
+	l2bmb@4 $lc1280 $lb128
+	l2bmb@5 $lc1344 $lb128
+	l2bmb@6 $lc1408 $lb128
+	l2bmb@7 $lc1472 $lb128
+	nop/5
+	mvp/n512 $p12288@0 $lc1536@0.0
+	mvp/n512 $p12800@0 $lc1536@0.1
+	mvp/n512 $p13312@0 $lc1536@1.0
+	mvp/n512 $p13824@0 $lc1536@1.1
+	mvp/n512 $p14336@0 $lc1536@2.0
+	mvp/n512 $p14848@0 $lc1536@2.1
+	mvp/n512 $p15360@0 $lc1536@3.0
+	mvp/n512i3f $p15872@0 $lc1536@3.1
+	nop/2
+	nop; wait i3f
+	nop/5
+	l2bmb@0 $lc1536 $lb192
+	l2bmb@1 $lc1600 $lb192
+	l2bmb@2 $lc1664 $lb192
+	l2bmb@3 $lc1728 $lb192
+	l2bmb@4 $lc1792 $lb192
+	l2bmb@5 $lc1856 $lb192
+	l2bmb@6 $lc1920 $lb192
+	l2bmb@7 $lc1984 $lb192
+	nop/5
+	l1bmd $lb0 $lm8v
+# distribute_aos2soa.vsm — @distribute_aos2soa の転置の部分。distribute_tail.vsm の
+# l1bmd の後に続く
+#
+# l1bmd が書いた作業の場所を dmwrite が読むまで 2 ステップ空ける (PE メモリの書き込み →
+# 読み出し。LM は 2 ステップ、GRF は同じ番地で 1 ステップ。dev manual 3.6.3.9。作業の場所の
+# bank は利用者が選ぶので LM の値を採る)。
+# dmwrite / dmread の src と dst には v が要る (dev manual 3.6.1.6)。行列レジスタは x 面の
+# 行 0 から 3 を使う。dmwrite から dmread までの待ちは、実機で確かめた値を vsmlink が置く (dev manual に
+# 規定は無く、assemble3 も検査しない)。
+# dmread の後に dst を読む命令の待ちは、利用者が assemble3 の検査に従って置く。
+	nop/2
+	dmwrite $lm8v $lx0
+	dmread $lx0 $lm0v
+	nop/24
+	nop/2
+# collect_soa2aos.vsm — @collect_soa2aos の転置の部分。この後に collect.vsm 以下が続く
+#
+# dmwrite / dmread の src と dst には v が要る (付けないと 4 サイクルとも同じ番地を
+# 読み書きする。dev manual 3.6.1.6)。行列レジスタは x 面の行 0 から 3 を使う。
+# dmwrite から dmread までの待ちは、実機で確かめた値を vsmlink が置く (dev manual に規定は無く、
+# assemble3 も検査しない)。dmread の後の待ちは、続く転送の先頭の nop が兼ねる。
+
+# @collect_soa2aos _out to_param 16 $lm0 $lm8
+# === @collect_soa2aos _out: $lm0 → 転置 → $lm8 → L1BM → L2BM → PDM $p131072 ===
+# (:pdm :directive "@collect_soa2aos" :id "_out" :slot 16 :place :pdm0 :addr 131072 :size 16384 :access :write)
+	dmwrite $lm0v $lx0
+	dmread $lx0 $lm8v
+# collect.vsm — @collect テンプレート
+
+# --- @collect size 4 と同じ転送 ---
+	nop/24
+	l1bmd $lm8v $lb0
+	nop/24
+	l2bm@0 $lb0 $lc0
+	l2bm@1 $lb0 $lc64
+	l2bm@2 $lb0 $lc128
+	l2bm@3 $lb0 $lc192
+	l2bm@4 $lb0 $lc256
+	l2bm@5 $lb0 $lc320
+	l2bm@6 $lb0 $lc384
+	l2bm@7 $lb0 $lc448
+	nop/5
+	mvp/n512 $lc0@0.0 $p131072@0
+	mvp/n512i3f $lc0@0.1 $p131584@0
+	nop/3
+	nop; wait i3f
+	mvp/n512 $lc0@1.0 $p132096@0
+	mvp/n512i3f $lc0@1.1 $p132608@0
+	nop/3
+	nop; wait i3f
+	mvp/n512 $lc0@2.0 $p133120@0
+	mvp/n512i3f $lc0@2.1 $p133632@0
+	nop/3
+	nop; wait i3f
+	mvp/n512 $lc0@3.0 $p134144@0
+	mvp/n512i3f $lc0@3.1 $p134656@0
+	nop/3
+	nop; wait i3f
+	l2bm@0 $lb64 $lc512
+	l2bm@1 $lb64 $lc576
+	l2bm@2 $lb64 $lc640
+	l2bm@3 $lb64 $lc704
+	l2bm@4 $lb64 $lc768
+	l2bm@5 $lb64 $lc832
+	l2bm@6 $lb64 $lc896
+	l2bm@7 $lb64 $lc960
+	nop/5
+	mvp/n512 $lc512@0.0 $p135168@0
+	mvp/n512i3f $lc512@0.1 $p135680@0
+	nop/3
+	nop; wait i3f
+	mvp/n512 $lc512@1.0 $p136192@0
+	mvp/n512i3f $lc512@1.1 $p136704@0
+	nop/3
+	nop; wait i3f
+	mvp/n512 $lc512@2.0 $p137216@0
+	mvp/n512i3f $lc512@2.1 $p137728@0
+	nop/3
+	nop; wait i3f
+	mvp/n512 $lc512@3.0 $p138240@0
+	mvp/n512i3f $lc512@3.1 $p138752@0
+	nop/3
+	nop; wait i3f
+	l2bm@0 $lb128 $lc1024
+	l2bm@1 $lb128 $lc1088
+	l2bm@2 $lb128 $lc1152
+	l2bm@3 $lb128 $lc1216
+	l2bm@4 $lb128 $lc1280
+	l2bm@5 $lb128 $lc1344
+	l2bm@6 $lb128 $lc1408
+	l2bm@7 $lb128 $lc1472
+	nop/5
+	mvp/n512 $lc1024@0.0 $p139264@0
+	mvp/n512i3f $lc1024@0.1 $p139776@0
+	nop/3
+	nop; wait i3f
+	mvp/n512 $lc1024@1.0 $p140288@0
+	mvp/n512i3f $lc1024@1.1 $p140800@0
+	nop/3
+	nop; wait i3f
+	mvp/n512 $lc1024@2.0 $p141312@0
+	mvp/n512i3f $lc1024@2.1 $p141824@0
+	nop/3
+	nop; wait i3f
+	mvp/n512 $lc1024@3.0 $p142336@0
+	mvp/n512i3f $lc1024@3.1 $p142848@0
+	nop/3
+	nop; wait i3f
+	l2bm@0 $lb192 $lc1536
+	l2bm@1 $lb192 $lc1600
+	l2bm@2 $lb192 $lc1664
+	l2bm@3 $lb192 $lc1728
+	l2bm@4 $lb192 $lc1792
+	l2bm@5 $lb192 $lc1856
+	l2bm@6 $lb192 $lc1920
+	l2bm@7 $lb192 $lc1984
+	nop/5
+	mvp/n512 $lc1536@0.0 $p143360@0
+	mvp/n512i3f $lc1536@0.1 $p143872@0
+	nop/3
+	nop; wait i3f
+	mvp/n512 $lc1536@1.0 $p144384@0
+	mvp/n512i3f $lc1536@1.1 $p144896@0
+	nop/3
+	nop; wait i3f
+	mvp/n512 $lc1536@2.0 $p145408@0
+	mvp/n512i3f $lc1536@2.1 $p145920@0
+	nop/3
+	nop; wait i3f
+	mvp/n512 $lc1536@3.0 $p146432@0
+	mvp/n512i1e $lc1536@3.1 $p146944@0
+	nop/3
+	nop; wait i1e
+	nop/4

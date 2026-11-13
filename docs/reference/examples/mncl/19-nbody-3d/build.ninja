@@ -35,7 +35,7 @@ build $builddir/nbody3d_force.vsm: vsmlink $builddir/nbody3d_force._vsm nbody3d_
   param = nbody3d_force.param
   stparam = nbody3d.stparam
 build $builddir/nbody3d_force.asm: asm3 $builddir/nbody3d_force.vsm
-build $builddir/nbody3d_force.idma.dat: asm3_loader $builddir/nbody3d_force.vsm
+build $builddir/nbody3d_force.idma.dat | $builddir/nbody3d_force.idma.inst $builddir/nbody3d_force.idma.inst.txt $builddir/nbody3d_force.ddma.dat $builddir/nbody3d_force.ddma.inst $builddir/nbody3d_force.ddma.inst.txt: asm3_loader $builddir/nbody3d_force.vsm
   stem = $builddir/nbody3d_force
 
 # --- integ kernel ---
@@ -45,7 +45,7 @@ build $builddir/nbody3d_integ.vsm: vsmlink $builddir/nbody3d_integ._vsm nbody3d_
   param = nbody3d_integ.param
   stparam = nbody3d.stparam
 build $builddir/nbody3d_integ.asm: asm3 $builddir/nbody3d_integ.vsm
-build $builddir/nbody3d_integ.idma.dat: asm3_loader $builddir/nbody3d_integ.vsm
+build $builddir/nbody3d_integ.idma.dat | $builddir/nbody3d_integ.idma.inst $builddir/nbody3d_integ.idma.inst.txt $builddir/nbody3d_integ.ddma.dat $builddir/nbody3d_integ.ddma.inst $builddir/nbody3d_integ.ddma.inst.txt: asm3_loader $builddir/nbody3d_integ.vsm
   stem = $builddir/nbody3d_integ
 
 # --- host driver ---
@@ -69,7 +69,6 @@ build test-device-full: test_device_full $builddir/test_nbody3d | $
     $builddir/nbody3d_force.idma.dat $builddir/nbody3d_integ.idma.dat
 build test:             test_usage
 
-build clean: clean
 
 default $builddir/nbody3d_force.asm $builddir/nbody3d_force.idma.dat $
     $builddir/nbody3d_integ.asm $builddir/nbody3d_integ.idma.dat

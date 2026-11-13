@@ -1,0 +1,74 @@
+# roundtrip: PDM -> L2BM -> L1BM -> LM -> L1BM -> L2BM -> PDM
+#
+# PE の LM まで到達してそのまま戻す。計算なし。
+# 入力 = 出力になることが検証条件。
+#
+# 参考: study-mncore2/src/debug-step3-l1bmd-roundtrip.vsm
+
+# distribute: PDM -> L2BM -> L1BM -> LM (vsmlink が mvp + l2bmb + l1bmd に展開)
+# distribute.vsm — @distribute テンプレート
+
+	nop; wait i10
+	nop/3
+# @distribute _arg_a from_param 8 size 1 $lm0
+# === @distribute _arg_a: PDM $p0 → L2BM → L1BM → $lm0 ===
+# (:pdm :directive "@distribute" :id "_arg_a" :slot 8 :place :pdm0 :addr 0 :size 4096 :access :read)
+	mvp/n512 $p0@0 $lc0@0.0
+	mvp/n512 $p512@0 $lc0@0.1
+	mvp/n512 $p1024@0 $lc0@1.0
+	mvp/n512 $p1536@0 $lc0@1.1
+	mvp/n512 $p2048@0 $lc0@2.0
+	mvp/n512 $p2560@0 $lc0@2.1
+	mvp/n512 $p3072@0 $lc0@3.0
+	mvp/n512i3f $p3584@0 $lc0@3.1
+	nop/2
+	nop; wait i3f
+	nop/5
+	l2bmb@0 $lc0 $lb0
+	l2bmb@1 $lc64 $lb0
+	l2bmb@2 $lc128 $lb0
+	l2bmb@3 $lc192 $lb0
+	l2bmb@4 $lc256 $lb0
+	l2bmb@5 $lc320 $lb0
+	l2bmb@6 $lc384 $lb0
+	l2bmb@7 $lc448 $lb0
+	nop/5
+	l1bmd $lb0 $lm0v/1000
+	nop/24
+	nop/24
+# collect: LM -> L1BM -> L2BM -> PDM (vsmlink が l1bmd + l2bm + mvp に展開)
+# collect.vsm — @collect テンプレート
+
+# @collect _arg_b to_param 24 size 1 $lm0
+# === @collect _arg_b: $lm0 → L1BM → L2BM → PDM $p131072 ===
+# (:pdm :directive "@collect" :id "_arg_b" :slot 24 :place :pdm0 :addr 131072 :size 4096 :access :write)
+	nop/24
+	l1bmd $lm0v $lb0
+	nop/24
+	l2bm@0 $lb0 $lc0
+	l2bm@1 $lb0 $lc64
+	l2bm@2 $lb0 $lc128
+	l2bm@3 $lb0 $lc192
+	l2bm@4 $lb0 $lc256
+	l2bm@5 $lb0 $lc320
+	l2bm@6 $lb0 $lc384
+	l2bm@7 $lb0 $lc448
+	nop/5
+	mvp/n512 $lc0@0.0 $p131072@0
+	mvp/n512i3f $lc0@0.1 $p131584@0
+	nop/3
+	nop; wait i3f
+	mvp/n512 $lc0@1.0 $p132096@0
+	mvp/n512i3f $lc0@1.1 $p132608@0
+	nop/3
+	nop; wait i3f
+	mvp/n512 $lc0@2.0 $p133120@0
+	mvp/n512i3f $lc0@2.1 $p133632@0
+	nop/3
+	nop; wait i3f
+	mvp/n512 $lc0@3.0 $p134144@0
+	mvp/n512i1e $lc0@3.1 $p134656@0
+	nop/3
+	nop; wait i1e
+	nop/4
+	# pseudo ret

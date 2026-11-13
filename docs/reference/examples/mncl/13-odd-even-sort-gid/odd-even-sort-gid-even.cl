@@ -4,9 +4,9 @@
 // get_global_id で PE 自身が行う点だけが違う。 例 10 の flag パターン {1,0,1,0,...} は PE 番号の
 // パリティそのものなので、 even フェーズでは「PE 番号が偶数 = 左メンバ」で置き換えられる。
 //   is_left = distribute(flag)  ->  is_left = ((id & 1) == 0) ? 1.0 : 0.0
-// これ以外の kernel 本体（比較・swap・collect）と境界処理（neighbor の clamp）は例 10 と同一。
+// これ以外の kernel 本体（比較・swap・collect）と境界処理（load_neighbor の clamp）は例 10 と同一。
 //
-// data_in:    in  (このフェーズの入力配列。 distribute / neighbor が読む)
+// data_in:    in  (このフェーズの入力配列。 distribute / load_neighbor が読む)
 // data_out:   out (1 フェーズ後の配列。 collect 先)
 // swap_flags: out (PE ごとの swap 有無 0.0/1.0。 reduce kernel が読み直して集計する)
 __kernel void odd_even_sort_gid_even(__global double* data_in,
@@ -14,8 +14,8 @@ __kernel void odd_even_sort_gid_even(__global double* data_in,
                                      __global double* swap_flags) {
     long id = get_global_id(0);
     double self  = distribute(data_in);
-    double right = neighbor(data_in, 1);
-    double left  = neighbor(data_in, -1);
+    double right = load_neighbor(data_in, 1);
+    double left  = load_neighbor(data_in, -1);
     double is_left = ((id & 1) == 0) ? 1.0 : 0.0;   // 偶数 PE がペアの左メンバ
 
     double left_swap;

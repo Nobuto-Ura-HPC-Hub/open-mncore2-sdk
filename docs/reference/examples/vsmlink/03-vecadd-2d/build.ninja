@@ -34,3 +34,8 @@ build test-device: test_device $builddir/test_vecadd_2d | $builddir/vecadd.idma.
 build clean: clean
 
 default $builddir/vecadd-2d.vsm
+
+# --- verify: golden data ---
+build verify: verify_cmd $builddir/vecadd-2d.vsm
+  expected = expected.vsm
+  actual = $builddir/vecadd-2d.vsm

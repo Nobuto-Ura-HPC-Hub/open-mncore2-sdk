@@ -38,13 +38,13 @@ odd-even sort は **最悪 N フェーズ（= N/2 turn）で必ずソート完�
 - 入力 = 大域ソート済 [1..4096] を **幅 `BLOCK` ごとに逆順**にしたもの。各ブロック内の逆転をソートするのに
   約 `BLOCK` フェーズかかるので、収束は `BLOCK/2` turn 程度で終わる。
 - 既定は `BLOCK = 64`（約 33 turn、emu:lib で数十秒）。`BLOCK` を大きくすると収束 turn が増え、より強い
-  多ターン収束の実証になる（が emu 時間も増える）。逆順 4096 全体を試すと最悪の 2048 turn を踏む。
+  多ターン収束の実証になる（が emu 時間も増える）。逆順 4096 全体を試すと最悪の 2048 turn になる。
 
 ## kernel インターフェース
 
 ```c
 // even / odd (本体は判定の偶奇のみ相違)
-__kernel void odd_even_sort_full_even(__global double* data_in,     // in  (distribute / neighbor)
+__kernel void odd_even_sort_full_even(__global double* data_in,     // in  (distribute / load_neighbor)
                                       __global double* data_out,    // out (collect)
                                       __global double* swap_count); // out (inline reduce_add, 4 partial sum)
 ```

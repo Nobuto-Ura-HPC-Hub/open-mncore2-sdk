@@ -17,7 +17,7 @@ build $builddir/bcast_f64.vsm: vsmlink $builddir/bcast_f64._vsm bcast_f64.param 
   stparam = bcast_f64.stparam
 
 build $builddir/bcast_f64.asm: asm3 $builddir/bcast_f64.vsm
-build $builddir/bcast_f64.idma.dat: asm3_loader $builddir/bcast_f64.vsm
+build $builddir/bcast_f64.idma.dat | $builddir/bcast_f64.idma.inst $builddir/bcast_f64.idma.inst.txt $builddir/bcast_f64.ddma.dat $builddir/bcast_f64.ddma.inst $builddir/bcast_f64.ddma.inst.txt: asm3_loader $builddir/bcast_f64.vsm
   stem = $builddir/bcast_f64
 
 # --- host driver ---
@@ -32,6 +32,5 @@ build test-emu-lib: test_emu_lib $builddir/test_bcast_f64 | $builddir/bcast_f64.
 build test-device:  test_device  $builddir/test_bcast_f64 | $builddir/bcast_f64.asm $builddir/bcast_f64.idma.dat
 build test:         test_usage
 
-build clean: clean
 
 default $builddir/bcast_f64.asm $builddir/bcast_f64.idma.dat

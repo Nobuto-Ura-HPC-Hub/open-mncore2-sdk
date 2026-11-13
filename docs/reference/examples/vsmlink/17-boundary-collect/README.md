@@ -9,7 +9,7 @@
 ## 経緯
 
 元々このプログラムは directive なしで境界フラグの計算を手動実装したもの。
-この手動実装をもとに vsm-linker の `@boundary_flags_compute` ディレクティブが
+この手動実装をもとに vsmlink コマンドの `@boundary_flags_compute` ディレクティブが
 実装された。現在の `boundary-collect._vsm` は `@boundary_flags_compute` を
 使用しており、`@boundary_flags_compute` のチェックプログラムも兼ねている。
 参照実装としての役割は C テスト (`expected_flags()`) に残っている。
@@ -31,7 +31,7 @@ cmp でバイナリ照合できるのは方法 2 と 3。両者が一致すれ�
 代表的な PE の値を `d get` で確認する。
 
 ```bash
-source ../../_mncore2-sdk-v1/bin/activate
+source ../../scripts/overlay
 assemble3 bf_compute_test.vsm --output-file /tmp/bf_compute_test.asm
 gpfn3_package_main -i /tmp/bf_compute_test.asm --offchip-memory-init zero
 ```

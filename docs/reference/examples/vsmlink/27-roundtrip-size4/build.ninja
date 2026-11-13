@@ -77,3 +77,15 @@ build test-device:  phony test-device-size2 test-device-size3 test-device-size4
 build clean: clean
 
 default $builddir/roundtrip4.vsm $builddir/roundtrip3.vsm $builddir/roundtrip2.vsm
+
+# --- verify: golden data (複数出力) ---
+build verify-roundtrip2: verify_cmd $builddir/roundtrip2.vsm
+  expected = expected_roundtrip2.vsm
+  actual = $builddir/roundtrip2.vsm
+build verify-roundtrip3: verify_cmd $builddir/roundtrip3.vsm
+  expected = expected_roundtrip3.vsm
+  actual = $builddir/roundtrip3.vsm
+build verify-roundtrip4: verify_cmd $builddir/roundtrip4.vsm
+  expected = expected_roundtrip4.vsm
+  actual = $builddir/roundtrip4.vsm
+build verify: phony verify-roundtrip2 verify-roundtrip3 verify-roundtrip4 

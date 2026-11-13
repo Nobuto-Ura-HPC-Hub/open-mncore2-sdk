@@ -91,7 +91,7 @@ while (true) {
 ### 隣接 PE データ取得の階層構造
 
 左隣・右隣の値を取得する際、PE の位置によって異なる HW 経路を使う
-（詳細は [docs/boundary-selection.md](../../docs/boundary-selection.md) を参照）:
+:
 
 | 交差レベル | 条件 (左隣の例) | HW 経路 |
 |-----------|---------------|--------|
@@ -516,7 +516,7 @@ Batcher の Odd-Even Merge Sort（O(n log²n) の深さ）との比較も含む�
 cross MAB（offset -1）のテスト。`@boundary_flags compute` の簡易版（PE_left_edge のみ）を使い、PE0 は l1bmd+1、PE1-3 は msl で左隣データを取得する。
 
 ```bash
-source ../../_mncore2-sdk-v1/bin/activate
+source ../../scripts/overlay
 assemble3 step2.vsm --output-file _build/step2.asm
 gpfn3_package_main -i _build/step2.asm --offchip-memory-init zero
 ```

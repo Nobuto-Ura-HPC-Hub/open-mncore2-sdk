@@ -19,7 +19,7 @@ build $builddir/vecadd-3d.vsm: vsmlink $builddir/vecadd._vsm vecadd.param vecadd
   stparam = vecadd-3d.stparam
 
 build $builddir/vecadd.asm: asm3 $builddir/vecadd-3d.vsm
-build $builddir/vecadd.idma.dat: asm3_loader $builddir/vecadd-3d.vsm
+build $builddir/vecadd.idma.dat | $builddir/vecadd.idma.inst $builddir/vecadd.idma.inst.txt $builddir/vecadd.ddma.dat $builddir/vecadd.ddma.inst $builddir/vecadd.ddma.inst.txt: asm3_loader $builddir/vecadd-3d.vsm
   stem = $builddir/vecadd
 
 # --- host driver (batch) ---
@@ -34,6 +34,5 @@ build test-emu-lib: test_emu_lib $builddir/test_vecadd_batch | $builddir/vecadd.
 build test-device:  test_device  $builddir/test_vecadd_batch | $builddir/vecadd.asm $builddir/vecadd.idma.dat
 build test:         test_usage
 
-build clean: clean
 
 default $builddir/vecadd.asm $builddir/vecadd.idma.dat

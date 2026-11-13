@@ -37,3 +37,8 @@ build test-device: test_device $builddir/test_boundary_collect | $builddir/bound
 build clean: clean
 
 default $builddir/boundary-collect.vsm
+
+# --- verify: golden data ---
+build verify: verify_cmd $builddir/boundary-collect.vsm
+  expected = expected.vsm
+  actual = $builddir/boundary-collect.vsm

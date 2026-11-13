@@ -27,6 +27,141 @@ ninja install      # ../bin/ にコピー (他の examples から参照可能に
 | `_build/test-idma2-mmap [--dm-index IDX] [--dm-count CNT] [--dev PATH]` | BAR2 mmap で直接 IDMA_ADR/IDMA_KICK に書いて kick | 診断用。kernel ドライバ filter を bypass しようとする実験。pod 環境では mmap 自体が EINVAL で塞がれている |
 | `_build/reset` | `gpfn3_reset_device` を呼ぶだけ | DDMA_STAT が stuck したときの復旧用 |
 | `_build/set-capture <B\|C\|D\|E> <threshold>` | WDBIT_PCIe capture を arm | 中間シグナル取得の probe |
+| `_build/repeat-idma PATH.idma.dat MAX_COUNT` | 同じ命令列を連続 kick して IDMA のあふれを観測 | 下記「repeat-idma でのあふれの観測」 |
+
+## run-idma の仕組み
+
+```
+run-idma PATH.idma.dat [--no-reset] [--timeout SEC] [--capture X:N]* [WD ...]
+```
+
+### 実行の流れ (`run_idma.c`)
+
+1. (`--no-reset` 省略時) `gpfn3_reset_device` でデバイスをリセット
+2. `--timeout` に基づき SIGALRM ベースのタイムアウトを仕掛ける (busy-poll の各 iteration で check)
+3. `--capture X:N` が指定された分だけ、`gpfn3_capture_set_inst(dev, sel, threshold)` で Capture B/C/D/E を threshold で arm (kick より前)
+4. `now_stamp()` で `wall_ns`/`inst`/`all_nop` を記録 (`event_load`、`.idma.dat` ロード直前)
+5. `.idma.dat` をロード
+6. `now_stamp()` で記録 (`event_kick`、kick 直前)
+7. `gpfn3_kick_inst_dma` で IDMA kick
+8. IDMA_STAT (PIO 0x018) を busy-poll し、kick 反映 (`n_dma`/`inst_in_ibuf` > 0) → 完了 (bits[20:0]=0) を待つ
+9. WD 番号が指定されていれば、BAR2 0x70 (WDBIT_PCIe) を busy-poll し、各 WD が 1→0 に落ちるたびに `now_stamp()` で記録
+10. arm した Capture の snapshot を `gpfn3_capture_read` で読み出す (`close_device` の前)
+11. デバイスを close し、記録した内容を stdout に出力 (`0xLL`=load、`0xKK`=kick、`0xNN`=WD N 解除の順)
+
+### 命令カウントの仕組み
+
+`now_stamp()` は `inst`/`all_nop` を、次の 2 回の**独立した** PIO 呼び出しで取る。
+
+```c
+gpfn3_capture_get_inst(dev, inst);       /* 覗き 1 回目 */
+gpfn3_capture_get_all_nop(dev, all_nop); /* 覗き 2 回目 (別の PIO 呼び出し) */
+```
+
+同時に 1 回で取れているわけではなく、1 行目を読んでから 2 行目を読むまでの間にも chip 側のカウンタは進み続ける。`inst`/`all_nop` とも、何かを初期化・開始させる操作ではなく、既に動いているカウンタの現在値を読むだけ (「即時のカウンタ取得」)。
+
+### 分かっていないこと (実機で実測、確認依頼中)
+
+- `inst`/`all_nop` がいつからカウントし始めるか。`gpfn3_reset_device` がこのカウンタを 0 に戻す保証はコードから読み取れない
+- `all_nop` は kick 前後のアイドル区間でも一定速度で増え続けており、このカーネル固有の nop 数ではなく chip 側の背景カウンタに見える (実測では絶対値が数十億〜百億のオーダー)
+- Capture B/C/D/E の threshold と実際の発火に対応が見えない。複数同時に arm すると異なるスロットが同一の値を返すことがある
+- snapshot 内の `tag[N]` (N=1..255) が WD 番号と対応していない (同じ N でも全く別のカーネル実行で同じ値が出る)
+- `mnc2_capture_set_trigger` の threshold は、arm 時点で既に累積 `inst` が超えている場合にどう振る舞うか未検証 (このカウンタ自体が reset で 0 に戻らない可能性があるため)
+
+実行例は実機 (pod) が必要なため今後の課題。
+
+## repeat-idma でのあふれの観測
+
+```
+repeat-idma PATH.idma.dat MAX_COUNT [--full-reset] [--no-reset]
+```
+
+同じ命令列を連続で kick し、毎回 IDMA_STAT (PIO 0x018) を読んで overflow (bit 21) が
+立つまで続ける。何個目で立つか、そのとき `n_dma` と `inst_in_ibuf` がいくつかを見るための
+ツール。`MAX_COUNT` は overflow が立たないまま回り続けないための上限。
+
+### なぜ要るか
+
+host 側が IDMA にできることは「キューがあふれないように要求を出す」ことだけだが、
+何個で、どちらがあふれるのかが分かっていない。資料の記述も揃っていない。
+
+- `n_dma` は 5 bit なので上限 31、`inst_in_ibuf` は 13 bit なので上限 8191
+- bit 21 の overflow が、キューのあふれと命令バッファのあふれのどちらで立つのかが
+  資料によって食い違っている
+
+### リセットについて
+
+**既定では `gpfn3_reset_device` を使わない。** このツールは意図的にキューを埋めるので、
+DMA キューに残留がある状態を作る。`gpfn3_reset_device` はその状態で上限のない命令
+カウンタ待ちに入り、戻ってこないことがある (`reset --explain` の case (b))。
+
+代わりに SPI-A リセット (PIO 0x050 の `SPIA_MODULE | DMAQ_CLEAR | FRB_RESET`) を、
+開始時と終了時の両方で打つ。PIO 書き込みだけなので必ず戻り、`DMAQ_CLEAR` がキューを掃除する。
+終了時にも打つのは、overflow の状態とキューの残留を次の実行に持ち越さないため。
+
+`--full-reset` を付けると `gpfn3_reset_device` を使うが、上記の理由で戻らなくなる場合がある。
+
+### 出力
+
+1 kick 1 行。`#` で始まる行はヘッダと集計。
+
+```
+# kernel: _build/nop_x8192.idma.dat (1398144 bytes)
+# max_count: 200
+# reset: SPI-A (PIO 0x050)
+# idx kick_rc n_dma inst_in_ibuf overflow
+0 0 1 0 0
+1 0 2 0 0
+...
+# kicked: 38
+# stopped: overflow at idx=37
+# max n_dma: 31
+# max inst_in_ibuf: 8191
+# idle wait: idle (IDMA_STAT=0x0000000000000000)
+# final reset: OK
+```
+
+kick の戻り値も毎行出している。overflow が立った後に kick がエラーを返すのか、黙って
+受けるのかが分かっていないため。
+
+### 命令列の用意
+
+`gen_nop.py` で `nop` を任意の個数並べた `.vsm` を作れる。生成結果は `data/` にコミット済みで、
+ビルドはそれを assemble するだけ。別の大きさを試すときにスクリプトを回して、出力を
+コミットし直す。
+
+```
+python3 gen_nop.py 8192 data/nop_x8192.vsm
+ninja
+```
+
+コミット済みの 3 サイズと、assemble 後の実測サイズ:
+
+| vsm | nop 行数 | `.idma.dat` |
+|---|---|---|
+| `data/nop_x64.vsm` | 64 | 11008 B |
+| `data/nop_x1024.vsm` | 1024 | 174848 B |
+| `data/nop_x8192.vsm` | 8192 | 1398144 B |
+
+1 行あたり約 170.7 B。
+
+### 使い方
+
+IDMA_STAT をツールの外から確認したいときは `u01-mmap` の `pio-read` を使う。
+
+```
+ninja -C ../u01-mmap install         # pio-read / pio-write / pio を ../bin に
+ninja                                # repeat-idma をビルド
+
+./_build/repeat-idma _build/nop_x8192.idma.dat 200
+./_build/repeat-idma _build/nop_x1024.idma.dat 200
+./_build/repeat-idma _build/nop_x64.idma.dat   200
+
+../bin/pio-read 0x018                # IDMA_STAT を独立に確認
+```
+
+実機専用。エミュレータは IDMA のキューも命令バッファもモデル化しておらず、kick した命令を
+その場で実行するだけなので、あふれは再現しない。
 
 ## descriptor フォーマット (write-DM / read-DM)
 

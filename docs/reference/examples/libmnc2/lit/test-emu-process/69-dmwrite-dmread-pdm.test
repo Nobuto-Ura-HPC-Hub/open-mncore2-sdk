@@ -1,0 +1,2 @@
+# PDM 上の並びの変化を emu:process で検証する。 emu:lib と同じ結果になるか。
+# RUN: ninja -C %examples/69-dmwrite-dmread-pdm test-emu

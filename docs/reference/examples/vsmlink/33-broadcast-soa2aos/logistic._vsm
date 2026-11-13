@@ -1,0 +1,50 @@
+# 計算部分 (差し替え可能): ロジスティック写像
+#
+# 骨格側の約束は rotate._vsm と同じ。計算部分を差し替えられることの確認用に置いてある。
+#
+# x' = 4*x*(1-x)    値は [0,1] に収まる
+# y' = 4*y*(1-y)
+# z' = z
+#
+# rotate と違い**カオス的**なので、丸め誤差が指数的に増幅する。タイムステップを増やすと
+# ホストの倍精度計算と乖離していく。これは欠陥ではなく、リアプノフ発散が実際に観測できる
+# という点でむしろ有用である (N 体のアプリが位置照合を先頭の数タイムステップに
+# 限っている理由が、ここで目に見える形になる)。
+#
+# 4 は broadcast で読んだ他粒子の z を使う (初期値で z[i] = 4.0 を全粒子に入れておく)。
+# こうすることで、この計算でも broadcast が効いていることを確認できる。
+#
+	# 演算の 2 入力は別のメモリ系統から取る (LM1 同士だと `lm1` と `in_lm1` の
+	# 命令フィールドが衝突して assemble3 が拒否する)。
+	#
+	# 定数 1.0 は $lr14 に置く。broadcast の着地 ($lr16..22) とも、結果の置き場 ($lr0..4)
+	# とも重ならない位置を選ぶ。
+	imm f"1.0" $r14
+	nop/4
+	# 1 - x    (GRF0 - LM0)
+	dvadd $lr14 -$lm0 $ln0
+	nop/2
+	# x*(1-x)    (LM0 * LM1)
+	dvmulu $lm0 $ln0 $nowrite
+	dvfmad $lm0 $ln0 $mauf $ls0
+	nop/2
+	# r*x*(1-x)    ($lr20 = broadcast の z = 係数。LM2 * GRF0)
+	dvmulu $ls0 $lr20 $nowrite
+	dvfmad $ls0 $lr20 $mauf $lr0
+	nop/2
+	# 1 - y
+	dvadd $lr14 -$lm2 $ln2
+	nop/2
+	# y*(1-y)
+	dvmulu $lm2 $ln2 $nowrite
+	dvfmad $lm2 $ln2 $mauf $ls2
+	nop/2
+	# r*y*(1-y)
+	dvmulu $ls2 $lr20 $nowrite
+	dvfmad $ls2 $lr20 $mauf $lr2
+	nop/2
+	# 書き戻し
+	lpassa $lr0 $lm0
+	nop/24
+	lpassa $lr2 $lm2
+	nop/24

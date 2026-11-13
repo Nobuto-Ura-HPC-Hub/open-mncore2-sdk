@@ -77,6 +77,7 @@ examples から直接使うことはない。
 | 51-wd-zero | 8 doubles | WD=0 無条件 DMA 開始の検証 1 点だけ |
 | 46-debug-write | 4 u64 × 6 region | `mnc2_debug_write` / `mnc2_debug_read` API 単体の roundtrip |
 | 47-debug-read-write | 8 PE (MAB0-1 × PE0-3) | `debug_write` + msl カーネル + `debug_read` 統合デモ |
+| 68-dmwrite-dmread | 8 PE (MAB0-1 × PE0-3) | dmwrite / dmread の添字の交換は MAB 内 4 PE で閉じるので、MAB を 2 つ見れば MAB をまたがないことまで確認できる (PDM 経由で 4096 PE 全部を使うのは 69) |
 | 27-mv-1a ~ 42-mv-15 (16 個) | 64 要素 | MV 命令パターン (scatter / gather / broadcast / distribute / reduce) の機能検証 |
 
 ### 見た目は小さいが実態は全 4096 PE
@@ -134,7 +135,7 @@ l2bmb が 1 回で運ぶ 64 u64 を組で埋めきれば mvb 1 個 + l2bmb 1 個
 - `?` = 要議論 (harness 修正で対応可能かもしれない / pod 実績で未確定)
 
 この列は **動作可否 (ground truth)** を示すもので、現状の test suite 構成とは
-必ずしも一致しない。ズレは整理すべき箇所 (`priorities.md` のぬけおち checklist 参照)。
+必ずしも一致しない。ズレは整理すべき箇所。
 
 | # | ディレクトリ | 内容 | emu:process | emu:lib | device |
 |---|---|---|:-:|:-:|:-:|
@@ -205,18 +206,20 @@ l2bmb が 1 回で運ぶ 64 u64 を組で埋めきれば mvb 1 個 + l2bmb 1 個
 | 65 | 65-nbody-like/ | distribute と broadcast の対比 (f64 nbody like、質量積) | ✓ | ✓ | ✓ |
 | 66 | 66-broadcast-l1bmp/ | broadcast の正: l1bmp + v + /1000 で全 4096 PE が同値 | ✓ | ✓ | ✓ |
 | 67 | 67-l1bmp-2u64/ | l1bmp の 1 u64 版 / 2 u64 版の L1BM 位置とレジスタの対応を実測 (観察型) | ✓ | ✓ | ✓ |
+| 68 | 68-dmwrite-dmread/ | dmwrite / dmread で MAB 内の PE 番号と語番号を交換 (行列レジスタ経由。行列の転置ではない) | ✗ | ✓ | ✗ |
+| 69 | 69-dmwrite-dmread-pdm/ | 68 と同じ交換を PDM 経由で。 host から見た PDM 上の並びの変化を示す | ✓ | ✓ | ✓ |
 
-### 集計 (2026-07-19 現状、 example 67 本)
+### 集計 (2026-08-03 現状、 example 69 本)
 
 | backend | ✓ | ✗ | ? |
 |---|---|---|---|
-| emu:process | 53 | 14 | 0 |
-| emu:lib | 67 | 0 | 0 |
-| device | 64 | 3 | 0 |
+| emu:process | 54 | 15 | 0 |
+| emu:lib | 69 | 0 | 0 |
+| device | 65 | 4 | 0 |
 
 ### 分類の根拠
 
-- **emu:process ✗** (14 個): カーネル間 state 保持が必要なテスト、および
+- **emu:process ✗** (15 個): カーネル間 state 保持が必要なテスト、および
   emu:process suite に `.test` が無いテスト。emu:process (`gpfn3_package_main`)
   は kernel 呼び出しごとに独立プロセスで state 引き継ぎが出来ないため、
   連続カーネル実行の検証ができない
@@ -225,10 +228,13 @@ l2bmb が 1 回で運ぶ 64 u64 を組で埋めきれば mvb 1 個 + l2bmb 1 個
   - 56-59 bench: repeat-add カーネルの state 累積
   - 05 debug-read, 46 debug-write, 47 debug-read-write: API 自体は emu:process
     でも呼べるが、emu:lib suite にしか `.test` が無いので現状 ✗
-- **device ✗** (3 個): `mnc2_debug_read` / `mnc2_debug_write` API をテスト
-  対象にしているもの (05, 46, 47)。API 仕様上 HW には対応機構が無い。
-  05/46/47 はテスト対象が emu-only API そのものなので「emu-only な test」と
-  して残す (= device suite に .test を入れない)
+  - 68 dmwrite-dmread: driver が emu:lib の debug_write/read モデルを前提にしており、
+    emu:process 用の分岐 (カーネル再実行を挟む形) を持たない
+- **device ✗** (4 個): `mnc2_debug_read` / `mnc2_debug_write` API をテスト
+  対象にしているもの (05, 46, 47)、および値の設定と読み出しに同 API を使うもの
+  (68)。API 仕様上 HW には対応機構が無い。これらはテスト対象または検証手段が
+  emu-only API そのものなので「emu-only な test」として残す
+  (= device suite に .test を入れない)
 - **07-12 put-X の device 対応** (2026-04-15 追加): 元々は verify に
   `mnc2_debug_read` を使っていて device で動かなかったが、各 example に
   `data/peek_*.vsm` + build.ninja の 3 段 pipeline (run-put-device →

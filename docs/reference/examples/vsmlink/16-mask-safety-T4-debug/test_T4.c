@@ -17,8 +17,11 @@
  * Verification: mnc2_debug_read で GRF0 から r16/r18 を直接読み出す。
  * @collect 不要のため wd タグ衝突なし。r16 と r18 の両方を検証可能。
  *
- * 注意: debug_read 未対応バックエンド (emu:lib 等) では SKIP になる。
- *       実機または debug_read 対応バックエンドで ALL PASS を確認すること。
+ * 注意: debug_read 未対応バックエンドでは SKIP になる。判定は最初のケースの中で行う
+ *       (debug_read はカーネル実行後に読むものなので、本番のケースの exec で兼ねる。
+ *       入力と flag を送らずに exec すると、kernel の flag2 の送信完了待ちが解けない)。
+ *       GRF0 の debug_read は emu:lib と emu:process で使え、実機は対応しない
+ *       (libmnc2 の api-reference.md の「対応メモリ領域」)。実機では SKIP になる。
  *
  * PDM layout (T4.param):
  *   slot 8:  input  [0..4095]       — stencil source
@@ -54,6 +57,9 @@
 
 /* imm i"N" $r24 (even register) puts N in HIGH 32 bits → actual value = N<<32 */
 #define V(n) ((uint64_t)(n) << 32)
+
+/* run_test の戻り値: PE 0 の debug_read が失敗した (バックエンドが未対応) */
+#define RUN_UNSUPPORTED (-1)
 
 /* MN-Core 2 topology */
 #define N_PE_PER_MAB  4
@@ -131,8 +137,10 @@ static int run_test(mnc2_device_t dev, mnc2_kernel_t kernel,
         rc = mnc2_debug_read(dev, MNC2_MEM_GRF0, &loc,
                              GRF0_ADDR_R16, 1, &val16);
         if (rc != MNC2_SUCCESS) {
-            if (i == 0)
+            if (i == 0) {
                 fprintf(stderr, "FAIL [%s]: debug_read r16 PE0: %d\n", label, rc);
+                return RUN_UNSUPPORTED;
+            }
             return 1;
         }
 
@@ -226,35 +234,23 @@ int main(void)
         return 1;
     }
 
-    /* debug_read smoke test: exec_kernel してから read して backend 対応を確認 */
-    {
-        int rc = mnc2_exec_kernel(kernel);
-        if (rc != MNC2_SUCCESS) {
-            fprintf(stderr, "FAIL: exec_kernel (smoke): %d\n", rc);
-            mnc2_free_kernel(kernel);
-            mnc2_free_host_buffer(dev, sendbuf, ELEM_BYTES);
-            mnc2_close(dev);
-            return 1;
-        }
-        mnc2_loc_t loc0 = MNC2_LOC_INIT;
-        uint64_t test_val;
-        rc = mnc2_debug_read(dev, MNC2_MEM_GRF0, &loc0, 0, 1, &test_val);
-        if (rc != MNC2_SUCCESS) {
-            printf("SKIP: debug_read not supported on this backend (rc=%d)\n", rc);
-            printf("  Use emu:process or real hardware.\n");
-            mnc2_free_kernel(kernel);
-            mnc2_free_host_buffer(dev, sendbuf, ELEM_BYTES);
-            mnc2_close(dev);
-            return 0;
-        }
-    }
-
     int fail = 0;
     /*                                flag1 flag2  r16    r18    label */
-    fail += run_test(dev, kernel, sendbuf, 1, 1,  V(5), V(1), "f1=T,f2=T");
-    fail += run_test(dev, kernel, sendbuf, 1, 0,  V(9),    0, "f1=T,f2=F");
-    fail += run_test(dev, kernel, sendbuf, 0, 1,  V(6),    0, "f1=F,f2=T");
-    fail += run_test(dev, kernel, sendbuf, 0, 0, V(10),    0, "f1=F,f2=F");
+    /* 最初のケースで debug_read の対応を判定する (PE 0 で失敗したら SKIP) */
+    int r = run_test(dev, kernel, sendbuf, 1, 1,  V(5), V(1), "f1=T,f2=T");
+    if (r == RUN_UNSUPPORTED) {
+        printf("SKIP: debug_read not supported on this backend\n");
+        printf("  Use emu:process or real hardware.\n");
+        mnc2_free_kernel(kernel);
+        mnc2_free_host_buffer(dev, sendbuf, ELEM_BYTES);
+        mnc2_free_host_buffer(dev, bfbuf, BF_BYTES);
+        mnc2_close(dev);
+        return 0;
+    }
+    fail += (r != 0);
+    fail += (run_test(dev, kernel, sendbuf, 1, 0,  V(9),    0, "f1=T,f2=F") != 0);
+    fail += (run_test(dev, kernel, sendbuf, 0, 1,  V(6),    0, "f1=F,f2=T") != 0);
+    fail += (run_test(dev, kernel, sendbuf, 0, 0, V(10),    0, "f1=F,f2=F") != 0);
 
     mnc2_free_kernel(kernel);
     mnc2_free_host_buffer(dev, sendbuf, ELEM_BYTES);

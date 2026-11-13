@@ -6,7 +6,7 @@
 // ping-pong の向き（data_in / data_out の割り当て）だけ even と逆にする（.param 参照）。
 // 両端 (PE 0 と PE 4095) は例 10 と同じく boundary_flags の clamp で self 比較となり swap しない。
 //
-// data_in:    in  (このフェーズの入力配列。 distribute / neighbor が読む)
+// data_in:    in  (このフェーズの入力配列。 distribute / load_neighbor が読む)
 // data_out:   out (1 フェーズ後の配列。 collect 先)
 // swap_flags: out (PE ごとの swap 有無 0.0/1.0。 reduce kernel が読み直して集計する)
 __kernel void odd_even_sort_gid_odd(__global double* data_in,
@@ -14,8 +14,8 @@ __kernel void odd_even_sort_gid_odd(__global double* data_in,
                                     __global double* swap_flags) {
     long id = get_global_id(0);
     double self  = distribute(data_in);
-    double right = neighbor(data_in, 1);
-    double left  = neighbor(data_in, -1);
+    double right = load_neighbor(data_in, 1);
+    double left  = load_neighbor(data_in, -1);
     double is_left = ((id & 1) != 0) ? 1.0 : 0.0;   // 奇数 PE がペアの左メンバ
 
     double left_swap;

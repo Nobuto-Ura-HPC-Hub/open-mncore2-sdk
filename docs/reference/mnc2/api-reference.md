@@ -1,4 +1,4 @@
-# libmnc2 C API リファレンス (0.4.1)
+# libmnc2 C API リファレンス (0.4.3)
 
 vsm-linker / MNCL 層から呼ばれるホストフレームワークの C API 一覧。
 
@@ -13,7 +13,7 @@ vsm-linker やアプリケーションコードはバックエンドの違いを
 mnc2_device_t dev = mnc2_open(0);
 
 mnc2_send(dev, buf, offset, size, send_wait_tag);
-mnc2_exec_kernel(dev, kernel);
+mnc2_exec_kernel(kernel);
 mnc2_recv(dev, buf, offset, size, recv_wait_tag);  // emu では auto-flush
 mnc2_close(dev);
 ```
@@ -49,14 +49,14 @@ SDK kit では emu 統合ビルドの `libmnc2.a` を提供する。
 
 | 環境変数 | 必須 | 内容 |
 |---------|------|------|
-| `MNC2_EMU_CONFIG` | emu のみ | 下記参照 |
+| `MNC2_EMU_CONFIG` | emu:process のみ | 下記参照 |
 
 ### MNC2_EMU_CONFIG の詳細
 
 | バックエンド | 値 | 備考 |
 |---|---|---|
 | emu:process | エミュレータ設定 JSON のパス | `gpfn3_package_main -c` に渡される。`config_pdm0.json` 等 |
-| emu:lib | 任意の非空文字列 | 存在チェックのみ。値は使用しない。`dummy` で動作する |
+| emu:lib | (不要) | 設定しても使わない |
 | 実機 | (不要) | 設定しても無視される |
 
 emu:process では `gpfn3_package_main` が PATH に存在すること。
@@ -67,7 +67,8 @@ emu:process では `gpfn3_package_main` が PATH に存在すること。
 |---|---|---|
 | `mnc2_send` | DDMA | kick + **完了 wait** (sync) |
 | `mnc2_recv` | DDMA | kick + 完了 wait (sync) |
-| `mnc2_exec_kernel` | IDMA | kick + kick 反映確認のみ (**async**) |
+| `mnc2_exec_kernel` | IDMA | kernel の全片が積めるなら kick、積めなければ `MNC2_ERROR_BUSY` (**async**、待たない) |
+| `mnc2_exec_kernel_blocking` | IDMA | 全片を kick し (キューが `idma_queue_limit` に達していれば空くのを待つ)、その後キューの残りが引数 `limit` 以下になるまで待つ (命令バッファの実行完了は待たない) |
 | `mnc2_free_kernel` | IDMA | idle wait + buffer 解放 (sync) |
 
 DDMA 系 (`send` / `recv`) は呼び出しごとに完了同期する。 連続 send で同じ buffer や regset を共有しても race にならない。
@@ -95,8 +96,20 @@ int mnc2_wait_idma_idle(mnc2_device_t dev);
 
 `mnc2_exec_kernel`:
 - exec 後、 `free_kernel` を呼ぶまで kernel data を変更しない
-- 連続 exec する場合 IDMA queue depth (31) を超える前に `mnc2_wait_idma_idle` で drain してもよい
-- **効率的な待ち方**: `mnc2_wait_idma_idle` は queue が空になるまで待つため、連続 exec のたびに挟むと queue が毎回空になり、深さ 31 の並列性が途切れて効率が落ちる。効率を保つには、`mnc2_get_idma_stat` で現在のキュー長を確認し、深さ 31 に対して空きができ次第に次を積む。`mnc2_wait_idma_idle` は、実行順に依存関係があるときの同期や、最後にすべてを完了させる用途に使う
+- **キューが一杯なら `MNC2_ERROR_BUSY` が返る。ライブラリは待たない。** 連続 exec するときは
+  この戻り値を見て、`mnc2_wait_idma_idle` で掃くか、`mnc2_get_idma_stat` でキュー長を見て
+  空きができてから積み直す
+- kernel が複数の片に分かれている場合 (下記「カーネル実行」)、`mnc2_exec_kernel` は全片が
+  収まるときだけ積む。片数そのものが閾値を超える kernel は `MNC2_ERROR_QUEUE_LIMIT` を返す
+  (やり直しても通らない)。そのような kernel は `mnc2_exec_kernel_blocking` で積む
+- `mnc2_exec_kernel_blocking` はキューの空きと、戻るときのキューの残り数 (`limit`) を待つが、kernel の
+  完了は待たない。kernel 内の `wait` が待つ `mnc2_send` は、この関数を呼ぶ前に済ませておく (後にすると、
+  exec 内の待ちと send が互いを待つ。待ちの上限で `MNC2_ERROR_TIMEOUT` になる)
+- **HW のキュー深さ 31 まで積んではいけない。** `n_dma` は 5 bit で 31 の次が 0 に戻り、
+  そこまで積むと数え方が壊れて idle に戻らなくなることを実機で確認している。この状態に入ると
+  `mnc2_wait_idma_idle` は成功しなくなる。ライブラリは既定 16 で断る (`mnc2_set_idma_queue_limit`
+  で変更可)
+- **効率的な待ち方**: `mnc2_wait_idma_idle` は queue が空になるまで待つため、連続 exec のたびに挟むと queue が毎回空になり、並列性が途切れて効率が落ちる。効率を保つには、`mnc2_get_idma_stat` で現在のキュー長を確認し、空きができ次第に次を積む。`mnc2_wait_idma_idle` は、実行順に依存関係があるときの同期や、最後にすべてを完了させる用途に使う
 - 複数 kernel を並列 exec すると `free_kernel` は「全 IDMA が idle」 を待つので、 特定 kernel A の終了は保証しない (caller が直列化)
 
 ### 内部 max iter (PIO read 回数の上限)
@@ -105,10 +118,29 @@ int mnc2_wait_idma_idle(mnc2_device_t dev);
 |---|---|---|---|
 | `ddma_kick_verify_max_cnt` | DDMA kick 反映確認 (= send / recv 内部) | 100 | `mnc2_{get,set}_ddma_kick_verify_max` |
 | `ddma_complete_max_cnt` | DDMA 完了 (= send / recv / `mnc2_wait_ddma_idle`) | 2000 | `mnc2_{get,set}_ddma_complete_max` |
-| `idma_kick_verify_max_cnt` | IDMA kick 反映確認 (= exec_kernel 内部) | 100 | `mnc2_{get,set}_idma_kick_verify_max` |
 | `idma_complete_max_cnt` | IDMA idle (= free_kernel / `mnc2_wait_idma_idle`) | 5000 | `mnc2_{get,set}_idma_complete_max` |
 
 これらは適当な値で、 将来「実機計測 → 倍にする」 or 「time-based」 への差し替えが望ましい。
+
+### IDMA キューの上限 (`idma_queue_limit`)
+
+| 名前 | 意味 | default | settable API |
+|---|---|---|---|
+| `idma_queue_limit` | IDMA キューに積んでよい片数の上限 (`n_dma` と比べる) | 16 | `mnc2_{get,set}_idma_queue_limit` |
+
+上の表と違い、PIO read の回数ではなく `n_dma` の値そのものと比べる数である。
+HW のキューは深さ 31 だが、HW は溢れを自分で防げず、31 を超えて積むと `n_dma` が一周して idle に戻らなくなる
+(実機で確認)。そのためライブラリがキューの上限 `idma_queue_limit` を定めて、手前で止める。
+既定の 16 は 31 に対して余裕を取った値で (kick 直後の `n_dma` の読み値が反映前で実際より少なく見えることへの
+余裕を含む)、`mnc2_set_idma_queue_limit` で 1 から 31 の範囲で変更できる (範囲外は `MNC2_ERROR_PARAM` で値を変えない。
+0.4.3 から。それ以前は検査していなかった)。
+
+この値から次の 3 つが決まる。
+
+- 待たない版 `mnc2_exec_kernel` が返すエラー: 片数がこの値を超える kernel は `MNC2_ERROR_QUEUE_LIMIT`、
+  今のキューの数と片数の合計がこの値を超えるなら `MNC2_ERROR_BUSY`
+- 待つ版 `mnc2_exec_kernel_blocking` が kick の途中で待つ条件: キューがこの値に達したら減るのを待つ
+- 待つ版の引数 `limit` の範囲: 0 からこの値まで (`limit` の意味は下記「カーネル実行」)
 
 ## API 一覧
 
@@ -120,7 +152,7 @@ void mnc2_close(mnc2_device_t dev);
 ```
 
 - `mnc2_open()`: リンクされた libgpfn3.so に対応する backend でデバイスをオープン
-  - emu バックエンドでは `MNC2_EMU_CONFIG` がセットされている必要がある
+  - emu:process では `MNC2_EMU_CONFIG` (エミュレータ設定 JSON のパス) が設定されている必要がある。読むのは emu:process の `libgpfn3.so` で、libmnc2 自身は確認しない
   - 作業ディレクトリは `mkdtemp()` で自動生成され、`mnc2_close()` で自動削除される
 - `mnc2_close()`: デバイスを閉じ、リソースを解放
 
@@ -130,6 +162,7 @@ int mnc2_reset(mnc2_device_t dev);
 
 - デバイス状態をリセット (`gpfn3_reset_device` を呼ぶ)
 - 主用途: `mnc2_recv` の timeout 等で DMA queue に中途半端な DMA 設定が残った状態を解消し、次のテスト / 処理の前に clean state に戻す
+- DMA タグの完了を記録する flag も消える (下記「DMA タグの指定」の「タグの規則」)。前のプログラムが flag を残した疑いがあるときに使う。自分が立てた flag の後始末の代わりには使わない
 - emu backend では no-op で `MNC2_SUCCESS` を返す (state 引き継ぎが無い / emu:lib は現状 reset 相当の機能を公開していない)
 - **PDM メモリ内容は保持される** (リセット対象は DMA queue と HW 制御レジスタ等、PDM コンテンツではない)
 - 戻り値: `MNC2_SUCCESS` / `MNC2_ERROR_IO` (gpfn3_reset_device 失敗) / `MNC2_ERROR_PARAM` (dev が NULL)
@@ -174,14 +207,15 @@ int mnc2_get_ddma_kick_verify_max(mnc2_device_t dev);
 int mnc2_set_ddma_kick_verify_max(mnc2_device_t dev, int cnt);
 int mnc2_get_ddma_complete_max   (mnc2_device_t dev);
 int mnc2_set_ddma_complete_max   (mnc2_device_t dev, int cnt);
-int mnc2_get_idma_kick_verify_max(mnc2_device_t dev);
-int mnc2_set_idma_kick_verify_max(mnc2_device_t dev, int cnt);
+int mnc2_get_idma_queue_limit(mnc2_device_t dev);
+int mnc2_set_idma_queue_limit(mnc2_device_t dev, int limit);
 int mnc2_get_idma_complete_max   (mnc2_device_t dev);
 int mnc2_set_idma_complete_max   (mnc2_device_t dev, int cnt);
 ```
 
-- 内部 4 つの max iter (上記の表) の get / set
+- 内部の max iter と閾値 (上記の表) の get / set
 - `set_*` の戻り値は変更前の値、`get_*` の戻り値は現在値、`dev` が NULL のとき `-1`
+- `mnc2_set_idma_queue_limit` は範囲 1 から 31 の外を `MNC2_ERROR_PARAM` で断り、値を変えない
 - 主用途: タイムアウトが短すぎる場合の調整、 またはテストでの意図的タイムアウト誘発
 
 ### DMA バッファ管理
@@ -254,18 +288,107 @@ ENDIAN_CTRL 値の意味:
 mnc2_kernel_t mnc2_load_kernel(mnc2_device_t dev, const char* path);
 void           mnc2_free_kernel(mnc2_kernel_t kernel);
 int            mnc2_exec_kernel(mnc2_kernel_t kernel);
+int            mnc2_exec_kernel_blocking(mnc2_kernel_t kernel, int limit);
+size_t         mnc2_get_kernel_piece_size(mnc2_device_t dev);
+int            mnc2_set_kernel_piece_size(mnc2_device_t dev, size_t bytes);
+int            mnc2_kernel_get_piece_count(mnc2_kernel_t kernel);
 ```
 
 - `mnc2_load_kernel()`: カーネルバイナリをファイルから読み込む。**デバイス非依存** (OpenCL の `clCreateKernel` と同様の設計)
 - `path`: `.idma.dat` (バイナリ) に統一
 - **emu:process バックエンド**: `path` が `.idma.dat` で終わる場合、対応する `.asm` ファイルを自動検索して読み込む。`.asm` が見つからなければ WARNING を出して NULL を返す。emu:lib 選択時はこの変換をスキップし `.idma.dat` をそのまま読む
-- **カーネルサイズの制約**: `mnc2_load_kernel()` はカーネルバイナリのサイズ分だけ、連続した DMA 用メモリを確保する。カーネルが非常に大きい場合、連続領域を確保できずに NULL を返すことがある。確保できる上限は固定値ではなく、実行環境のメモリの空き状況と断片化に依存する（環境ごとに変わる）。この確保失敗で NULL を返す場合、戻り値は NULL のみで失敗理由は示さない
-- `mnc2_free_kernel()`: `exec_kernel` 後であればいつでも呼べる (内部で IDMA idle まで wait してから解放するので race なし)。カーネルオブジェクトのライフサイクルはデバイスと独立
+- **片への分割 (実機と emu:lib)**: `mnc2_load_kernel()` はカーネルバイナリを `mnc2_get_kernel_piece_size()` の大きさ (既定 4 MiB) の片に分け、片ごとに連続した DMA 用メモリを確保する。片の境界は 128 byte (1024 bit 命令語) の倍数で、命令語の境界ならどこで分けてもよい (根拠は開発者マニュアル 3.6.1.15、3.6.5、3.6.6 の命令キューとフォワーディングの記述)。片の数は `mnc2_kernel_get_piece_count()` で分かる。片の大きさは `mnc2_set_kernel_piece_size()` で変えられる (128 以上の 2 の冪乗。それ以外は `MNC2_ERROR_PARAM`。他の `set_*` と違い戻り値は `MNC2_SUCCESS` / エラーで、旧値は get で読む)。emu:process は分割せず常に 1 片
+- **確保失敗**: 片 1 つ分の連続領域が確保できないと NULL を返す。片 1 つに確保できる上限は 4 MiB (2026-11-08 に実機で確認。8 MiB 以上は確保できない)。既定の片 4 MiB はこの上限に合わせたもの。空き状況によっては 4 MiB 以下でも失敗しうる。失敗の理由は stderr には出さず、`mnc2_get_exec_stats()` の `load_alloc_failures` / `last_alloc_fail_bytes` / `last_alloc_fail_piece` に残す
+- `mnc2_free_kernel()`: `exec_kernel` 後であればいつでも呼べる (内部で IDMA idle まで wait してから全片を解放するので race なし)。カーネルオブジェクトのライフサイクルはデバイスと独立
+
+#### `mnc2_exec_kernel()` の戻り値 (待たない版)
+
+| 戻り値 | 意味 |
+|---|---|
+| `MNC2_SUCCESS` | 全片を IDMA に積んだ (完了は待っていない) |
+| `MNC2_ERROR_QUEUE_LIMIT` | 片数が `idma_queue_limit` を超えていて、キューに収まらない。やり直しても通らない。`mnc2_exec_kernel_blocking` を使う |
+| `MNC2_ERROR_BUSY` | IDMA キューの空きに全片が収まらない。何も積んでいない。掃けてから呼び直す |
+| `MNC2_ERROR_PIO` | キューの空き確認 (IDMA_STAT の読み出し) に失敗 |
+| `MNC2_ERROR_DMA` | kick 自体に失敗 (失敗した片より前の片は積まれている) |
+| `MNC2_ERROR_KERNEL` | kernel ハンドルが不正 |
+| `MNC2_ERROR_DEVICE` | device ハンドルが不正 |
+
+**`MNC2_ERROR_BUSY` は失敗ではなく「今は積めない」という通知である。** 掃けてから同じ
+カーネルで呼び直せばよい。片が 1 つの kernel では 0.4.2 までと同じ振る舞いになる。
+
+**`mnc2_exec_kernel` は `MNC2_ERROR_TIMEOUT` (-5) を返さない。** 0.4.1 までは kick の後に
+IDMA が busy になるのを観測して「確かに開始した」を確認する仕組みがあり、観測できないと
+-5 を返していた。この確認は、観測した busy がどの kick に由来するか区別できず、また命令列が
+短いと正常なのに失敗を返すため 0.4.2 で廃止した。
+
+#### `mnc2_exec_kernel_blocking(kernel, limit)` の戻り値 (待つ版)
+
+全片を kick し、そのあと IDMA キューの残り (IDMA_STAT の `n_dma`) が `limit` 以下になるまで待って戻る。
+`limit` は「戻るときにキューに残っていてよい片数」で、0 から `idma_queue_limit` (既定 16) まで。0 はキューが
+空になるまで待つ。kick の途中でキューが `idma_queue_limit` に達したら、減るのを待ってから続きを kick する
+(待たない版が `MNC2_ERROR_BUSY` を返す場面で待つ)。`limit` が `idma_queue_limit` に等しいなら、最後の kick の
+後は待たない。
+
+例: `limit` = 1 で 3 片の kernel を、キューが空の状態から exec すると、3 片を続けて kick し (16 に届かない)、
+片 1 と片 2 の転送が終わって `n_dma` が 1 になったら戻る。片 3 はキューに残っている。
+
+キューが空になっても kernel の実行完了ではない (命令バッファに残っている分を PE が実行中でありうる)。
+実行完了を待つのは `mnc2_wait_idma_idle` (`n_dma` と `inst_in_ibuf` の両方が 0 になるまで待つ)。
+
+| 戻り値 | 意味 |
+|---|---|
+| `MNC2_SUCCESS` | 全片を IDMA に積み、キューの残りが `limit` 以下になった (実行完了は待っていない) |
+| `MNC2_ERROR_PARAM` | `limit` が負か `idma_queue_limit` より大きい。何も積んでいない |
+| `MNC2_ERROR_TIMEOUT` | 途中の空き待ちか最後の残り待ちが `idma_complete_max` (PIO read 回数) に達した。積んだ片はそのまま残る。積み残しがあるかは統計の `pieces_kicked` の差で分かる |
+| `MNC2_ERROR_PIO` | IDMA_STAT の読み出しに失敗 |
+| `MNC2_ERROR_DMA` | kick 自体に失敗 |
+| `MNC2_ERROR_KERNEL` | kernel ハンドルが不正 |
+| `MNC2_ERROR_DEVICE` | device ハンドルが不正 |
+
+積んである片数の見積りには、`n_dma` の読み値と「直前の見積り + 1」の大きい方を使う
+(kick 直後の読み値は反映前で少なく見えることがあるため)。待ちに入って 1 回以上 poll した
+あとは読み値を信じる。最後の残り待ちに入るかどうかも同じ見積りで決める。これは kick の反映に
+PIO 1 往復あれば足りるという仮定で、未検証である。
+
+**kernel 内の `wait` が待つ `mnc2_send` は、この関数を呼ぶ前に済ませる。** 後にすると、先頭の片が
+send を待って進まず、exec は空きを待ち、互いに待つ形になる (待ちの上限で `MNC2_ERROR_TIMEOUT`)。
+
+#### 実行の統計 (`mnc2_exec_stats_t`)
+
+```c
+#define MNC2_EXEC_STATS_VERSION 1
+typedef struct {
+    uint32_t version;                 /* = MNC2_EXEC_STATS_VERSION。先頭固定 */
+    uint64_t exec_calls;              /* mnc2_exec_kernel の呼び出し回数 */
+    uint64_t exec_busy;               /* mnc2_exec_kernel が MNC2_ERROR_BUSY を返した回数 */
+    uint64_t exec_queue_limit;        /* mnc2_exec_kernel が MNC2_ERROR_QUEUE_LIMIT を返した回数 */
+    uint64_t exec_blocking_calls;     /* mnc2_exec_kernel_blocking の呼び出し回数 */
+    uint64_t exec_blocking_waited;    /* blocking で待ちに入った回数 (kick 前の空き待ちか kick 後の残り待ち。呼び出し単位) */
+    uint64_t wait_polls;              /* 待ちで IDMA_STAT を読んだ回数の累計 */
+    uint64_t exec_blocking_timeouts;  /* 待ちが上限に達した回数 */
+    uint64_t pieces_kicked;           /* kick した片の累計 (両 API) */
+    uint32_t max_pieces_per_exec;     /* 1 回の exec で積んだ片の最大数 (両 API) */
+    uint32_t max_pieces_per_kernel;   /* load した kernel の片数の最大 */
+    uint64_t load_alloc_failures;     /* load_kernel で連続メモリの確保に失敗した回数 */
+    uint64_t last_alloc_fail_bytes;   /* 直近の失敗時の kernel 全体の大きさ (bytes) */
+    uint64_t last_alloc_fail_piece;   /* 直近の失敗時に確保しようとした片の大きさ (bytes) */
+} mnc2_exec_stats_t;
+
+int mnc2_get_exec_stats(mnc2_device_t dev, mnc2_exec_stats_t* out);
+int mnc2_clear_exec_stats(mnc2_device_t dev);
+```
+
+- デバイスごとの記録。`mnc2_open` から `mnc2_close` までの累計で、`mnc2_clear_exec_stats` で
+  0 に戻せる (`version` は保つ)
+- `mnc2_get_exec_stats` はコピーを `out` に書く。`MNC2_SUCCESS` / `MNC2_ERROR_DEVICE` /
+  `MNC2_ERROR_PARAM` (`out` が NULL)
+- exec と load_kernel は stderr に出力しない。何が起きたかは exec の後にこの API で読んで出す
 
 #### sync model (重要)
 
-`mnc2_exec_kernel` は **async** (IDMA kick の反映を確認するだけで kernel
-完了は待たない、並列性維持)。`mnc2_free_kernel` は **sync** (内部で 0x018
+`mnc2_exec_kernel` は **async** (kick 前にキューの空きを 1 回確認するだけで
+kernel 完了は待たない、並列性維持)。空きが無ければ積まずに `MNC2_ERROR_BUSY`
+を返し、掃けるのを待つことはしない。`mnc2_free_kernel` は **sync** (内部で 0x018
 IDMA_STAT を idle まで wait してから `gpfn3_free_dma_memory`)。詳細は
 「[DMA kick の sync model](#dma-kick-の-sync-model)」セクション参照。
 
@@ -518,7 +641,8 @@ void mnc2_async_release(mnc2_dma_handle_t handle);
 | `MNC2_ERROR_ENV` | -6 | 環境変数未設定 |
 | `MNC2_ERROR_PARAM` | -7 | パラメータ不正 |
 | `MNC2_ERROR_KERNEL` | -8 | カーネル不正 (magic check 失敗等) |
-| `MNC2_ERROR_BUSY` | -9 | pool の枯渇 (PDM Tag / WD / regset) |
+| `MNC2_ERROR_BUSY` | -9 | pool の枯渇 (PDM Tag / WD / regset)、IDMA キューの空き不足 (積んでいない) |
+| `MNC2_ERROR_QUEUE_LIMIT` | -10 | kernel の片数が `idma_queue_limit` を超え、キューに収まらない (やり直しても通らない) |
 
 ## バックエンド定数
 
@@ -554,7 +678,34 @@ vsm-linker が生成するカーネルでは通常 `0x10` を使用する（カ�
 
 - **`recv_wait_tag=0`**: 待ちなし。カーネル完了前にデータを読む可能性があるため、通常は使用しない
 
-**emu バックエンドでは `recv_wait_tag` は無視される**（auto-flush で全実行完了後に読み出すため）。
+**emu:process では `recv_wait_tag` は無視される** (PDM の写しを即座に読む)。emu:lib はタグを待ち、消費前の再利用を
+`double asserted PIU-DT done flag` のエラーで止める。
+
+
+### タグの規則
+
+タグの完了は device の中の flag で記録される。守らないと、待ちがすり抜けて結果が壊れるか、DMA がキューに残って以後の DMA が
+時間切れになる。
+
+1. タグの完了は **立っているか否か** で記録され、回数は数えない。消費される前に同じタグを再び立てても 1 つしか残らない。
+   emu:lib は recv の時点で `double asserted PIU-DT done flag` のエラーで止め、実機は 2 回目の待ちが始まらず DMA がキューに
+   残って以後の DMA が時間切れになる (復旧は `mnc2_reset`)。
+2. 立てる側と消費する側の対応。`mnc2_send(tag X)` が立てたもの (dma) は kernel の `wait iXX` が消費する。kernel のタグ付き MV
+   (タグを付けた mv 系命令) は kernel 自身の `wait iYY` が消費するもの (dt) を立て、PDM や L2BM が絡む MV はさらに
+   `mnc2_recv(tag Y)` が消費するもの (piu_dt) を立てる。両方で同じ番号を待っても干渉しない。立った flag は時間が経っても
+   消えず、`mnc2_close` / `mnc2_open` やプロセスの境界をまたいでも残る。
+3. 同じタグの再利用は、その経路で消費した後なら可。recv のタグは MV 1 回に recv 1 回 (`exec → recv → exec → recv` は可)。
+   1 本の kernel の中で、recv が消費する前に同じタグの MV を 2 回出してはならない (別のタグにするか、間に host との
+   待ち合わせを入れる)。
+4. **立てた flag は、そのプログラムが終わる前にすべて消費する。** (a) `mnc2_send(tag X)` を出したら、その kernel の `wait iXX` で
+   消費させる (残すと、次の kernel の `wait iXX` が自分の send を待たずに通る)。(b) タグ付き MV を出したら、そのタグを
+   `mnc2_recv` で消費する。kernel の内部同期にしか使わないタグ (MV の直後に kernel 自身が `wait` するもの) も、PDM や L2BM が絡む MV なら
+   recv 側の分 (piu_dt) が残るので、終わる前にそのタグの最小の recv (読む場所は回収済みの領域でよい) を出して消費する。
+   残した flag は、次に同じ device を使うプログラムの待ちをすり抜けさせ、結果を壊す。ライブラリは残った flag を検出しない。
+5. 前のプログラムが flag を残した疑いがあるときの手段は `mnc2_reset` (flag は消える。PDM の中身は消えない)。
+   自分の後始末の代わりには使わない。
+6. kernel の内部同期にしか使わないタグは、本体の recv には使わない (vsm-linker は `:reserved_wait_tag` で予約する)。
+   使うと 3 の形 (消費前の 2 回目) になりうる。
 
 
 ## vsm-linker からの典型的な呼び出しパターン
@@ -576,8 +727,8 @@ for (int step = 0; step < nsteps; step++) {
     // send_wait_tag はカーネルの wait タグと一致させる (vsm-linker 標準: 0x10)
     mnc2_send(dev, sendbuf, pdm_offset, size, 0x10);
 
-    // カーネル実行
-    mnc2_exec_kernel(dev, kernel);
+    // カーネル実行 (キューに空きが無ければ MNC2_ERROR_BUSY。戻り値を見る)
+    mnc2_exec_kernel(kernel);
 
     // PDM0 → Host (emu では auto-flush、エンディアン変換も自動)
     // recv_wait_tag はカーネルの collect 完了タグ (mnc2_kernel_get_dma_tags で取得)
@@ -591,6 +742,8 @@ for (int step = 0; step < nsteps; step++) {
 }
 
 // --- 後始末 ---
+// カーネルの内部同期のタグ (PDM や L2BM が絡む MV のうち recv に使わなかったもの) の flag は、
+// ここでそのタグの最小の recv を 1 回ずつ出して消費する (「タグの規則」4)。読む場所は回収済みの領域でよい
 mnc2_free_host_buffer(dev, sendbuf, size);
 mnc2_free_host_buffer(dev, recvbuf, size);
 mnc2_free_kernel(kernel);
@@ -618,18 +771,61 @@ vsm-linker が出力する `.asm` に c 行が含まれていても、libmnc2 �
 
 ## 変更履歴
 
-| バージョン | 変更内容 |
-|-----------|---------|
-| 0.4.1 | **新 API**: DMA ステータス取得 (`mnc2_get_ddma_stat`, `mnc2_get_idma_stat`, `mnc2_get_wdbit_status`, `mnc2_clear_wdbit`)、命令 capture / profiling (`mnc2_capture_*` 3 関数)、PDM Tag / WD / regset の pool (`mnc2_tag_*` 6 関数、`mnc2_wd_*` 4 関数、`mnc2_regset_*` 2 関数)、非同期 DMA (`mnc2_async_*` 5 関数)。あわせてエラーコード `MNC2_ERROR_BUSY` (pool 枯渇) を追加。**削除**: `MNC2_SEND_TAG_DISTRIBUTE` (DMA タグは呼び出し側が指定する方式に一本化)。**修正**: L1BM 領域を 256 u64 のグリッドで確保して example 間の重なりを解消、broadcast の分配位置を訂正、長い VSM の実行で recv が完了しない場合に実機で timeout を返すよう変更。**新 examples**: 60-67 (broadcast の経路検証、長い VSM での recv 完了確認、LM BAR シフト、N 体問題風の演算)。**ドキュメント追記**: 大きなカーネルで `mnc2_load_kernel` が連続メモリ確保に失敗して NULL を返す条件と、複数カーネルを連続実行するときの効率的な待ち方を明記 |
-| 0.4.x (後期) | `mnc2_send` を sync (DMA 物理完了まで wait してから return) に変更。 **新 API**: `mnc2_wait_ddma_idle`, `mnc2_wait_idma_idle` (caller 明示同期用)、 4 つの DMA wait 上限 iter の get/set 計 8 関数 (`mnc2_{get,set}_{ddma,idma}_{kick_verify,complete}_max`)。 **削除**: `mnc2_change_ddma_wait_time` (新 `mnc2_set_ddma_complete_max` で置換) |
-| 0.4.0 | **破壊的変更**: `mnc2_send` / `mnc2_recv` から `int elem_size` 削除。エンディアン制御は `mnc2_set_endian_ctrl` / `mnc2_get_endian_ctrl` で管理 (全 backend 対応、デフォルト ec=4)。**診断機構**: `mnc2_open` 時の DMA キュー残留警告、DMA タイムアウト診断。**新 API**: `mnc2_reset` (device HW の DMA queue 残留クリア、emu は no-op)。**新 examples**: 50-tag-interference, 51-wd-zero, 52-all-id-collect, 53-55 imm-collect (f64/f32/f16), 56-59 ベンチ系列 (外部メモリ ↔ PE round-trip 比較)。**ツール**: u02-run-idma (libgpfn3 直接利用、`--capture` / `--timeout` / `--no-reset` オプション) |
-| 0.3.10 | 統一 `.a` (3 バックエンド対応)。実機バックエンド対応。実機エンディアン設定修正。u01-mmap ツール追加 |
-| 0.3.9 | reduce-pe examples 追加 (48, 49) |
-| 0.3.6 | `mnc2_debug_write` API 追加 (emu:lib + emu:process 対応) |
-| 0.3.5 | emu:lib で collect 複数回 (同一 wait タグ再利用) 時のエラーを回避。collect 系 examples 追加 |
-| 0.3.4 | examples 追加。`uninstall.sh` バグ修正 |
-| 0.3.3 | `mnc2_debug_read` バグ修正 (GRF/LM アドレス変換)。`mnc2_debug_read` API 追加 |
-| 0.3.2 | 環境変数によるバックエンド切り替えに対応 |
-| 0.3.1 | `mnc2_get_backend_name` API 追加 |
-| 0.2.0 | API 統一リリース（0.1.x との互換性なし）。バイト単位統一 |
-| 0.1.x | 初期版 |
+- **0.4.3**:
+  - `mnc2_load_kernel` が kernel を片 (既定 4 MiB、128 以上の 2 の冪乗) に分けて連続 DMA 用メモリを確保するようになった (実機と emu:lib。emu:process は分割しない)
+  - `mnc2_exec_kernel` は全片が積めるときだけ積む。片数が `idma_queue_limit` を超える kernel には `MNC2_ERROR_QUEUE_LIMIT` (-10) を返す
+  - `mnc2_exec_kernel_blocking(kernel, limit)` を追加 (全片を kick し、キューの残りが `limit` 以下になるまで待つ。完了は待たない。待ちの上限で `MNC2_ERROR_TIMEOUT`)
+  - rc1 にあった `mnc2_get_exec_blocking_limit` / `mnc2_set_exec_blocking_limit` (device 単位の設定値、既定 16、kick を止めるキューの上限) は rc2 で削除し、引数 `limit` (戻るときの残り数) に置き換えた (`limit` の上限は rc2 では 31、rc3 から `idma_queue_limit`)
+  - `mnc2_get_kernel_piece_size` / `mnc2_set_kernel_piece_size` / `mnc2_kernel_get_piece_count` を追加
+  - `mnc2_get_exec_stats` / `mnc2_clear_exec_stats` と `mnc2_exec_stats_t` を追加 (exec と load_kernel の記録。確保失敗の理由はここに残し stderr には出さない)
+  - `mnc2_set_idma_queue_limit` が範囲 1 から 31 の外を `MNC2_ERROR_PARAM` で断るようになった
+  - 「DMA タグの指定」に「タグの規則」の節を追加 (flag はビットで回数を数えない、立てた flag はすべて消費して終わる、消費前に同じタグを 2 回立てない)。emu の `recv_wait_tag` の扱いを emu:process と emu:lib で分けて記述
+  - 文書: 冒頭と「典型的な呼び出しパターン」の例の `mnc2_exec_kernel` の引数を実際の signature (`kernel` のみ) に直し、後始末に内部同期のタグの flag の消費を書いた。配布物に含まれない内部文書への参照を除いた
+- **0.4.2**:
+  - `mnc2_exec_kernel` が IDMA キューに空きが無いとき `MNC2_ERROR_BUSY` を返すようになった
+  - `mnc2_exec_kernel` が `MNC2_ERROR_TIMEOUT` を返さなくなった
+  - kick 後に IDMA が busy になるのを観測して開始を保証する仕組みを廃止
+  - `mnc2_get_idma_kick_verify_max` / `mnc2_set_idma_kick_verify_max` を削除
+  - `mnc2_get_idma_queue_limit` / `mnc2_set_idma_queue_limit` を追加
+  - ツール u02-run-idma に repeat-idma と gen_nop.py を追加
+- **0.4.1**:
+  - `mnc2_get_ddma_stat` / `mnc2_get_idma_stat` / `mnc2_get_wdbit_status` / `mnc2_clear_wdbit` を追加
+  - 命令 capture の `mnc2_capture_*` 3 関数を追加
+  - PDM Tag / WD / regset の pool を扱う `mnc2_tag_*` 6 関数、`mnc2_wd_*` 4 関数、`mnc2_regset_*` 2 関数を追加
+  - 非同期 DMA の `mnc2_async_*` 5 関数を追加
+  - エラーコード `MNC2_ERROR_BUSY` を追加
+  - `MNC2_SEND_TAG_DISTRIBUTE` を削除
+  - 長い VSM の実行で recv が完了しない場合に実機で timeout を返すよう変更
+  - examples 追加: 60-67
+- **0.4.0**:
+  - `mnc2_send` / `mnc2_recv` から `int elem_size` 引数を削除
+  - エンディアン制御を `mnc2_set_endian_ctrl` / `mnc2_get_endian_ctrl` で行う
+  - `mnc2_send` を sync に変更
+  - `mnc2_reset` を追加
+  - `mnc2_wait_ddma_idle` / `mnc2_wait_idma_idle` を追加
+  - DMA 待ち上限の get/set 8 関数を追加
+  - `mnc2_change_ddma_wait_time` を削除
+  - `mnc2_open` 時に DMA キューの残留を警告する
+  - DMA タイムアウト時の診断出力を追加
+  - examples 追加: 50-59
+  - ツール u02-run-idma を追加
+- **0.3.10**:
+  - 統一 `.a` (3 バックエンド対応)。実機バックエンド対応。実機エンディアン設定修正。u01-mmap ツール追加
+- **0.3.9**:
+  - reduce-pe examples 追加 (48, 49)
+- **0.3.6**:
+  - `mnc2_debug_write` API 追加 (emu:lib + emu:process 対応)
+- **0.3.5**:
+  - emu:lib で collect 複数回 (同一 wait タグ再利用) 時のエラーを回避。collect 系 examples 追加
+- **0.3.4**:
+  - examples 追加。`uninstall.sh` バグ修正
+- **0.3.3**:
+  - `mnc2_debug_read` バグ修正 (GRF/LM アドレス変換)。`mnc2_debug_read` API 追加
+- **0.3.2**:
+  - 環境変数によるバックエンド切り替えに対応
+- **0.3.1**:
+  - `mnc2_get_backend_name` API 追加
+- **0.2.0**:
+  - API 統一リリース（0.1.x との互換性なし）。バイト単位統一
+- **0.1.x**:
+  - 初期版

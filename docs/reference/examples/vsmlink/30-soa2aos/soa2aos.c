@@ -10,7 +10,7 @@
  *   AoS: struct { double x,y,z,m; } [4096]   (粒子順は順列)
  *
  * カーネルは対合 (involution): 2 回適用すると元に戻る。よって同じツールで
- * SoA->AoS も AoS->SoA もできる。仕組みは docs/broadcast-collect-layout.md。
+ * SoA->AoS も AoS->SoA もできる。並びは share/vsmlink/directives-spec.md。
  */
 #include <stdio.h>
 #include <stdlib.h>

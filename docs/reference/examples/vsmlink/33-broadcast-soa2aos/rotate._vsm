@@ -1,0 +1,50 @@
+# 計算部分 (差し替え可能): 2 次元回転
+#
+# gen_step.py が骨格の中へ挟み込む。骨格側の約束:
+#   入力  $lm0=x $lm2=y $lm4=z $lm6=m   (自分の担当する値)
+#         $lr16,18,20,22 = broadcast で読んだ他粒子の x,y,z,m
+#   出力  $lm0,2,4 を更新する。$lm6 (m = PE ID) は触らない
+#   使ってよい作業レジスタ: $lr0..14 (GRF0)、$ln (LM1)、$ls (LM2)
+#   使ってはいけない: $lm8,10,12,14 (レイアウト変換の出力先)
+#
+# x' = x*c - y*s
+# y' = x*s + y*c
+# z' = z            (回転面の外なので不変)
+#
+# c, s は broadcast で読んだ他粒子の x, y をそのまま使う。初期値を
+# x[i] = cos(2*pi*i/4096), y[i] = sin(2*pi*i/4096) にしてあるので c^2 + s^2 = 1 が成り立ち、
+# 回転はノルムを保つ。発散も収束もしないので、タイムステップを増やしても値が壊れず、
+# ホスト側の倍精度計算と照合し続けられる。
+#
+# 演算の 2 入力は別のメモリ系統から取る (LM1 同士だと `lm1` と `in_lm1` の
+# 命令フィールドが衝突して assemble3 が拒否する)。積を LM1 と LM2 に振り分けてから足す。
+#
+	# c = $lr16 (broadcast の x)、s = $lr18 (broadcast の y)
+	# x*c -> $ln0 (LM1)
+	dvmulu $lm0 $lr16 $nowrite
+	dvfmad $lm0 $lr16 $mauf $ln0
+	nop/2
+	# y*s -> $ls0 (LM2)
+	dvmulu $lm2 $lr18 $nowrite
+	dvfmad $lm2 $lr18 $mauf $ls0
+	nop/2
+	# x' = x*c - y*s   (LM1 - LM2 なので衝突しない)
+	dvadd $ln0 -$ls0 $lr0
+	nop/2
+	# x*s -> $ln2 (LM1)
+	dvmulu $lm0 $lr18 $nowrite
+	dvfmad $lm0 $lr18 $mauf $ln2
+	nop/2
+	# y*c -> $ls2 (LM2)
+	dvmulu $lm2 $lr16 $nowrite
+	dvfmad $lm2 $lr16 $mauf $ls2
+	nop/2
+	# y' = x*s + y*c
+	dvadd $ln2 $ls2 $lr2
+	nop/2
+	# 書き戻し。x' と y' を両方 GRF0 に出してから LM へ写す
+	# (順に書くと y' の計算に使う x が先に壊れる)
+	lpassa $lr0 $lm0
+	nop/24
+	lpassa $lr2 $lm2
+	nop/24

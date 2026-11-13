@@ -1,0 +1,21 @@
+# ABI PFN3_SBY64
+#
+# reduce._vsm — swap_flag を全 4096 PE で縮約
+# 入力: LM0[8] ($lm16) = swap_flag (前の実行部が設定)
+# 出力: PDM[32768..32771] = PE position 別の部分和（mnc2_recv で読む）
+
+	lpassa $lm16 $lr48
+	nop/4
+# reduce.vsm — @reduce テンプレート
+
+# @reduce _swap to_param 28 $lr48 liadd
+# === @reduce _swap: $lr48 → L1BM → L2BM → PDM $p32768 (liadd) ===
+# (:pdm :directive "@reduce" :id "_swap" :slot 28 :place :pdm0 :addr 32768 :size 64 :access :write)
+	l1bmrliadd $lr48 $lb0
+	nop/24
+	l2bmrliadd $lb0 $lc0
+	nop/24
+	mvrliadd/n64i06 $lc0 $p32768@0
+	nop/2
+	nop; wait i06
+	nop/5

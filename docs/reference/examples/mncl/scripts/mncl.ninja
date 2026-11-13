@@ -75,6 +75,6 @@ rule fetch_data
   command = mkdir -p $builddir && ninja -C ../data created/$bin >/dev/null && cp ../data/created/$bin $out
   description = FETCH $out
 
-rule clean
-  command = rm -rf _build
-  description = CLEAN
+# 片付けは ninja 自身の `ninja -t clean`（build の定義に出力として書かれたファイルだけを消す）で行う。clean の規則は置かない
+# （ninja の build の定義にディレクトリを丸ごと消す命令を書かない）。規則が作るファイルは、すべて ninja の build 文の出力
+# （暗黙の出力を含む）として書くこと。実行の結果（ホストが書くファイル）は build の出力ではないので、-t clean では消えない

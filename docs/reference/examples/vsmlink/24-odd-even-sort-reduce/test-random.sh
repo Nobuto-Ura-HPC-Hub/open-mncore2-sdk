@@ -7,7 +7,10 @@ set -eu
 
 backend="${1:-emu-lib}"
 case "$backend" in
-    emu-lib) export LD_LIBRARY_PATH="$(realpath ../../../_mncore2-sdk-v1/lib/emu-lib)" ;;
+    emu-lib)
+        sdk_root="$(sed -n 's/^sdk_root *= *//p' ../../scripts/sdk.ninja)"
+        export LD_LIBRARY_PATH="$sdk_root/lib/emu-lib"
+        ;;
     device)  unset LD_LIBRARY_PATH ;;
     *) echo "Usage: $0 [emu-lib|device]" >&2; exit 1 ;;
 esac

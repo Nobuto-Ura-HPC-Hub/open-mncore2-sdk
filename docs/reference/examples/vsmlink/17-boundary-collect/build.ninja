@@ -176,3 +176,8 @@ build test-edge-00: test_edge | $builddir/bc-edge00.idma.dat $builddir/test_boun
 build clean: clean
 
 default $builddir/boundary-collect.vsm
+
+# --- verify: golden data ---
+build verify: verify_cmd $builddir/boundary-collect.vsm
+  expected = expected.vsm
+  actual = $builddir/boundary-collect.vsm

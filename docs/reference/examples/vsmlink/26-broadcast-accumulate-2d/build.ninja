@@ -63,3 +63,8 @@ build test-device: test_device $builddir/test_accumulate | $builddir/init.idma.d
 build clean: clean
 
 default $builddir/accumulate.vsm
+
+# --- verify: golden data ---
+build verify: verify_cmd $builddir/accumulate.vsm
+  expected = expected.vsm
+  actual = $builddir/accumulate.vsm

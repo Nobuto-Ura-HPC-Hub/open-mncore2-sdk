@@ -1,0 +1,57 @@
+# 68-dmwrite-dmread — 添字の交換を host 無しで確認する版
+#
+# dm_swap.vsm と同じ 2 命令を実行するが、値の設定と出力を vsm 内で完結させる。
+# libmnc2 も host 側の C も使わず、エミュレータ単独で動く。
+#
+#   ninja
+#   gpfn3_package_main -i _build/dm_swap_dset.asm
+#
+# d set / d get はエミュレータ実行時専用の制御文 (dev manual 3.4.3 / 3.4.4)。
+# 実機では実行できないので、この vsm は .idma.dat にせず .asm のまま使う。
+#
+# libmnc2 経由 (dm_swap.vsm) との違いは、行列レジスタの中身が見えること。
+# mnc2_debug_read が扱えるメモリ領域に行列レジスタは含まれないため、host 側から
+# 途中経過は読めない。d get $lx0 だけがそれを見せられる。
+#
+# 値の付け方: MAB0 の PE 番号 s の 語番号 c の位置に 0xA<s><c>
+#   PE0: a00 a01 a02 a03
+#   PE1: a10 a11 a12 a13
+#   PE2: a20 a21 a22 a23
+#   PE3: a30 a31 a32 a33
+#
+# 添字が交換されると下 2 桁が入れ替わり、PE s の 語 c は 0xA<c><s> になる。
+# 期待される出力は ../README.md に載せてある。
+
+# --- 入力: MAB0 の 4 PE の LM0 先頭 4 語 (u32 アドレス 0, 2, 4, 6) ---
+d set $lm0n0c0b0m0p0 1 la00
+d set $lm2n0c0b0m0p0 1 la01
+d set $lm4n0c0b0m0p0 1 la02
+d set $lm6n0c0b0m0p0 1 la03
+d set $lm0n0c0b0m0p1 1 la10
+d set $lm2n0c0b0m0p1 1 la11
+d set $lm4n0c0b0m0p1 1 la12
+d set $lm6n0c0b0m0p1 1 la13
+d set $lm0n0c0b0m0p2 1 la20
+d set $lm2n0c0b0m0p2 1 la21
+d set $lm4n0c0b0m0p2 1 la22
+d set $lm6n0c0b0m0p2 1 la23
+d set $lm0n0c0b0m0p3 1 la30
+d set $lm2n0c0b0m0p3 1 la31
+d set $lm4n0c0b0m0p3 1 la32
+d set $lm6n0c0b0m0p3 1 la33
+
+# --- 段階 1: 入力 (交換前) ---
+d get $lm0n0c0b0m0 4
+
+	dmwrite $lm0v $lx0
+	nop/24
+
+# --- 段階 2: 行列レジスタの中身。host 側からは見えない ---
+d getd $lx0n0c0b0m0 4
+
+	dmread $lx0 $lm30v
+	nop/24
+
+# --- 段階 3: 出力 (交換後) ---
+d get $lm30n0c0b0m0 4
+	# pseudo ret

@@ -80,3 +80,8 @@ build test-from-17: test_emu_lib $builddir/test_bf_override | $builddir/bf-verif
 build clean: clean
 
 default $builddir/bf-verify.vsm
+
+# --- verify: golden data ---
+build verify: verify_cmd $builddir/bf-verify.vsm
+  expected = expected.vsm
+  actual = $builddir/bf-verify.vsm

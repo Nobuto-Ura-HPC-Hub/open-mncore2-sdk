@@ -63,3 +63,8 @@ build test-device: test_device_inout $builddir/broadcast_reduce.idma.dat | $buil
   out_bin = $builddir/out.bin
 
 default $builddir/broadcast_reduce.vsm
+
+# --- verify: golden data ---
+build verify: verify_cmd $builddir/broadcast_reduce.vsm
+  expected = expected.vsm
+  actual = $builddir/broadcast_reduce.vsm

@@ -3,8 +3,10 @@
 ;;           領域は 64 u64 確保する（mvb の最小転送単位。先頭 3 個以外は読まれない）。
 ;; slot 16 = distribute 入力 (x)。
 ;; slot 24 = collect 出力 (out)。
+;; send_wait_tag は、ホストが 0 以外のタグで送るエントリにだけ付ける（タグ 0 で exec の前に送り終えるもの、
+;; kernel が PDM に書いたものを読むものには付けない）。vsmlink 0.10.2 の E120（param-spec.md「待ちのタグの規則」）
 ((:version :0.1)
  (:reserved_wait_tag #x3f)
- (:slot 8  :place :pdm0 :addr 0    :send_wait_tag #x10)
+ (:slot 8  :place :pdm0 :addr 0)
  (:slot 16 :place :pdm0 :addr 4096 :send_wait_tag #x10)
  (:slot 24 :place :pdm0 :addr 8192 :recv_wait_tag #x1e))

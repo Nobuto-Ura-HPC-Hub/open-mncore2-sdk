@@ -100,7 +100,7 @@ vsmlinker は data_size, data_offset, pe_shape から cross_chip 境界を判定
 2D/3D では次元ごとに異なる境界条件を指定する意味がある。
 例: 円筒状の流体シミュレーションで x 方向は `:periodic`、y 方向は `:clamp`。
 
-現在の実装状況: `:clamp`, `:periodic` は未実装。
+現在の実装状況: `:clamp`, `:periodic` は `@get_neighbor`（1D dim0）で実装済み。2D/3D 各次元への対応は未確認。
 
 `:boundary` は `:data_size` で指定した問題全体の端に適用される。
 `:data_offset` と `:pe_shape` から、このカーネルがデータの端にいるかどうかを vsmlink が判定する。
@@ -194,7 +194,7 @@ OpenACC C から利用する場合、アプリケーションの配列次元に�
 | 02 | vecadd | (4096) | 1D dvadd E2E (send a,b → exec → recv c → 検証) |
 | 03 | vecadd-2d | (64 64) | 同一カーネル、2D pe_shape。data_layout 不要の例 |
 | 04 | vecadd-3d | (16 16 16) | 同一カーネル、3D pe_shape。data_layout 不要の例 |
-| 05 | stencil1d | (4096) | @stencil + halo 交換 E2E |
+| 05 | stencil1d | (4096) | @get_neighbor + halo 交換 E2E |
 | 06 | jacobi2d | (64 64) | 2D 5-point .stparam パース確認 |
 | 07 | box2d | (64 64) | 2D 9-point .stparam パース確認 |
 | 08 | himeno3d | (16 16 16) | 3D 7-point .stparam パース確認 |

@@ -15,12 +15,12 @@ MN-Core2 SDK は、MN-Core2 を使用したアプリケーション開発に必�
 SDK は以下の複数の kit で構成されています：
 
 - **sdk-base-kit** — 基本的なツールチェーンと環境
-- **mncore2-emuenv-kit** — エミュレーション環境
 - **mnc2-inspect-kit** — システムの詳細情報を取得するツール
 - **libmnc2-kit** — MN-Core2 のプログラミングライブラリ（このチュートリアルの対象）
 - **vsmlink-kit** — コンポーネント間の連携ツール
 - **mncl-kit** — コンパイラおよび関連ツール
-- **openacc-c-kit** — OpenACC コンパイラ
+
+エミュレータ（`assemble3`、`gpfn3_package_main`）は PFN の apt パッケージ `mncore-sdk` から入れます。openacc-c-kit は当面提供しません（v0.6.0 から）。
 
 各 kit は依存関係を持つため、インストール時の順序に注意が必要です。詳細は[SDK のインストール](../02-sdk/installation.md)を参照してください。
 

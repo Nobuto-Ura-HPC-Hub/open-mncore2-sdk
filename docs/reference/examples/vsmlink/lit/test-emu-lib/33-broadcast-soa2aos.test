@@ -1,0 +1,4 @@
+# 転置を挟んでループを閉じ、2 タイムステップで順列が戻ることを確認する。
+# logistic (test-emu-lib-log) は未解決なので入れない (README の「未解決」参照)。
+# RUN: ninja -C %examples/33-broadcast-soa2aos test-emu-lib-plain
+# RUN: ninja -C %examples/33-broadcast-soa2aos test-emu-lib

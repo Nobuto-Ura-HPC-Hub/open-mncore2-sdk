@@ -1,0 +1,166 @@
+# roundtrip3: size 3 の @distribute と @collect が対で往復すること
+#
+# 計算はしない。入力 = 出力 になることが検証条件である。
+#
+# 検証したいのは PDM 上の並びが両者で一致していることである。
+#   PDM 入力  [成分 0 を 4096 PE 分][成分 1] ... 計 3 成分
+#   PE        成分 k が $lm0 から 2 刻みの $lm0 / $lm2 / $lm4 / $lm6 に着地する
+#   PDM 出力  入力と同じ並びで戻る
+#
+# 並びが非対称なら、この往復は成分の入れ替わりとして失敗する。
+
+# distribute.vsm — @distribute テンプレート
+
+	nop; wait i10
+	nop/3
+# @distribute _arg_a from_param 8 size 3 $lm0
+# === @distribute _arg_a: PDM $p0 → L2BM → L1BM → $lm0 ===
+# (:pdm :directive "@distribute" :id "_arg_a" :slot 8 :place :pdm0 :addr 0 :size 12288 :access :read)
+	mvp/n512 $p0@0 $lc0@0.0
+	mvp/n512 $p512@0 $lc0@0.1
+	mvp/n512 $p1024@0 $lc0@1.0
+	mvp/n512 $p1536@0 $lc0@1.1
+	mvp/n512 $p2048@0 $lc0@2.0
+	mvp/n512 $p2560@0 $lc0@2.1
+	mvp/n512 $p3072@0 $lc0@3.0
+	mvp/n512i3f $p3584@0 $lc0@3.1
+	nop/2
+	nop; wait i3f
+	nop/5
+	l2bmb@0 $lc0 $lb0
+	l2bmb@1 $lc64 $lb0
+	l2bmb@2 $lc128 $lb0
+	l2bmb@3 $lc192 $lb0
+	l2bmb@4 $lc256 $lb0
+	l2bmb@5 $lc320 $lb0
+	l2bmb@6 $lc384 $lb0
+	l2bmb@7 $lc448 $lb0
+	nop/5
+	mvp/n512 $p4096@0 $lc512@0.0
+	mvp/n512 $p4608@0 $lc512@0.1
+	mvp/n512 $p5120@0 $lc512@1.0
+	mvp/n512 $p5632@0 $lc512@1.1
+	mvp/n512 $p6144@0 $lc512@2.0
+	mvp/n512 $p6656@0 $lc512@2.1
+	mvp/n512 $p7168@0 $lc512@3.0
+	mvp/n512i3f $p7680@0 $lc512@3.1
+	nop/2
+	nop; wait i3f
+	nop/5
+	l2bmb@0 $lc512 $lb64
+	l2bmb@1 $lc576 $lb64
+	l2bmb@2 $lc640 $lb64
+	l2bmb@3 $lc704 $lb64
+	l2bmb@4 $lc768 $lb64
+	l2bmb@5 $lc832 $lb64
+	l2bmb@6 $lc896 $lb64
+	l2bmb@7 $lc960 $lb64
+	nop/5
+	mvp/n512 $p8192@0 $lc1024@0.0
+	mvp/n512 $p8704@0 $lc1024@0.1
+	mvp/n512 $p9216@0 $lc1024@1.0
+	mvp/n512 $p9728@0 $lc1024@1.1
+	mvp/n512 $p10240@0 $lc1024@2.0
+	mvp/n512 $p10752@0 $lc1024@2.1
+	mvp/n512 $p11264@0 $lc1024@3.0
+	mvp/n512i3f $p11776@0 $lc1024@3.1
+	nop/2
+	nop; wait i3f
+	nop/5
+	l2bmb@0 $lc1024 $lb128
+	l2bmb@1 $lc1088 $lb128
+	l2bmb@2 $lc1152 $lb128
+	l2bmb@3 $lc1216 $lb128
+	l2bmb@4 $lc1280 $lb128
+	l2bmb@5 $lc1344 $lb128
+	l2bmb@6 $lc1408 $lb128
+	l2bmb@7 $lc1472 $lb128
+	nop/5
+	l1bmd $lb0 $lm0v/1110
+	nop/24
+	nop/24
+# collect.vsm — @collect テンプレート
+
+# @collect _arg_b to_param 24 size 3 $lm0
+# === @collect _arg_b: $lm0 → L1BM → L2BM → PDM $p131072 ===
+# (:pdm :directive "@collect" :id "_arg_b" :slot 24 :place :pdm0 :addr 131072 :size 12288 :access :write)
+	nop/24
+	l1bmd $lm0v $lb0
+	nop/24
+	l2bm@0 $lb0 $lc0
+	l2bm@1 $lb0 $lc64
+	l2bm@2 $lb0 $lc128
+	l2bm@3 $lb0 $lc192
+	l2bm@4 $lb0 $lc256
+	l2bm@5 $lb0 $lc320
+	l2bm@6 $lb0 $lc384
+	l2bm@7 $lb0 $lc448
+	nop/5
+	mvp/n512 $lc0@0.0 $p131072@0
+	mvp/n512i3f $lc0@0.1 $p131584@0
+	nop/3
+	nop; wait i3f
+	mvp/n512 $lc0@1.0 $p132096@0
+	mvp/n512i3f $lc0@1.1 $p132608@0
+	nop/3
+	nop; wait i3f
+	mvp/n512 $lc0@2.0 $p133120@0
+	mvp/n512i3f $lc0@2.1 $p133632@0
+	nop/3
+	nop; wait i3f
+	mvp/n512 $lc0@3.0 $p134144@0
+	mvp/n512i3f $lc0@3.1 $p134656@0
+	nop/3
+	nop; wait i3f
+	l2bm@0 $lb64 $lc512
+	l2bm@1 $lb64 $lc576
+	l2bm@2 $lb64 $lc640
+	l2bm@3 $lb64 $lc704
+	l2bm@4 $lb64 $lc768
+	l2bm@5 $lb64 $lc832
+	l2bm@6 $lb64 $lc896
+	l2bm@7 $lb64 $lc960
+	nop/5
+	mvp/n512 $lc512@0.0 $p135168@0
+	mvp/n512i3f $lc512@0.1 $p135680@0
+	nop/3
+	nop; wait i3f
+	mvp/n512 $lc512@1.0 $p136192@0
+	mvp/n512i3f $lc512@1.1 $p136704@0
+	nop/3
+	nop; wait i3f
+	mvp/n512 $lc512@2.0 $p137216@0
+	mvp/n512i3f $lc512@2.1 $p137728@0
+	nop/3
+	nop; wait i3f
+	mvp/n512 $lc512@3.0 $p138240@0
+	mvp/n512i3f $lc512@3.1 $p138752@0
+	nop/3
+	nop; wait i3f
+	l2bm@0 $lb128 $lc1024
+	l2bm@1 $lb128 $lc1088
+	l2bm@2 $lb128 $lc1152
+	l2bm@3 $lb128 $lc1216
+	l2bm@4 $lb128 $lc1280
+	l2bm@5 $lb128 $lc1344
+	l2bm@6 $lb128 $lc1408
+	l2bm@7 $lb128 $lc1472
+	nop/5
+	mvp/n512 $lc1024@0.0 $p139264@0
+	mvp/n512i3f $lc1024@0.1 $p139776@0
+	nop/3
+	nop; wait i3f
+	mvp/n512 $lc1024@1.0 $p140288@0
+	mvp/n512i3f $lc1024@1.1 $p140800@0
+	nop/3
+	nop; wait i3f
+	mvp/n512 $lc1024@2.0 $p141312@0
+	mvp/n512i3f $lc1024@2.1 $p141824@0
+	nop/3
+	nop; wait i3f
+	mvp/n512 $lc1024@3.0 $p142336@0
+	mvp/n512i1e $lc1024@3.1 $p142848@0
+	nop/3
+	nop; wait i1e
+	nop/4
+	# pseudo ret

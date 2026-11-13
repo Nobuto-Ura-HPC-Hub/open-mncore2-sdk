@@ -1,0 +1,179 @@
+# ABI PFN3_SBY64
+#
+# broadcast + collect の往復。
+# @broadcast size 4 で struct {x,y,z,m} を全 PE に同値で配り、m を @distribute した per-PE の
+# id で差し替え、@collect size 4 で PDM (成分ごと) に集める。
+# ホストが x,y,z = broadcast 値 (全 PE 同一)・m = per-PE id を確認する。
+# レイアウトは share/vsmlink/directives-spec.md の「PDM 上の並び」。
+#
+# broadcast は GRF0 の +2 刻みに着地: $lr16=x $lr18=y $lr20=z $lr22=m(未使用)
+# distribute は LM0 に着地: $lm0 = per-PE id
+# collect 源は LM1 の $ln4088 から 4 サイクル (+2 刻み): x,y,z,id を並べる
+#
+# broadcast_load.vsm — @broadcast: PDM の区画を L1BM に載せる部分
+# その区画がまだ L1BM に載っていないときだけ展開される
+# HW パス: PDM から mvb で全 8 L2BM、 l2bmb で全 64 L1BM へ (64 u64 の区画ごと)
+
+# @broadcast  _s  from_param 8  size 4 $lr16    # 全 PE 同値の x,y,z,m
+# === @broadcast _s: PDM $p0 → 全 4096 PE $lr16 ===
+	mvb/n64i3f $p0@0 $lc0
+	nop/2
+	nop; wait i3f
+	nop/5
+	l2bmb $lc0 $lb0
+# broadcast_use.vsm — @broadcast: L1BM に載っている値を PE に配る部分
+# 毎回展開される。載っていなかった場合は直前に broadcast_load.vsm が展開されている
+# L1BM の番地は区画の先頭ではなく要求された位置 (ずれは vsmlink が加える)
+
+
+	nop/5
+	l1bmp $lb0 $lr16v
+	nop/24
+# distribute.vsm — @distribute テンプレート
+
+	nop/4
+	nop; wait i10
+	nop/3
+# @distribute _id from_param 16 size 1 $lm0     # per-PE の id
+# === @distribute _id: PDM $p4096 → L2BM → L1BM → $lm0 ===
+# (:pdm :directive "@distribute" :id "_id" :slot 16 :place :pdm0 :addr 4096 :size 4096 :access :read)
+	mvp/n512 $p4096@0 $lc0@0.0
+	mvp/n512 $p4608@0 $lc0@0.1
+	mvp/n512 $p5120@0 $lc0@1.0
+	mvp/n512 $p5632@0 $lc0@1.1
+	mvp/n512 $p6144@0 $lc0@2.0
+	mvp/n512 $p6656@0 $lc0@2.1
+	mvp/n512 $p7168@0 $lc0@3.0
+	mvp/n512i3f $p7680@0 $lc0@3.1
+	nop/2
+	nop; wait i3f
+	nop/5
+	l2bmb@0 $lc0 $lb64
+	l2bmb@1 $lc64 $lb64
+	l2bmb@2 $lc128 $lb64
+	l2bmb@3 $lc192 $lb64
+	l2bmb@4 $lc256 $lb64
+	l2bmb@5 $lc320 $lb64
+	l2bmb@6 $lc384 $lb64
+	l2bmb@7 $lc448 $lb64
+	nop/5
+	l1bmd $lb64 $lm0v/1000
+	nop/24
+	lpassa $lr16 $ln4088    # x  -> collect 成分 0
+	nop/2
+	lpassa $lr18 $ln4090    # y  -> collect 成分 1
+	nop/2
+	lpassa $lr20 $ln4092    # z  -> collect 成分 2
+	nop/2
+	lpassa $lm0  $ln4094    # id -> collect 成分 3 (broadcast の m を上書き)
+	nop/2
+# collect.vsm — @collect テンプレート
+
+# @collect _out to_param 24 size 4 $ln4088
+# === @collect _out: $ln4088 → L1BM → L2BM → PDM $p8192 ===
+# (:pdm :directive "@collect" :id "_out" :slot 24 :place :pdm0 :addr 8192 :size 16384 :access :write)
+	nop/24
+	l1bmd $ln4088v $lb64
+	nop/24
+	l2bm@0 $lb64 $lc0
+	l2bm@1 $lb64 $lc64
+	l2bm@2 $lb64 $lc128
+	l2bm@3 $lb64 $lc192
+	l2bm@4 $lb64 $lc256
+	l2bm@5 $lb64 $lc320
+	l2bm@6 $lb64 $lc384
+	l2bm@7 $lb64 $lc448
+	nop/5
+	mvp/n512 $lc0@0.0 $p8192@0
+	mvp/n512i3f $lc0@0.1 $p8704@0
+	nop/3
+	nop; wait i3f
+	mvp/n512 $lc0@1.0 $p9216@0
+	mvp/n512i3f $lc0@1.1 $p9728@0
+	nop/3
+	nop; wait i3f
+	mvp/n512 $lc0@2.0 $p10240@0
+	mvp/n512i3f $lc0@2.1 $p10752@0
+	nop/3
+	nop; wait i3f
+	mvp/n512 $lc0@3.0 $p11264@0
+	mvp/n512i3f $lc0@3.1 $p11776@0
+	nop/3
+	nop; wait i3f
+	l2bm@0 $lb128 $lc512
+	l2bm@1 $lb128 $lc576
+	l2bm@2 $lb128 $lc640
+	l2bm@3 $lb128 $lc704
+	l2bm@4 $lb128 $lc768
+	l2bm@5 $lb128 $lc832
+	l2bm@6 $lb128 $lc896
+	l2bm@7 $lb128 $lc960
+	nop/5
+	mvp/n512 $lc512@0.0 $p12288@0
+	mvp/n512i3f $lc512@0.1 $p12800@0
+	nop/3
+	nop; wait i3f
+	mvp/n512 $lc512@1.0 $p13312@0
+	mvp/n512i3f $lc512@1.1 $p13824@0
+	nop/3
+	nop; wait i3f
+	mvp/n512 $lc512@2.0 $p14336@0
+	mvp/n512i3f $lc512@2.1 $p14848@0
+	nop/3
+	nop; wait i3f
+	mvp/n512 $lc512@3.0 $p15360@0
+	mvp/n512i3f $lc512@3.1 $p15872@0
+	nop/3
+	nop; wait i3f
+	l2bm@0 $lb192 $lc1024
+	l2bm@1 $lb192 $lc1088
+	l2bm@2 $lb192 $lc1152
+	l2bm@3 $lb192 $lc1216
+	l2bm@4 $lb192 $lc1280
+	l2bm@5 $lb192 $lc1344
+	l2bm@6 $lb192 $lc1408
+	l2bm@7 $lb192 $lc1472
+	nop/5
+	mvp/n512 $lc1024@0.0 $p16384@0
+	mvp/n512i3f $lc1024@0.1 $p16896@0
+	nop/3
+	nop; wait i3f
+	mvp/n512 $lc1024@1.0 $p17408@0
+	mvp/n512i3f $lc1024@1.1 $p17920@0
+	nop/3
+	nop; wait i3f
+	mvp/n512 $lc1024@2.0 $p18432@0
+	mvp/n512i3f $lc1024@2.1 $p18944@0
+	nop/3
+	nop; wait i3f
+	mvp/n512 $lc1024@3.0 $p19456@0
+	mvp/n512i3f $lc1024@3.1 $p19968@0
+	nop/3
+	nop; wait i3f
+	l2bm@0 $lb256 $lc1536
+	l2bm@1 $lb256 $lc1600
+	l2bm@2 $lb256 $lc1664
+	l2bm@3 $lb256 $lc1728
+	l2bm@4 $lb256 $lc1792
+	l2bm@5 $lb256 $lc1856
+	l2bm@6 $lb256 $lc1920
+	l2bm@7 $lb256 $lc1984
+	nop/5
+	mvp/n512 $lc1536@0.0 $p20480@0
+	mvp/n512i3f $lc1536@0.1 $p20992@0
+	nop/3
+	nop; wait i3f
+	mvp/n512 $lc1536@1.0 $p21504@0
+	mvp/n512i3f $lc1536@1.1 $p22016@0
+	nop/3
+	nop; wait i3f
+	mvp/n512 $lc1536@2.0 $p22528@0
+	mvp/n512i3f $lc1536@2.1 $p23040@0
+	nop/3
+	nop; wait i3f
+	mvp/n512 $lc1536@3.0 $p23552@0
+	mvp/n512i1e $lc1536@3.1 $p24064@0
+	nop/3
+	nop; wait i1e
+	nop/4
+# (:pdm :directive "@broadcast" :id "_s" :slot 8 :place :pdm0 :addr 0 :size 4 :access :read)

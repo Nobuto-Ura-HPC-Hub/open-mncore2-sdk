@@ -50,6 +50,21 @@ build $builddir/set-capture: link $builddir/set-capture.o
 build $builddir/reset.o: cc reset.c
 build $builddir/reset: link $builddir/reset.o
 
+build $builddir/repeat-idma.o: cc repeat_idma.c
+build $builddir/repeat-idma: link $builddir/repeat-idma.o
+
+# repeat-idma 用の nop カーネル (大きさ違い)。gen_nop.py の出力を
+# assemble するだけ。別の大きさが要るときは gen_nop.py を回して
+# data/ にコミットし直す。
+build $builddir/nop_x64.idma.dat: asm3_loader data/nop_x64.vsm
+  stem = $builddir/nop_x64
+
+build $builddir/nop_x1024.idma.dat: asm3_loader data/nop_x1024.vsm
+  stem = $builddir/nop_x1024
+
+build $builddir/nop_x8192.idma.dat: asm3_loader data/nop_x8192.vsm
+  stem = $builddir/nop_x8192
+
 # テスト用 example kernel (旧版から引き続き)
 build $builddir/imm-f64-collect.asm: asm3_text data/imm-f64-collect.vsm
 build $builddir/imm-f64-collect.idma.dat: asm3_loader data/imm-f64-collect.vsm
@@ -59,7 +74,7 @@ build $builddir/fimm-f32-collect.asm: asm3_text data/fimm-f32-collect.vsm
 build $builddir/fimm-f32-collect.idma.dat: asm3_loader data/fimm-f32-collect.vsm
   stem = $builddir/fimm-f32-collect
 
-default $builddir/run-idma $builddir/run-idma2 $builddir/set-descriptor-regset $builddir/kick-idma2 $builddir/test-idma2-mmap $builddir/write-DM $builddir/read-DM $builddir/set-capture $builddir/reset $builddir/imm-f64-collect.asm $builddir/imm-f64-collect.idma.dat $builddir/fimm-f32-collect.asm $builddir/fimm-f32-collect.idma.dat
+default $builddir/run-idma $builddir/run-idma2 $builddir/set-descriptor-regset $builddir/kick-idma2 $builddir/test-idma2-mmap $builddir/write-DM $builddir/read-DM $builddir/set-capture $builddir/reset $builddir/repeat-idma $builddir/imm-f64-collect.asm $builddir/imm-f64-collect.idma.dat $builddir/fimm-f32-collect.asm $builddir/fimm-f32-collect.idma.dat $builddir/nop_x64.idma.dat $builddir/nop_x1024.idma.dat $builddir/nop_x8192.idma.dat
 
 bindir = ../bin
 
@@ -68,4 +83,4 @@ rule install_bin
   description = INSTALL $in -> $bindir/
 
 build install: phony install-bins
-build install-bins: install_bin $builddir/run-idma $builddir/run-idma2 $builddir/set-descriptor-regset $builddir/kick-idma2
+build install-bins: install_bin $builddir/run-idma $builddir/run-idma2 $builddir/set-descriptor-regset $builddir/kick-idma2 $builddir/repeat-idma

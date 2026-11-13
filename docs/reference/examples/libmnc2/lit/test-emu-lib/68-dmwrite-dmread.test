@@ -1,0 +1,2 @@
+# dmwrite と dmread で MAB 内の PE 番号と語番号を交換する。 MAB 内で閉じることも確認する。
+# RUN: ninja -C %examples/68-dmwrite-dmread test-emu-lib

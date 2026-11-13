@@ -15,7 +15,7 @@
 ## ビルド・実行
 
 ```bash
-source scripts/overlay   # vsm-linker/ 直下から
+source scripts/overlay   # vsmlink/ 直下から
 
 # vsmlink のみ
 ninja -C examples/23-identify
@@ -35,10 +35,8 @@ ninja -C examples/23-identify test-device
 - 期待値: IDs `[0..4095]` 入力に対して `[0, 1, 0, 3, ..., 0, 4095]` が PDM に書き戻される
 - driver 内で全 4096 要素を期待値と比較し、 一致すれば `test1_identify PASS` を stdout に出力
 - `@identify` は現状 `@distribute` の別名として実装されている（PDM slot 8 から ID を読む）。 本格実装（`.stparam` の `ndim` / `topology` を参照して PE 座標を意味的に扱う）は TODO
-- `@distribute` + maskr による同等パターンの全バリエーション（複数 slot、 マルチカーネル、 順次実行 等）は `tests/e2e/identify/` に集約（device 含めて 14 + 14 個）
+- `@distribute` + maskr による同等パターンの全バリエーション（複数 slot、 マルチカーネル、 順次実行 等）は vsmlink コマンドの開発用のテストで確かめている
 
 ## 関連
 
-- `tests/e2e/identify/` — `@distribute` + maskr の全バリエーション + golden cmp による回帰検証
 - `examples/22-identify-reduce-add/` — `@identify` + `@reduce :liadd` の合成パイプライン
-- `docs/test-add-guide.md` — テスト追加ガイド（テスト層・lit 組み込み・集約原則）

@@ -9,9 +9,11 @@
 ;; slot 24 = broadcast 入力 (bmass)。粒子 k の質量。size 1。**この送信 (#x10) が力カーネルの起動トリガ**。
 ;; slot 32 = 加速度 accumulator (acc)。size 3 の in-place 積算（distribute で読み collect で書く）。
 ;;           host が各タイムステップの頭で 0 埋めし、力フェーズの各 exec 後に recv して drain（同期）。
+;; send_wait_tag は、ホストが 0 以外のタグで送るエントリにだけ付ける（タグ 0 で exec の前に送り終えるもの、
+;; kernel が PDM に書いたものを読むものには付けない）。vsmlink 0.10.2 の E120（param-spec.md「待ちのタグの規則」）
 ((:version :0.1)
  (:reserved_wait_tag #x3f)
- (:slot 8  :place :pdm0 :addr 0     :send_wait_tag #x10)
- (:slot 16 :place :pdm0 :addr 49152 :send_wait_tag #x10)
+ (:slot 8  :place :pdm0 :addr 0)
+ (:slot 16 :place :pdm0 :addr 49152)
  (:slot 24 :place :pdm0 :addr 49216 :send_wait_tag #x10)
  (:slot 32 :place :pdm0 :addr 32768 :recv_wait_tag #x1e))

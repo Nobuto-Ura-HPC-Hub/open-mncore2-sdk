@@ -13,7 +13,7 @@ build $builddir/vecdiv-with-newton-raphson.vsm: vsmlink $builddir/vecdiv-with-ne
   stparam = vecdiv-with-newton-raphson.stparam
 
 build $builddir/vecdiv-with-newton-raphson.asm: asm3 $builddir/vecdiv-with-newton-raphson.vsm
-build $builddir/vecdiv-with-newton-raphson.idma.dat: asm3_loader $builddir/vecdiv-with-newton-raphson.vsm
+build $builddir/vecdiv-with-newton-raphson.idma.dat | $builddir/vecdiv-with-newton-raphson.idma.inst $builddir/vecdiv-with-newton-raphson.idma.inst.txt $builddir/vecdiv-with-newton-raphson.ddma.dat $builddir/vecdiv-with-newton-raphson.ddma.inst $builddir/vecdiv-with-newton-raphson.ddma.inst.txt: asm3_loader $builddir/vecdiv-with-newton-raphson.vsm
   stem = $builddir/vecdiv-with-newton-raphson
 
 # --- host driver ---
@@ -28,6 +28,5 @@ build test-emu-lib: test_emu_lib $builddir/test_vecdiv-with-newton-raphson | $bu
 build test-device:  test_device  $builddir/test_vecdiv-with-newton-raphson | $builddir/vecdiv-with-newton-raphson.asm $builddir/vecdiv-with-newton-raphson.idma.dat
 build test:         test_usage
 
-build clean: clean
 
 default $builddir/vecdiv-with-newton-raphson.asm $builddir/vecdiv-with-newton-raphson.idma.dat

@@ -1,0 +1,5 @@
+;; init: distribute で初期値を配る。成分ごと (SoA) の並びを読む。
+;; PDM のメモリマップは README のメモリマップ表を参照。
+((:version :0.1)
+ (:reserved_wait_tag #x3f)
+ (:slot 8 :place :pdm0 :addr 0 :send_wait_tag #x10))

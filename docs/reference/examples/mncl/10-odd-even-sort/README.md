@@ -1,7 +1,7 @@
 # 10-odd-even-sort
 
 奇偶転置ソート (odd-even transposition sort) の 1 turn を 4096 PE, fp64 で実行し、
-swap が起きた回数を集計する例。 `neighbor` と `if` / `else` (レーン述語実行) を使う。
+swap が起きた回数を集計する例。 `load_neighbor` と `if` / `else` (レーン述語実行) を使う。
 
 このディレクトリは kernel を **even / odd / reduce の 3 つ**に分け、 データを
 **ping-pong の 2 バッファ**でやり取りする構成になっている。 分けた理由とバッファ構成の
@@ -66,9 +66,10 @@ kernel のコードはフェーズに依存しない。 したがって even と
 - host が渡す flag のパターン ({1,0,1,0,...} か {0,1,0,1,...} か)
 - `.param` での data_in / data_out バッファの割り当ての向き (下記 ping-pong)
 
-自分が even 側か odd 側かを PE 自身に計算させる (PE ID を得る) 組み込み関数は現状の MNCL に
-無いので、 判定は host が flag を distribute で渡す方式にしている。 PE ID を自前計算する
-init 専用 kernel は導入していない。
+この example 作成時点では、自分が even 側か odd 側かを PE 自身に計算させる (PE ID を得る) 組み込み
+関数が MNCL に無かったため、 判定は host が flag を distribute で渡す方式にしている
+（`get_global_id` 追加後の PE 自前計算版は `13-odd-even-sort-gid` を参照）。 PE ID を自前計算する
+init 専用 kernel は本 example では導入していない。
 
 ## データの ping-pong (2 バッファ)
 
@@ -79,8 +80,8 @@ data を 1 つの in/out 共用バッファにせず、 2 つのバッファ (da
 
 ### なぜ分けるか
 
-in/out を共用しても結果は正しい。 kernel は distribute / neighbor の読み取りが collect の
-書き込みより前にすべて済むため、 隣接読み (`neighbor`) は上書き前の元の値を見る。 1 フェーズ
+in/out を共用しても結果は正しい。 kernel は distribute / load_neighbor の読み取りが collect の
+書き込みより前にすべて済むため、 隣接読み (`load_neighbor`) は上書き前の元の値を見る。 1 フェーズ
 内で読みと書きが競合することはない。 だから正しさのためではない。
 
 分けるのはデバッグのためである。 in/out を共用すると、 実行後に PDM をダンプしても
@@ -90,14 +91,14 @@ in/out を共用しても結果は正しい。 kernel は distribute / neighbor 
 
 ## PDM 配置
 
-`.param` の `addr` は 8 byte (1 長語 = double 1 個) 単位。
+`.param` の `addr` は 8 byte (1 個の u64 = double 1 個) 単位。
 
-| 内容 | addr (長語) | byte offset | 向き |
+| 内容 | addr (u64) | byte offset | 向き |
 |---|---|---|---|
 | data_a     | 0      | 0        | even の入力 / odd の出力 |
 | flag       | 4096   | 32768    | in |
 | boundary_flags | 8192 | 65536  | in |
-| neighbor buffer | 16384 | 131072 | 内部スクラッチ |
+| load_neighbor buffer | 16384 | 131072 | 内部スクラッチ |
 | data_b     | 24576  | 196608   | even の出力 / odd の入力 |
 | swap_flags | 32768  | 262144   | even/odd が書き、 reduce が読む |
 | swap_count | 131072 | 1048576  | reduce の出力 (4 partial sum) |
@@ -128,7 +129,7 @@ reduce : reduce 実行          ->  swap_count を受信 (odd の swap 回数)
 
 ```c
 // even / odd (本体は同一、 kernel 名のみ相違)
-__kernel void odd_even_sort_even(__global double* data_in,     // in  (distribute / neighbor が読む)
+__kernel void odd_even_sort_even(__global double* data_in,     // in  (distribute / load_neighbor が読む)
                                  __global double* data_out,     // out (collect 先)
                                  __global double* flag,         // in  (ペアの左メンバか)
                                  __global double* swap_flags);  // out (PE ごとの swap 有無 0/1)

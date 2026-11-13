@@ -12,7 +12,7 @@ import shutil
 import lit.formats
 
 config.name = "mncore2-sdk-emu-process"
-config.test_format = lit.formats.ShTest(execute_external=True)
+config.test_format = lit.formats.ShTest(execute_external=False)
 config.suffixes = ['.test']
 
 # emu:process には gpfn3_package_main と assemble3 が必要

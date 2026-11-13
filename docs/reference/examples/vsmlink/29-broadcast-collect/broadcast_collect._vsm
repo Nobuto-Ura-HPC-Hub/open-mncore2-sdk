@@ -4,7 +4,7 @@
 # @broadcast size 4 で struct {x,y,z,m} を全 PE に同値で配り、m を @distribute した per-PE の
 # id で差し替え、@collect size 4 で PDM (成分ごと) に集める。
 # ホストが x,y,z = broadcast 値 (全 PE 同一)・m = per-PE id を確認する。
-# 設計とレイアウトは docs/broadcast-collect-layout.md を参照。
+# レイアウトは share/vsmlink/directives-spec.md の「PDM 上の並び」。
 #
 # broadcast は GRF0 の +2 刻みに着地: $lr16=x $lr18=y $lr20=z $lr22=m(未使用)
 # distribute は LM0 に着地: $lm0 = per-PE id

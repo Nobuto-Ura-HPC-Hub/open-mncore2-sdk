@@ -31,7 +31,8 @@ NP (粒子数)
 LB_DIST / LB_BCAST / LB_COLLECT
     L1BM のスロット先頭アドレス。 l1bmd 1 命令は addr から 256 u64 を占有するので
     256 u64 グリッドに置く。 addr は 64 u64 アラインが必須 (dev manual 3.6.8.20)。
-    詳しくは docs/test-and-example-layout.md の節 2.6 を参照。
+    l1bmd は v やマスクの有無に関わらず 4 サイクル動作し、 addr から 256 u64 を必ず占有する
+    (dev manual 3.6.8.20 / 3.6.8.21)。
 
 設計のポイント
 --------------

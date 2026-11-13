@@ -1,0 +1,4 @@
+# 68-dmwrite-dmread: emu:process 非対応。 driver が emu:lib の debug_write/read モデルを
+# 前提にしており、 emu:process 用の分岐 (カーネル再実行を挟む形) を持たない。
+# UNSUPPORTED: true
+# RUN: ninja -C %examples/68-dmwrite-dmread test-emu

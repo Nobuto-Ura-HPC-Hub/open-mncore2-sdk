@@ -2,7 +2,7 @@
 #
 # struct {x,y,z,m} を broadcast size 4 で全 PE に配り、m を distribute した per-PE id で
 # 差し替え、collect size 4 で PDM (成分ごと SoA) に集めて回収する。
-# 設計とレイアウトは docs/broadcast-collect-layout.md を参照。
+# レイアウトは share/vsmlink/directives-spec.md の「PDM 上の並び」。
 #
 # ninja              vsmlink (.vsm 生成)
 # ninja build-e2e    + assemble3 + host C ビルド
@@ -33,3 +33,8 @@ build test-device: test_device $builddir/test_broadcast_collect | $builddir/broa
 build clean: clean
 
 default $builddir/broadcast_collect.vsm
+
+# --- verify: golden data ---
+build verify: verify_cmd $builddir/broadcast_collect.vsm
+  expected = expected.vsm
+  actual = $builddir/broadcast_collect.vsm

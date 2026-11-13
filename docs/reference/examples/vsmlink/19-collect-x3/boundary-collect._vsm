@@ -9,7 +9,7 @@
 #   to_param 16: $mabid の値  (4096 PE × 1 LW)  — 0..15
 #   to_param 24: $l1bid の値  (4096 PE × 1 LW)  — 0..7
 #
-# 注意: vsm-linker 本体の改造なし。lpassa + @collect のみ使用。
+# 注意: vsmlink コマンド本体の改造なし。lpassa + @collect のみ使用。
 
 	# $subpeid を GRF 経由で LM に格納
 	lpassa $subpeid $lr0

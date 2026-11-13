@@ -71,3 +71,12 @@ build test-device: test_device $builddir/sort_host | $
 build clean: clean
 
 default $builddir/sort_even.vsm $builddir/sort_odd.vsm
+
+# --- verify: golden data (複数出力) ---
+build verify-sort_even: verify_cmd $builddir/sort_even.vsm
+  expected = expected_sort_even.vsm
+  actual = $builddir/sort_even.vsm
+build verify-sort_odd: verify_cmd $builddir/sort_odd.vsm
+  expected = expected_sort_odd.vsm
+  actual = $builddir/sort_odd.vsm
+build verify: phony verify-sort_even verify-sort_odd 

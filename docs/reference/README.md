@@ -4,13 +4,11 @@ SDK にインストールされたドキュメントの自動生成インデッ�
 
 | Kit | Version |
 |-----|---------|
-| mncore2-emuenv-kit | 20240826.3 |
-| sdk-base-kit | 0.1.12 |
 | mnc2-inspect-kit | 0.1.6 |
-| openacc-c-kit | 0.4.2 |
-| libmnc2-kit | 0.4.1 |
-| vsmlink-kit | 0.9.0 |
-| mncl-kit | 0.3.3 |
+| sdk-base-kit | 0.1.13 |
+| libmnc2-kit | 0.4.3 |
+| vsmlink-kit | 0.10.2 |
+| mncl-kit | 0.3.4 |
 
 ## mnc2-inspect (0.1.6)
 
@@ -22,22 +20,11 @@ SDK にインストールされたドキュメントの自動生成インデッ�
 - [bin-tools.md](mnc2/bin-tools.md)
 - [usage.md](mnc2/usage.md)
 
-## mncl (0.3.3)
+## mncl (0.3.4)
 
 - [api-reference.md](mncl/api-reference.md)
 
-## mncore2-emuenv (20240826.3)
-
-- [Changelog.md](mncore2-emuenv/Changelog.md)
-- [README-pfn.md](mncore2-emuenv/README-pfn.md)
-- [NOTICE.md](mncore2-emuenv/legal/NOTICE.md)
-- [tutorial.md](mncore2-emuenv/tutorial.md)
-
-## openacc-c-kit
-
-- [tutorial.md](openacc-c-kit/tutorial.md)
-
-## vsmlink (0.9.0)
+## vsmlink (0.10.2)
 
 - [api-reference.md](vsmlink/api-reference.md)
 - [directives-spec.md](vsmlink/directives-spec.md)
@@ -49,10 +36,9 @@ SDK にインストールされたドキュメントの自動生成インデッ�
 
 `sdk-examples --list` で一覧、`sdk-examples <kit名> <dest>` でコピー。
 
-- libmnc2/ (0.4.1)
+- libmnc2/ (0.4.3)
 - mnc2-inspect/ (0.1.6)
-- mncl/ (0.3.3)
-- openacc-c/ (0.4.2)
+- mncl/ (0.3.4)
 - scripts/
-- vsmlink/ (0.9.0)
+- vsmlink/ (0.10.2)
 

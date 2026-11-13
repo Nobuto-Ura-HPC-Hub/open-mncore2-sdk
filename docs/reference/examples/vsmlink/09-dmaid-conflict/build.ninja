@@ -1,6 +1,8 @@
-# 09-dmaid-conflict: dmaid=0x23 タグ衝突の検証
+# 09-dmaid-conflict: ホストが予約タグと同じ値で送ったときのタグ衝突の検証
 #
 # カーネルは 01-roundtrip と同一。ホスト側で dmaid を変えて衝突を確認する。
+# 予約タグ (vsmlink が kernel の中の転送の待ちに使うタグ) の値は roundtrip.param の
+# :reserved_wait_tag だけで決め、ホストへは build で生成するヘッダで渡す。
 #
 # ninja              → vsmlink: _vsm + .param + .stparam → .vsm
 # ninja build-e2e    → + assemble3 + host C ビルド (emu:lib)
@@ -23,16 +25,37 @@ build $builddir/roundtrip.asm: asm3 $builddir/roundtrip.vsm
 build $builddir/roundtrip.idma.dat: asm3_loader $builddir/roundtrip.vsm
   stem = $builddir/roundtrip
 
-build $builddir/test_dmaid_conflict.o: cc test_dmaid_conflict.c
+# 予約タグの値を roundtrip.param から読み、ホストが include するヘッダにする。
+# 見つからなければ失敗させる (既定値で続けない)。
+rule reserved_tag_header
+  command = tag=$$(sed -n 's/.*:reserved_wait_tag #x\([0-9a-fA-F][0-9a-fA-F]\).*/\1/p' $in | head -n 1); test -n "$$tag" || { echo "$in: :reserved_wait_tag が無い" >&2; exit 1; }; printf '/* 自動生成: build.ninja が %s の :reserved_wait_tag から作る。手で編集しない */\n#define RESERVED_WAIT_TAG 0x%s\n' $in "$$tag" > $out
+  description = GEN $out
+build $builddir/reserved_wait_tag.h: reserved_tag_header roundtrip.param
+
+# このテストの前提: kernel が中の転送で予約タグを待っていること。生成した .vsm に
+# 「wait i<予約タグ>」が無ければ、ホストが同じ値で送っても衝突しないので、ここで止める。
+rule check_reserved_wait
+  command = tag=$$(sed -n 's/.*:reserved_wait_tag #x\([0-9a-fA-F][0-9a-fA-F]\).*/\1/p' $param | head -n 1); test -n "$$tag" && grep -qi "wait i$$tag" $in || { echo "$in: 予約タグ ($$tag) の wait が無い。このテストの前提が崩れている" >&2; exit 1; }; touch $out
+  description = CHECK 予約タグの wait $in
+build $builddir/reserved_wait.ok: check_reserved_wait $builddir/roundtrip.vsm | roundtrip.param
+  param = roundtrip.param
+
+build $builddir/test_dmaid_conflict.o: cc test_dmaid_conflict.c | $builddir/reserved_wait_tag.h
+  cflags = -I$builddir
 build $builddir/test_dmaid_conflict: link_exe $builddir/test_dmaid_conflict.o
 
-build build-e2e: phony $builddir/roundtrip.asm $builddir/roundtrip.idma.dat $builddir/test_dmaid_conflict
+build build-e2e: phony $builddir/roundtrip.asm $builddir/roundtrip.idma.dat $builddir/test_dmaid_conflict $builddir/reserved_wait.ok
 
 # --- test: run E2E ---
 # test-emu-lib は無し: emu:lib は async dmaid 衝突を検出しない。 詳細は README.md 参照。
 build test: test_usage
-build test-device: test_device $builddir/test_dmaid_conflict | $builddir/roundtrip.idma.dat
+build test-device: test_device $builddir/test_dmaid_conflict | $builddir/roundtrip.idma.dat $builddir/reserved_wait.ok
 
 build clean: clean
 
 default $builddir/roundtrip.vsm
+
+# --- verify: golden data ---
+build verify: verify_cmd $builddir/roundtrip.vsm
+  expected = expected.vsm
+  actual = $builddir/roundtrip.vsm

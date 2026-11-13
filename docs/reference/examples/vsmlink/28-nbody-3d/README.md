@@ -1,7 +1,6 @@
 # 28-nbody-3d: 3D N 体シミュレーション
 
-完全な 3D N 体 (逆二乗則 + 速度と時間積分 + 全対全) を目指す example。設計の全体像は
-`docs/nbody-3d-design.md` を参照。ここは段階を追って実装する。
+完全な 3D N 体 (逆二乗則 + 速度と時間積分 + 全対全) を目指す example。ここは段階を追って実装する。
 
 入力の粒子データ (Plummer 球など) は NEMO の mkplummer 等で生成し、正規化した共通形式で
 読み込む (段階 6)。NEMO: https://carma.astro.umd.edu/nemo/archive/
@@ -85,7 +84,7 @@ eps2=$lm14 c_half=$lm16 c_onehalf=$lm18 dt=$lm20 / vx=$lm22 vy=$lm24 vz=$lm26。
 
 複数ステップでは、更新後の位置を次のステップの力計算に渡すため、broadcast 元 (粒子ごと並び)
 に反映する必要がある。ところが collect は成分ごと (`[x×4096]...`) にしか PDM へ書けない
-(`src/templates/collect.vsm` の mvp が成分ごと)。broadcast 元は粒子ごと (`[x,y,z,m]`) で
+(`@collect` の展開の `mvp` が成分ごと)。broadcast 元は粒子ごと (`[x,y,z,m]`) で
 並びが逆なので、collect した結果をそのまま broadcast 元にできない。
 
 いまはこの変換を**ホストにやらせている** (案 c)。各ステップで:
@@ -97,7 +96,7 @@ eps2=$lm14 c_half=$lm16 c_onehalf=$lm18 dt=$lm20 / vx=$lm22 vy=$lm24 vz=$lm26。
 
 vsm を変えずにホストのループだけで済むのが利点。device で効率が要るときは、broadcast を
 成分ごと配列から size 1 で読む形にして書き戻しを普通の collect にする案 (案 b) に移る
-(`docs/nbody-3d-design.md` 参照)。粒子ごとへの直接 scatter (案 a) は vsmlink に新しい機構が
+。粒子ごとへの直接 scatter (案 a) は vsmlink に新しい機構が
 要るので採らない。
 
 ## rsqrt のニュートン補正
@@ -152,9 +151,9 @@ load 実績サイズ内)。host は 1 回の力評価で分割を順に exec す
 - **accumulator は exec をまたいで LM に残る** (init -> accumulate -> kick が既にこの性質に依存)。
   先頭分割だけリセット、以降は加算。
 - **送信は全 N を 1 回 PDM に置くだけ** (各分割はその slice を読む)。分割間で PDM 往復なし。
-- **IDMA queue の深さは 31**。分割を積むとき `mnc2_get_idma_stat` の `n_dma` を
-  見て 31 未満で積む (`exec_q`)。完全 idle 待ちで毎回 drain すると並列性が切れるので、分割間は
-  drain しない。
+- **IDMA queue の深さは 31**。ライブラリは既定 16 で `MNC2_ERROR_BUSY` を返す。分割を積む
+  とき、この戻り値を受けたら積み直す (`exec_q`)。完全 idle 待ちで毎回 drain すると並列性が
+  切れるので、分割間は drain しない。
 - **collect の出力を host が recv する前に `mnc2_wait_idma_idle` で IDMA を流し切る**。流し切らないと、多数分割の後ろに積まれた collect の done タグが立つ前に recv の DDMA
   待ちが尽きる (N=4096 で顕在化)。
 - リングシフト (msl/msr) は不要。MAB 内 4 PE の局所シフトで全 4096 のリングにならず、力の数も

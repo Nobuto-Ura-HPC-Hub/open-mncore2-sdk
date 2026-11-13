@@ -1,0 +1,280 @@
+# ** 自動生成: gen_chunks_ninja.py。手で編集しない **
+# 1 タイムステップを CHUNK=16 粒子 (= 1 回の転送ぶん) ずつの kernel に刻む (N=64, 4 分割)。
+# build.ninja が include する。$builddir は build.ninja 側で定義。
+
+build $builddir/rot_a_0._vsm $builddir/rot_a_0.param $builddir/rot_b_0._vsm $builddir/rot_b_0.param: gen_step gen_step.py rotate._vsm
+  n = 64
+  start = 0
+  last = 0
+  compute = rotate._vsm
+  transpose = 0
+  out_a = $builddir/rot_a_0._vsm
+  param_a = $builddir/rot_a_0.param
+  out_b = $builddir/rot_b_0._vsm
+  param_b = $builddir/rot_b_0.param
+build $builddir/rot_a_0.vsm: vsmlink $builddir/rot_a_0._vsm $builddir/rot_a_0.param step.stparam
+  vsm = $builddir/rot_a_0._vsm
+  param = $builddir/rot_a_0.param
+  stparam = step.stparam
+build $builddir/rot_a_0.idma.dat: asm3_loader $builddir/rot_a_0.vsm
+  stem = $builddir/rot_a_0
+build $builddir/rot_a_1._vsm $builddir/rot_a_1.param $builddir/rot_b_1._vsm $builddir/rot_b_1.param: gen_step gen_step.py rotate._vsm
+  n = 64
+  start = 16
+  last = 0
+  compute = rotate._vsm
+  transpose = 0
+  out_a = $builddir/rot_a_1._vsm
+  param_a = $builddir/rot_a_1.param
+  out_b = $builddir/rot_b_1._vsm
+  param_b = $builddir/rot_b_1.param
+build $builddir/rot_a_1.vsm: vsmlink $builddir/rot_a_1._vsm $builddir/rot_a_1.param step.stparam
+  vsm = $builddir/rot_a_1._vsm
+  param = $builddir/rot_a_1.param
+  stparam = step.stparam
+build $builddir/rot_a_1.idma.dat: asm3_loader $builddir/rot_a_1.vsm
+  stem = $builddir/rot_a_1
+build $builddir/rot_a_2._vsm $builddir/rot_a_2.param $builddir/rot_b_2._vsm $builddir/rot_b_2.param: gen_step gen_step.py rotate._vsm
+  n = 64
+  start = 32
+  last = 0
+  compute = rotate._vsm
+  transpose = 0
+  out_a = $builddir/rot_a_2._vsm
+  param_a = $builddir/rot_a_2.param
+  out_b = $builddir/rot_b_2._vsm
+  param_b = $builddir/rot_b_2.param
+build $builddir/rot_a_2.vsm: vsmlink $builddir/rot_a_2._vsm $builddir/rot_a_2.param step.stparam
+  vsm = $builddir/rot_a_2._vsm
+  param = $builddir/rot_a_2.param
+  stparam = step.stparam
+build $builddir/rot_a_2.idma.dat: asm3_loader $builddir/rot_a_2.vsm
+  stem = $builddir/rot_a_2
+build $builddir/rot_a_3._vsm $builddir/rot_a_3.param $builddir/rot_b_3._vsm $builddir/rot_b_3.param: gen_step gen_step.py rotate._vsm
+  n = 64
+  start = 48
+  last = 1
+  compute = rotate._vsm
+  transpose = 0
+  out_a = $builddir/rot_a_3._vsm
+  param_a = $builddir/rot_a_3.param
+  out_b = $builddir/rot_b_3._vsm
+  param_b = $builddir/rot_b_3.param
+build $builddir/rot_a_3.vsm: vsmlink $builddir/rot_a_3._vsm $builddir/rot_a_3.param step.stparam
+  vsm = $builddir/rot_a_3._vsm
+  param = $builddir/rot_a_3.param
+  stparam = step.stparam
+build $builddir/rot_a_3.idma.dat: asm3_loader $builddir/rot_a_3.vsm
+  stem = $builddir/rot_a_3
+build steps-rot-a: phony $builddir/rot_a_0.idma.dat $builddir/rot_a_1.idma.dat $builddir/rot_a_2.idma.dat $builddir/rot_a_3.idma.dat
+
+build $builddir/rot_b_0.vsm: vsmlink $builddir/rot_b_0._vsm $builddir/rot_b_0.param step.stparam
+  vsm = $builddir/rot_b_0._vsm
+  param = $builddir/rot_b_0.param
+  stparam = step.stparam
+build $builddir/rot_b_0.idma.dat: asm3_loader $builddir/rot_b_0.vsm
+  stem = $builddir/rot_b_0
+build $builddir/rot_b_1.vsm: vsmlink $builddir/rot_b_1._vsm $builddir/rot_b_1.param step.stparam
+  vsm = $builddir/rot_b_1._vsm
+  param = $builddir/rot_b_1.param
+  stparam = step.stparam
+build $builddir/rot_b_1.idma.dat: asm3_loader $builddir/rot_b_1.vsm
+  stem = $builddir/rot_b_1
+build $builddir/rot_b_2.vsm: vsmlink $builddir/rot_b_2._vsm $builddir/rot_b_2.param step.stparam
+  vsm = $builddir/rot_b_2._vsm
+  param = $builddir/rot_b_2.param
+  stparam = step.stparam
+build $builddir/rot_b_2.idma.dat: asm3_loader $builddir/rot_b_2.vsm
+  stem = $builddir/rot_b_2
+build $builddir/rot_b_3.vsm: vsmlink $builddir/rot_b_3._vsm $builddir/rot_b_3.param step.stparam
+  vsm = $builddir/rot_b_3._vsm
+  param = $builddir/rot_b_3.param
+  stparam = step.stparam
+build $builddir/rot_b_3.idma.dat: asm3_loader $builddir/rot_b_3.vsm
+  stem = $builddir/rot_b_3
+build steps-rot-b: phony $builddir/rot_b_0.idma.dat $builddir/rot_b_1.idma.dat $builddir/rot_b_2.idma.dat $builddir/rot_b_3.idma.dat
+
+build $builddir/rotx_a_0._vsm $builddir/rotx_a_0.param $builddir/rotx_b_0._vsm $builddir/rotx_b_0.param: gen_step gen_step.py rotate._vsm
+  n = 64
+  start = 0
+  last = 0
+  compute = rotate._vsm
+  transpose = 1
+  out_a = $builddir/rotx_a_0._vsm
+  param_a = $builddir/rotx_a_0.param
+  out_b = $builddir/rotx_b_0._vsm
+  param_b = $builddir/rotx_b_0.param
+build $builddir/rotx_a_0.vsm: vsmlink $builddir/rotx_a_0._vsm $builddir/rotx_a_0.param step.stparam
+  vsm = $builddir/rotx_a_0._vsm
+  param = $builddir/rotx_a_0.param
+  stparam = step.stparam
+build $builddir/rotx_a_0.idma.dat: asm3_loader $builddir/rotx_a_0.vsm
+  stem = $builddir/rotx_a_0
+build $builddir/rotx_a_1._vsm $builddir/rotx_a_1.param $builddir/rotx_b_1._vsm $builddir/rotx_b_1.param: gen_step gen_step.py rotate._vsm
+  n = 64
+  start = 16
+  last = 0
+  compute = rotate._vsm
+  transpose = 1
+  out_a = $builddir/rotx_a_1._vsm
+  param_a = $builddir/rotx_a_1.param
+  out_b = $builddir/rotx_b_1._vsm
+  param_b = $builddir/rotx_b_1.param
+build $builddir/rotx_a_1.vsm: vsmlink $builddir/rotx_a_1._vsm $builddir/rotx_a_1.param step.stparam
+  vsm = $builddir/rotx_a_1._vsm
+  param = $builddir/rotx_a_1.param
+  stparam = step.stparam
+build $builddir/rotx_a_1.idma.dat: asm3_loader $builddir/rotx_a_1.vsm
+  stem = $builddir/rotx_a_1
+build $builddir/rotx_a_2._vsm $builddir/rotx_a_2.param $builddir/rotx_b_2._vsm $builddir/rotx_b_2.param: gen_step gen_step.py rotate._vsm
+  n = 64
+  start = 32
+  last = 0
+  compute = rotate._vsm
+  transpose = 1
+  out_a = $builddir/rotx_a_2._vsm
+  param_a = $builddir/rotx_a_2.param
+  out_b = $builddir/rotx_b_2._vsm
+  param_b = $builddir/rotx_b_2.param
+build $builddir/rotx_a_2.vsm: vsmlink $builddir/rotx_a_2._vsm $builddir/rotx_a_2.param step.stparam
+  vsm = $builddir/rotx_a_2._vsm
+  param = $builddir/rotx_a_2.param
+  stparam = step.stparam
+build $builddir/rotx_a_2.idma.dat: asm3_loader $builddir/rotx_a_2.vsm
+  stem = $builddir/rotx_a_2
+build $builddir/rotx_a_3._vsm $builddir/rotx_a_3.param $builddir/rotx_b_3._vsm $builddir/rotx_b_3.param: gen_step gen_step.py rotate._vsm
+  n = 64
+  start = 48
+  last = 1
+  compute = rotate._vsm
+  transpose = 1
+  out_a = $builddir/rotx_a_3._vsm
+  param_a = $builddir/rotx_a_3.param
+  out_b = $builddir/rotx_b_3._vsm
+  param_b = $builddir/rotx_b_3.param
+build $builddir/rotx_a_3.vsm: vsmlink $builddir/rotx_a_3._vsm $builddir/rotx_a_3.param step.stparam
+  vsm = $builddir/rotx_a_3._vsm
+  param = $builddir/rotx_a_3.param
+  stparam = step.stparam
+build $builddir/rotx_a_3.idma.dat: asm3_loader $builddir/rotx_a_3.vsm
+  stem = $builddir/rotx_a_3
+build steps-rotx-a: phony $builddir/rotx_a_0.idma.dat $builddir/rotx_a_1.idma.dat $builddir/rotx_a_2.idma.dat $builddir/rotx_a_3.idma.dat
+
+build $builddir/rotx_b_0.vsm: vsmlink $builddir/rotx_b_0._vsm $builddir/rotx_b_0.param step.stparam
+  vsm = $builddir/rotx_b_0._vsm
+  param = $builddir/rotx_b_0.param
+  stparam = step.stparam
+build $builddir/rotx_b_0.idma.dat: asm3_loader $builddir/rotx_b_0.vsm
+  stem = $builddir/rotx_b_0
+build $builddir/rotx_b_1.vsm: vsmlink $builddir/rotx_b_1._vsm $builddir/rotx_b_1.param step.stparam
+  vsm = $builddir/rotx_b_1._vsm
+  param = $builddir/rotx_b_1.param
+  stparam = step.stparam
+build $builddir/rotx_b_1.idma.dat: asm3_loader $builddir/rotx_b_1.vsm
+  stem = $builddir/rotx_b_1
+build $builddir/rotx_b_2.vsm: vsmlink $builddir/rotx_b_2._vsm $builddir/rotx_b_2.param step.stparam
+  vsm = $builddir/rotx_b_2._vsm
+  param = $builddir/rotx_b_2.param
+  stparam = step.stparam
+build $builddir/rotx_b_2.idma.dat: asm3_loader $builddir/rotx_b_2.vsm
+  stem = $builddir/rotx_b_2
+build $builddir/rotx_b_3.vsm: vsmlink $builddir/rotx_b_3._vsm $builddir/rotx_b_3.param step.stparam
+  vsm = $builddir/rotx_b_3._vsm
+  param = $builddir/rotx_b_3.param
+  stparam = step.stparam
+build $builddir/rotx_b_3.idma.dat: asm3_loader $builddir/rotx_b_3.vsm
+  stem = $builddir/rotx_b_3
+build steps-rotx-b: phony $builddir/rotx_b_0.idma.dat $builddir/rotx_b_1.idma.dat $builddir/rotx_b_2.idma.dat $builddir/rotx_b_3.idma.dat
+
+build $builddir/logx_a_0._vsm $builddir/logx_a_0.param $builddir/logx_b_0._vsm $builddir/logx_b_0.param: gen_step gen_step.py logistic._vsm
+  n = 64
+  start = 0
+  last = 0
+  compute = logistic._vsm
+  transpose = 1
+  out_a = $builddir/logx_a_0._vsm
+  param_a = $builddir/logx_a_0.param
+  out_b = $builddir/logx_b_0._vsm
+  param_b = $builddir/logx_b_0.param
+build $builddir/logx_a_0.vsm: vsmlink $builddir/logx_a_0._vsm $builddir/logx_a_0.param step.stparam
+  vsm = $builddir/logx_a_0._vsm
+  param = $builddir/logx_a_0.param
+  stparam = step.stparam
+build $builddir/logx_a_0.idma.dat: asm3_loader $builddir/logx_a_0.vsm
+  stem = $builddir/logx_a_0
+build $builddir/logx_a_1._vsm $builddir/logx_a_1.param $builddir/logx_b_1._vsm $builddir/logx_b_1.param: gen_step gen_step.py logistic._vsm
+  n = 64
+  start = 16
+  last = 0
+  compute = logistic._vsm
+  transpose = 1
+  out_a = $builddir/logx_a_1._vsm
+  param_a = $builddir/logx_a_1.param
+  out_b = $builddir/logx_b_1._vsm
+  param_b = $builddir/logx_b_1.param
+build $builddir/logx_a_1.vsm: vsmlink $builddir/logx_a_1._vsm $builddir/logx_a_1.param step.stparam
+  vsm = $builddir/logx_a_1._vsm
+  param = $builddir/logx_a_1.param
+  stparam = step.stparam
+build $builddir/logx_a_1.idma.dat: asm3_loader $builddir/logx_a_1.vsm
+  stem = $builddir/logx_a_1
+build $builddir/logx_a_2._vsm $builddir/logx_a_2.param $builddir/logx_b_2._vsm $builddir/logx_b_2.param: gen_step gen_step.py logistic._vsm
+  n = 64
+  start = 32
+  last = 0
+  compute = logistic._vsm
+  transpose = 1
+  out_a = $builddir/logx_a_2._vsm
+  param_a = $builddir/logx_a_2.param
+  out_b = $builddir/logx_b_2._vsm
+  param_b = $builddir/logx_b_2.param
+build $builddir/logx_a_2.vsm: vsmlink $builddir/logx_a_2._vsm $builddir/logx_a_2.param step.stparam
+  vsm = $builddir/logx_a_2._vsm
+  param = $builddir/logx_a_2.param
+  stparam = step.stparam
+build $builddir/logx_a_2.idma.dat: asm3_loader $builddir/logx_a_2.vsm
+  stem = $builddir/logx_a_2
+build $builddir/logx_a_3._vsm $builddir/logx_a_3.param $builddir/logx_b_3._vsm $builddir/logx_b_3.param: gen_step gen_step.py logistic._vsm
+  n = 64
+  start = 48
+  last = 1
+  compute = logistic._vsm
+  transpose = 1
+  out_a = $builddir/logx_a_3._vsm
+  param_a = $builddir/logx_a_3.param
+  out_b = $builddir/logx_b_3._vsm
+  param_b = $builddir/logx_b_3.param
+build $builddir/logx_a_3.vsm: vsmlink $builddir/logx_a_3._vsm $builddir/logx_a_3.param step.stparam
+  vsm = $builddir/logx_a_3._vsm
+  param = $builddir/logx_a_3.param
+  stparam = step.stparam
+build $builddir/logx_a_3.idma.dat: asm3_loader $builddir/logx_a_3.vsm
+  stem = $builddir/logx_a_3
+build steps-logx-a: phony $builddir/logx_a_0.idma.dat $builddir/logx_a_1.idma.dat $builddir/logx_a_2.idma.dat $builddir/logx_a_3.idma.dat
+
+build $builddir/logx_b_0.vsm: vsmlink $builddir/logx_b_0._vsm $builddir/logx_b_0.param step.stparam
+  vsm = $builddir/logx_b_0._vsm
+  param = $builddir/logx_b_0.param
+  stparam = step.stparam
+build $builddir/logx_b_0.idma.dat: asm3_loader $builddir/logx_b_0.vsm
+  stem = $builddir/logx_b_0
+build $builddir/logx_b_1.vsm: vsmlink $builddir/logx_b_1._vsm $builddir/logx_b_1.param step.stparam
+  vsm = $builddir/logx_b_1._vsm
+  param = $builddir/logx_b_1.param
+  stparam = step.stparam
+build $builddir/logx_b_1.idma.dat: asm3_loader $builddir/logx_b_1.vsm
+  stem = $builddir/logx_b_1
+build $builddir/logx_b_2.vsm: vsmlink $builddir/logx_b_2._vsm $builddir/logx_b_2.param step.stparam
+  vsm = $builddir/logx_b_2._vsm
+  param = $builddir/logx_b_2.param
+  stparam = step.stparam
+build $builddir/logx_b_2.idma.dat: asm3_loader $builddir/logx_b_2.vsm
+  stem = $builddir/logx_b_2
+build $builddir/logx_b_3.vsm: vsmlink $builddir/logx_b_3._vsm $builddir/logx_b_3.param step.stparam
+  vsm = $builddir/logx_b_3._vsm
+  param = $builddir/logx_b_3.param
+  stparam = step.stparam
+build $builddir/logx_b_3.idma.dat: asm3_loader $builddir/logx_b_3.vsm
+  stem = $builddir/logx_b_3
+build steps-logx-b: phony $builddir/logx_b_0.idma.dat $builddir/logx_b_1.idma.dat $builddir/logx_b_2.idma.dat $builddir/logx_b_3.idma.dat
+

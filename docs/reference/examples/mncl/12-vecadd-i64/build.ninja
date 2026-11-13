@@ -19,7 +19,7 @@ build $builddir/vecadd-i64.vsm: vsmlink $builddir/vecadd-i64._vsm vecadd-i64.par
   stparam = vecadd-i64.stparam
 
 build $builddir/vecadd-i64.asm: asm3 $builddir/vecadd-i64.vsm
-build $builddir/vecadd-i64.idma.dat: asm3_loader $builddir/vecadd-i64.vsm
+build $builddir/vecadd-i64.idma.dat | $builddir/vecadd-i64.idma.inst $builddir/vecadd-i64.idma.inst.txt $builddir/vecadd-i64.ddma.dat $builddir/vecadd-i64.ddma.inst $builddir/vecadd-i64.ddma.inst.txt: asm3_loader $builddir/vecadd-i64.vsm
   stem = $builddir/vecadd-i64
 
 # --- host driver ---
@@ -34,6 +34,5 @@ build test-emu-lib: test_emu_lib $builddir/test_vecadd-i64 | $builddir/vecadd-i6
 build test-device:  test_device  $builddir/test_vecadd-i64 | $builddir/vecadd-i64.asm $builddir/vecadd-i64.idma.dat
 build test:         test_usage
 
-build clean: clean
 
 default $builddir/vecadd-i64.asm $builddir/vecadd-i64.idma.dat

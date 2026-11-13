@@ -1,0 +1,22 @@
+# build.ninja — 68-dmwrite-dmread
+include ../../scripts/sdk.ninja
+include ../../scripts/examples.ninja
+
+# カーネル (libmnc2 経由で実行する版)
+build $builddir/dm_swap.asm: asm3_text data/dm_swap.vsm
+build $builddir/dm_swap.idma.dat: asm3_loader data/dm_swap.vsm
+  stem = $builddir/dm_swap
+
+# host 無しで手動確認する版。d set / d get はエミュレータ実行時専用の制御文なので
+# .idma.dat にはせず、.asm のまま gpfn3_package_main に渡す (README 参照)。
+build $builddir/dm_swap_dset.asm: asm3_text data/dm_swap_dset.vsm
+
+# test driver
+build $builddir/ex_dm_swap.o: cc ex_dm_swap.c
+build $builddir/ex_dm_swap: link $builddir/ex_dm_swap.o | ${sdk_root}/lib/libmnc2.a
+
+# test targets (emu:lib 専用 example: debug_write / debug_read が emu:lib のみ対応)
+build test-emu-lib: test_emu_lib     $builddir/ex_dm_swap | $builddir/dm_swap.asm $builddir/dm_swap.idma.dat
+build test:         test_usage_emu_lib_only
+
+default $builddir/ex_dm_swap $builddir/dm_swap.asm $builddir/dm_swap.idma.dat $builddir/dm_swap_dset.asm

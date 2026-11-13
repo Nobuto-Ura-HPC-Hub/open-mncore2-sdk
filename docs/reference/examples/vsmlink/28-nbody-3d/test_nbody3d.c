@@ -136,16 +136,13 @@ static double max_radius(int n, const double *x, const double *y, const double *
     return rm;
 }
 
-/* IDMA queue (depth 31) を溢れさせずに 1 カーネル exec する。n_dma が 31 未満になるまで
-   待ってから kick する。完全 idle 待ち (mnc2_wait_idma_idle) だと queue が毎回空になり
-   depth 31 の並列性が境界で切れるので、n_dma を見て空きができたら 1 個補充する。
-   分割カーネル間は LM 依存で FIFO 順に実行されるため drain は不要。 */
-static int exec_q(mnc2_device_t dev, mnc2_kernel_t k) {
-    mnc2_idma_stat_t st;
-    while (mnc2_get_idma_stat(dev, &st) == MNC2_SUCCESS && st.n_dma >= 31) {
-        /* queue 満杯。device が処理して空くまでポーリング */
-    }
-    return mnc2_exec_kernel(k);
+/* IDMA キューに空きが無いと MNC2_ERROR_BUSY が返る (このとき積んでいない)。
+   空きができ次第に積み直す。分割カーネル間は LM 依存で FIFO 順に実行されるため
+   drain は不要。 */
+static int exec_q(mnc2_kernel_t k) {
+    int r;
+    while ((r = mnc2_exec_kernel(k)) == MNC2_ERROR_BUSY) { }
+    return r;
 }
 
 int main(int argc, char **argv) {
@@ -243,7 +240,7 @@ int main(int argc, char **argv) {
         for (int i = 0; i < PE_COUNT; i++) { d[i] = hx[i]; d[PE_COUNT + i] = hy[i]; d[2 * PE_COUNT + i] = hz[i]; d[3 * PE_COUNT + i] = hm[i]; }
         if (mnc2_send(dev, dist_b, OFF_DIST, DIST_BYTES, DMAID_TRIGGER) != MNC2_SUCCESS) { rc = 1; goto done; }
     }
-    if (exec_q(dev, k_init) != MNC2_SUCCESS) { fprintf(stderr, "FAIL: init\n"); rc = 1; goto done; }
+    if (exec_q(k_init) != MNC2_SUCCESS) { fprintf(stderr, "FAIL: init\n"); rc = 1; goto done; }
 
     /* 初期の力 + 初期スナップショット + 初期エネルギー */
     {
@@ -252,7 +249,7 @@ int main(int argc, char **argv) {
         for (int k = 0; k < M; k++) { bp[k * 4] = hx[k]; bp[k * 4 + 1] = hy[k]; bp[k * 4 + 2] = hz[k]; bp[k * 4 + 3] = hm[k]; }
         if (mnc2_send(dev, bc_b, OFF_PJ, PJ_BYTES, DMAID_TRIGGER) != MNC2_SUCCESS) { rc = 1; goto done; }
         for (int g = 0; g < NCHUNK; g++)
-            if (exec_q(dev, k_acc[g]) != MNC2_SUCCESS) { fprintf(stderr, "FAIL: acc0 分割 %d\n", g); rc = 1; goto done; }
+            if (exec_q(k_acc[g]) != MNC2_SUCCESS) { fprintf(stderr, "FAIL: acc0 分割 %d\n", g); rc = 1; goto done; }
     }
     snap_write(&wp, hx, hy, hz);
     snap_write(&wv, hvx, hvy, hvz);
@@ -260,9 +257,9 @@ int main(int argc, char **argv) {
 
     /* --- device leapfrog --- */
     for (int step = 0; step < NSTEP; step++) {
-        if (exec_q(dev, k_kick) != MNC2_SUCCESS) { rc = 1; goto done; }
-        if (exec_q(dev, k_drift) != MNC2_SUCCESS) { rc = 1; goto done; }
-        if (exec_q(dev, k_cp) != MNC2_SUCCESS) { rc = 1; goto done; }
+        if (exec_q(k_kick) != MNC2_SUCCESS) { rc = 1; goto done; }
+        if (exec_q(k_drift) != MNC2_SUCCESS) { rc = 1; goto done; }
+        if (exec_q(k_cp) != MNC2_SUCCESS) { rc = 1; goto done; }
         memset(pos_b, 0, 3 * ELEM_BYTES);
         /* collect_pos は 32 分割 (N=4096) の後ろに積まれるので、IDMA を流し切ってから recv する。
            流し切らないと collect の done タグが立つ前に recv の DDMA 待ちが尽きる。 */
@@ -275,9 +272,9 @@ int main(int argc, char **argv) {
         for (int k = 0; k < M; k++) { bp[k * 4] = hx[k]; bp[k * 4 + 1] = hy[k]; bp[k * 4 + 2] = hz[k]; bp[k * 4 + 3] = hm[k]; }
         if (mnc2_send(dev, bc_b, OFF_PJ, PJ_BYTES, DMAID_TRIGGER) != MNC2_SUCCESS) { rc = 1; goto done; }
         for (int g = 0; g < NCHUNK; g++)
-            if (exec_q(dev, k_acc[g]) != MNC2_SUCCESS) { rc = 1; goto done; }
-        if (exec_q(dev, k_kick) != MNC2_SUCCESS) { rc = 1; goto done; }
-        if (exec_q(dev, k_cv) != MNC2_SUCCESS) { rc = 1; goto done; }
+            if (exec_q(k_acc[g]) != MNC2_SUCCESS) { rc = 1; goto done; }
+        if (exec_q(k_kick) != MNC2_SUCCESS) { rc = 1; goto done; }
+        if (exec_q(k_cv) != MNC2_SUCCESS) { rc = 1; goto done; }
         memset(vout_b, 0, 3 * ELEM_BYTES);
         if (mnc2_wait_idma_idle(dev) != MNC2_SUCCESS) { fprintf(stderr, "FAIL: idma idle (vel)\n"); rc = 1; goto done; }
         if (mnc2_recv(dev, vout_b, OFF_VOUT, 3 * ELEM_BYTES, TAG_VEL) != MNC2_SUCCESS) { rc = 1; goto done; }

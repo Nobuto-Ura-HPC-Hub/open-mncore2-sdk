@@ -1,0 +1,17 @@
+# ABI PFN3_SBY64
+#
+# roundtrip: PDM に番号の順で並んだデータ (1 個 = 連続 4 u64) を @distribute_aos2soa で
+# 各 PE の連続 4 本へ配り、何も計算せずに @collect_soa2aos で PDM へ書き戻す。
+# 対で使うと PDM の並びが元に戻ることを確かめる (share/vsmlink/directives-spec.md の
+# 「@distribute_aos2soa / @collect_soa2aos」)。
+#
+# LM0 の割り当て:
+#   $lm0 $lm2 $lm4 $lm6    データの 4 値
+#   $lm8 $lm10 $lm12 $lm14 転置の作業の場所 (2 つの directive で共用。中身は壊れる)
+#
+# @distribute_aos2soa の末尾は dmread で $lm0..6 を書く。直後の @collect_soa2aos の
+# dmwrite が同じ 4 本を読むので、LM の書き込み → 読み出しの待ち 2 ステップを置く
+# (dev manual 3.6.3.9。assemble3 が検査する)。
+	@distribute_aos2soa _in from_param 8 $lm0 $lm8
+	nop/2
+	@collect_soa2aos _out to_param 16 $lm0 $lm8

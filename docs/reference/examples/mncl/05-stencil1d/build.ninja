@@ -1,4 +1,4 @@
-# 05-stencil1d: c[i] = neighbor(-1) + self + neighbor(+1) (4096 PE)
+# 05-stencil1d: c[i] = load_neighbor(-1) + self + load_neighbor(+1) (4096 PE)
 #
 # ninja              -> .cl -> ._vsm -> .vsm
 # ninja build-e2e    -> + vsmlink + assemble3 + host C + boundary_flags fetch
@@ -19,7 +19,7 @@ build $builddir/stencil1d.vsm: vsmlink $builddir/stencil1d._vsm stencil1d.param 
   stparam = stencil1d.stparam
 
 build $builddir/stencil1d.asm: asm3 $builddir/stencil1d.vsm
-build $builddir/stencil1d.idma.dat: asm3_loader $builddir/stencil1d.vsm
+build $builddir/stencil1d.idma.dat | $builddir/stencil1d.idma.inst $builddir/stencil1d.idma.inst.txt $builddir/stencil1d.ddma.dat $builddir/stencil1d.ddma.inst $builddir/stencil1d.ddma.inst.txt: asm3_loader $builddir/stencil1d.vsm
   stem = $builddir/stencil1d
 
 # --- host driver ---
@@ -38,6 +38,5 @@ build test-emu-lib: test_emu_lib $builddir/test_stencil1d | $builddir/stencil1d.
 build test-device:  test_device  $builddir/test_stencil1d | $builddir/stencil1d.asm $builddir/stencil1d.idma.dat $builddir/collected_flags.bin
 build test:         test_usage
 
-build clean: clean
 
 default $builddir/stencil1d.asm $builddir/stencil1d.idma.dat

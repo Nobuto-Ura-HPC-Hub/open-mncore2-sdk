@@ -1,0 +1,3721 @@
+# ABI PFN3_SBY64
+#
+# accumulate 分割 (start=0 count=32, newton=3, first=1): 他粒子 32 個
+# (グローバル 0..) を broadcast size 4 で順に受け、3D softening 付き重力で加速度
+# (ax,ay,az) を LM に累積する。first=1 の分割だけ accumulator をリセットし送信を wait する。
+# ** 自動生成: gen_accumulate.py。手で編集しない **
+# LM0 常駐: xi=$lm0 yi=$lm2 zi=$lm4 mi=$lm6 ax=$lm8 ay=$lm10 az=$lm12
+#          eps2=$lm14 c_half=$lm16 c_onehalf=$lm18
+# バンク: LM0=$lm LM1=$ln GRF0=$lr GRF1=$ls
+	# accumulator を 0 にリセット
+	imm i"0" $r0
+	nop/4
+	lpassa $lr0 $lm8
+	nop/24
+	lpassa $lr0 $lm10
+	nop/24
+	lpassa $lr0 $lm12
+	nop/24
+	# --- ブロック 0: 粒子 0 からの力 ---
+# broadcast_load.vsm — @broadcast: PDM の区画を L1BM に載せる部分
+# その区画がまだ L1BM に載っていないときだけ展開される
+# HW パス: PDM から mvb で全 8 L2BM、 l2bmb で全 64 L1BM へ (64 u64 の区画ごと)
+
+	nop; wait i10
+	nop/3
+# @broadcast _pj from_param 8 size 4 $lr16
+# === @broadcast _pj: PDM $p20480 → 全 4096 PE $lr16 ===
+	mvb/n64i3f $p20480@0 $lc0
+	nop/2
+	nop; wait i3f
+	nop/5
+	l2bmb $lc0 $lb0
+# broadcast_use.vsm — @broadcast: L1BM に載っている値を PE に配る部分
+# 毎回展開される。載っていなかった場合は直前に broadcast_load.vsm が展開されている
+# L1BM の番地は区画の先頭ではなく要求された位置 (ずれは vsmlink が加える)
+
+
+	nop/5
+	l1bmp $lb0 $lr16v
+	nop/24
+	nop/24
+	dvadd $lr16 -$lm0 $ln0
+	nop/2
+	dvadd $lr18 -$lm2 $ln2
+	nop/2
+	dvadd $lr20 -$lm4 $ln4
+	nop/2
+	dvmulu $ln0 $ln0 $nowrite
+	dvfmad $ln0 $ln0 $mauf $ls0
+	nop/2
+	dvmulu $ln2 $ln2 $nowrite
+	dvfmad $ln2 $ln2 $mauf $lr24
+	nop/2
+	dvadd $ls0 $lr24 $ln6
+	nop/2
+	dvmulu $ln4 $ln4 $nowrite
+	dvfmad $ln4 $ln4 $mauf $ls0
+	nop/2
+	dvadd $ln6 $ls0 $lr24
+	nop/2
+	dvadd $lr24 $lm14 $ls0
+	nop/2
+	drsqrt $ls0 $lr24
+	nop/4
+	# ニュートン補正: y = y*(1.5 - 0.5*r2*y^2)
+	dvmulu $lr24 $lr24 $nowrite
+	dvfmad $lr24 $lr24 $mauf $ln6
+	nop/2
+	dvmulu $ls0 $ln6 $nowrite
+	dvfmad $ls0 $ln6 $mauf $lr26
+	nop/2
+	dvmulu $lm16 $lr26 $nowrite
+	dvfmad $lm16 $lr26 $mauf $ln6
+	nop/2
+	dvadd $lm18 -$ln6 $ls2
+	nop/2
+	dvmulu $lr24 $ls2 $nowrite
+	dvfmad $lr24 $ls2 $mauf $ln6
+	nop/2
+	lpassa $ln6 $lr24
+	nop/2
+	# ニュートン補正: y = y*(1.5 - 0.5*r2*y^2)
+	dvmulu $lr24 $lr24 $nowrite
+	dvfmad $lr24 $lr24 $mauf $ln6
+	nop/2
+	dvmulu $ls0 $ln6 $nowrite
+	dvfmad $ls0 $ln6 $mauf $lr26
+	nop/2
+	dvmulu $lm16 $lr26 $nowrite
+	dvfmad $lm16 $lr26 $mauf $ln6
+	nop/2
+	dvadd $lm18 -$ln6 $ls2
+	nop/2
+	dvmulu $lr24 $ls2 $nowrite
+	dvfmad $lr24 $ls2 $mauf $ln6
+	nop/2
+	lpassa $ln6 $lr24
+	nop/2
+	# ニュートン補正: y = y*(1.5 - 0.5*r2*y^2)
+	dvmulu $lr24 $lr24 $nowrite
+	dvfmad $lr24 $lr24 $mauf $ln6
+	nop/2
+	dvmulu $ls0 $ln6 $nowrite
+	dvfmad $ls0 $ln6 $mauf $lr26
+	nop/2
+	dvmulu $lm16 $lr26 $nowrite
+	dvfmad $lm16 $lr26 $mauf $ln6
+	nop/2
+	dvadd $lm18 -$ln6 $ls2
+	nop/2
+	dvmulu $lr24 $ls2 $nowrite
+	dvfmad $lr24 $ls2 $mauf $ln6
+	nop/2
+	lpassa $ln6 $lr24
+	nop/2
+	dvmulu $lr24 $lr24 $nowrite
+	dvfmad $lr24 $lr24 $mauf $ls0
+	nop/2
+	dvmulu $ls0 $lr24 $nowrite
+	dvfmad $ls0 $lr24 $mauf $ln6
+	nop/2
+	dvmulu $lr22 $ln6 $nowrite
+	dvfmad $lr22 $ln6 $mauf $ls0
+	nop/2
+	dvmulu $ls0 $ln0 $nowrite
+	dvfmad $ls0 $ln0 $mauf $lr24
+	nop/2
+	dvadd $lm8 $lr24 $ln8
+	nop/2
+	lpassa $ln8 $lm8
+	nop/24
+	dvmulu $ls0 $ln2 $nowrite
+	dvfmad $ls0 $ln2 $mauf $lr24
+	nop/2
+	dvadd $lm10 $lr24 $ln10
+	nop/2
+	lpassa $ln10 $lm10
+	nop/24
+	dvmulu $ls0 $ln4 $nowrite
+	dvfmad $ls0 $ln4 $mauf $lr24
+	nop/2
+	dvadd $lm12 $lr24 $ln12
+	nop/2
+	lpassa $ln12 $lm12
+	nop/24
+	# --- ブロック 1: 粒子 1 からの力 ---
+# broadcast_use.vsm — @broadcast: L1BM に載っている値を PE に配る部分
+# 毎回展開される。載っていなかった場合は直前に broadcast_load.vsm が展開されている
+# L1BM の番地は区画の先頭ではなく要求された位置 (ずれは vsmlink が加える)
+
+# @broadcast _pj from_param 8 size 4 $lr16
+# === @broadcast _pj: PDM $p20484 → 全 4096 PE $lr16 ===
+	nop/5
+	l1bmp $lb4 $lr16v
+	nop/24
+	nop/24
+	dvadd $lr16 -$lm0 $ln0
+	nop/2
+	dvadd $lr18 -$lm2 $ln2
+	nop/2
+	dvadd $lr20 -$lm4 $ln4
+	nop/2
+	dvmulu $ln0 $ln0 $nowrite
+	dvfmad $ln0 $ln0 $mauf $ls0
+	nop/2
+	dvmulu $ln2 $ln2 $nowrite
+	dvfmad $ln2 $ln2 $mauf $lr24
+	nop/2
+	dvadd $ls0 $lr24 $ln6
+	nop/2
+	dvmulu $ln4 $ln4 $nowrite
+	dvfmad $ln4 $ln4 $mauf $ls0
+	nop/2
+	dvadd $ln6 $ls0 $lr24
+	nop/2
+	dvadd $lr24 $lm14 $ls0
+	nop/2
+	drsqrt $ls0 $lr24
+	nop/4
+	# ニュートン補正: y = y*(1.5 - 0.5*r2*y^2)
+	dvmulu $lr24 $lr24 $nowrite
+	dvfmad $lr24 $lr24 $mauf $ln6
+	nop/2
+	dvmulu $ls0 $ln6 $nowrite
+	dvfmad $ls0 $ln6 $mauf $lr26
+	nop/2
+	dvmulu $lm16 $lr26 $nowrite
+	dvfmad $lm16 $lr26 $mauf $ln6
+	nop/2
+	dvadd $lm18 -$ln6 $ls2
+	nop/2
+	dvmulu $lr24 $ls2 $nowrite
+	dvfmad $lr24 $ls2 $mauf $ln6
+	nop/2
+	lpassa $ln6 $lr24
+	nop/2
+	# ニュートン補正: y = y*(1.5 - 0.5*r2*y^2)
+	dvmulu $lr24 $lr24 $nowrite
+	dvfmad $lr24 $lr24 $mauf $ln6
+	nop/2
+	dvmulu $ls0 $ln6 $nowrite
+	dvfmad $ls0 $ln6 $mauf $lr26
+	nop/2
+	dvmulu $lm16 $lr26 $nowrite
+	dvfmad $lm16 $lr26 $mauf $ln6
+	nop/2
+	dvadd $lm18 -$ln6 $ls2
+	nop/2
+	dvmulu $lr24 $ls2 $nowrite
+	dvfmad $lr24 $ls2 $mauf $ln6
+	nop/2
+	lpassa $ln6 $lr24
+	nop/2
+	# ニュートン補正: y = y*(1.5 - 0.5*r2*y^2)
+	dvmulu $lr24 $lr24 $nowrite
+	dvfmad $lr24 $lr24 $mauf $ln6
+	nop/2
+	dvmulu $ls0 $ln6 $nowrite
+	dvfmad $ls0 $ln6 $mauf $lr26
+	nop/2
+	dvmulu $lm16 $lr26 $nowrite
+	dvfmad $lm16 $lr26 $mauf $ln6
+	nop/2
+	dvadd $lm18 -$ln6 $ls2
+	nop/2
+	dvmulu $lr24 $ls2 $nowrite
+	dvfmad $lr24 $ls2 $mauf $ln6
+	nop/2
+	lpassa $ln6 $lr24
+	nop/2
+	dvmulu $lr24 $lr24 $nowrite
+	dvfmad $lr24 $lr24 $mauf $ls0
+	nop/2
+	dvmulu $ls0 $lr24 $nowrite
+	dvfmad $ls0 $lr24 $mauf $ln6
+	nop/2
+	dvmulu $lr22 $ln6 $nowrite
+	dvfmad $lr22 $ln6 $mauf $ls0
+	nop/2
+	dvmulu $ls0 $ln0 $nowrite
+	dvfmad $ls0 $ln0 $mauf $lr24
+	nop/2
+	dvadd $lm8 $lr24 $ln8
+	nop/2
+	lpassa $ln8 $lm8
+	nop/24
+	dvmulu $ls0 $ln2 $nowrite
+	dvfmad $ls0 $ln2 $mauf $lr24
+	nop/2
+	dvadd $lm10 $lr24 $ln10
+	nop/2
+	lpassa $ln10 $lm10
+	nop/24
+	dvmulu $ls0 $ln4 $nowrite
+	dvfmad $ls0 $ln4 $mauf $lr24
+	nop/2
+	dvadd $lm12 $lr24 $ln12
+	nop/2
+	lpassa $ln12 $lm12
+	nop/24
+	# --- ブロック 2: 粒子 2 からの力 ---
+# broadcast_use.vsm — @broadcast: L1BM に載っている値を PE に配る部分
+# 毎回展開される。載っていなかった場合は直前に broadcast_load.vsm が展開されている
+# L1BM の番地は区画の先頭ではなく要求された位置 (ずれは vsmlink が加える)
+
+# @broadcast _pj from_param 8 size 4 $lr16
+# === @broadcast _pj: PDM $p20488 → 全 4096 PE $lr16 ===
+	nop/5
+	l1bmp $lb8 $lr16v
+	nop/24
+	nop/24
+	dvadd $lr16 -$lm0 $ln0
+	nop/2
+	dvadd $lr18 -$lm2 $ln2
+	nop/2
+	dvadd $lr20 -$lm4 $ln4
+	nop/2
+	dvmulu $ln0 $ln0 $nowrite
+	dvfmad $ln0 $ln0 $mauf $ls0
+	nop/2
+	dvmulu $ln2 $ln2 $nowrite
+	dvfmad $ln2 $ln2 $mauf $lr24
+	nop/2
+	dvadd $ls0 $lr24 $ln6
+	nop/2
+	dvmulu $ln4 $ln4 $nowrite
+	dvfmad $ln4 $ln4 $mauf $ls0
+	nop/2
+	dvadd $ln6 $ls0 $lr24
+	nop/2
+	dvadd $lr24 $lm14 $ls0
+	nop/2
+	drsqrt $ls0 $lr24
+	nop/4
+	# ニュートン補正: y = y*(1.5 - 0.5*r2*y^2)
+	dvmulu $lr24 $lr24 $nowrite
+	dvfmad $lr24 $lr24 $mauf $ln6
+	nop/2
+	dvmulu $ls0 $ln6 $nowrite
+	dvfmad $ls0 $ln6 $mauf $lr26
+	nop/2
+	dvmulu $lm16 $lr26 $nowrite
+	dvfmad $lm16 $lr26 $mauf $ln6
+	nop/2
+	dvadd $lm18 -$ln6 $ls2
+	nop/2
+	dvmulu $lr24 $ls2 $nowrite
+	dvfmad $lr24 $ls2 $mauf $ln6
+	nop/2
+	lpassa $ln6 $lr24
+	nop/2
+	# ニュートン補正: y = y*(1.5 - 0.5*r2*y^2)
+	dvmulu $lr24 $lr24 $nowrite
+	dvfmad $lr24 $lr24 $mauf $ln6
+	nop/2
+	dvmulu $ls0 $ln6 $nowrite
+	dvfmad $ls0 $ln6 $mauf $lr26
+	nop/2
+	dvmulu $lm16 $lr26 $nowrite
+	dvfmad $lm16 $lr26 $mauf $ln6
+	nop/2
+	dvadd $lm18 -$ln6 $ls2
+	nop/2
+	dvmulu $lr24 $ls2 $nowrite
+	dvfmad $lr24 $ls2 $mauf $ln6
+	nop/2
+	lpassa $ln6 $lr24
+	nop/2
+	# ニュートン補正: y = y*(1.5 - 0.5*r2*y^2)
+	dvmulu $lr24 $lr24 $nowrite
+	dvfmad $lr24 $lr24 $mauf $ln6
+	nop/2
+	dvmulu $ls0 $ln6 $nowrite
+	dvfmad $ls0 $ln6 $mauf $lr26
+	nop/2
+	dvmulu $lm16 $lr26 $nowrite
+	dvfmad $lm16 $lr26 $mauf $ln6
+	nop/2
+	dvadd $lm18 -$ln6 $ls2
+	nop/2
+	dvmulu $lr24 $ls2 $nowrite
+	dvfmad $lr24 $ls2 $mauf $ln6
+	nop/2
+	lpassa $ln6 $lr24
+	nop/2
+	dvmulu $lr24 $lr24 $nowrite
+	dvfmad $lr24 $lr24 $mauf $ls0
+	nop/2
+	dvmulu $ls0 $lr24 $nowrite
+	dvfmad $ls0 $lr24 $mauf $ln6
+	nop/2
+	dvmulu $lr22 $ln6 $nowrite
+	dvfmad $lr22 $ln6 $mauf $ls0
+	nop/2
+	dvmulu $ls0 $ln0 $nowrite
+	dvfmad $ls0 $ln0 $mauf $lr24
+	nop/2
+	dvadd $lm8 $lr24 $ln8
+	nop/2
+	lpassa $ln8 $lm8
+	nop/24
+	dvmulu $ls0 $ln2 $nowrite
+	dvfmad $ls0 $ln2 $mauf $lr24
+	nop/2
+	dvadd $lm10 $lr24 $ln10
+	nop/2
+	lpassa $ln10 $lm10
+	nop/24
+	dvmulu $ls0 $ln4 $nowrite
+	dvfmad $ls0 $ln4 $mauf $lr24
+	nop/2
+	dvadd $lm12 $lr24 $ln12
+	nop/2
+	lpassa $ln12 $lm12
+	nop/24
+	# --- ブロック 3: 粒子 3 からの力 ---
+# broadcast_use.vsm — @broadcast: L1BM に載っている値を PE に配る部分
+# 毎回展開される。載っていなかった場合は直前に broadcast_load.vsm が展開されている
+# L1BM の番地は区画の先頭ではなく要求された位置 (ずれは vsmlink が加える)
+
+# @broadcast _pj from_param 8 size 4 $lr16
+# === @broadcast _pj: PDM $p20492 → 全 4096 PE $lr16 ===
+	nop/5
+	l1bmp $lb12 $lr16v
+	nop/24
+	nop/24
+	dvadd $lr16 -$lm0 $ln0
+	nop/2
+	dvadd $lr18 -$lm2 $ln2
+	nop/2
+	dvadd $lr20 -$lm4 $ln4
+	nop/2
+	dvmulu $ln0 $ln0 $nowrite
+	dvfmad $ln0 $ln0 $mauf $ls0
+	nop/2
+	dvmulu $ln2 $ln2 $nowrite
+	dvfmad $ln2 $ln2 $mauf $lr24
+	nop/2
+	dvadd $ls0 $lr24 $ln6
+	nop/2
+	dvmulu $ln4 $ln4 $nowrite
+	dvfmad $ln4 $ln4 $mauf $ls0
+	nop/2
+	dvadd $ln6 $ls0 $lr24
+	nop/2
+	dvadd $lr24 $lm14 $ls0
+	nop/2
+	drsqrt $ls0 $lr24
+	nop/4
+	# ニュートン補正: y = y*(1.5 - 0.5*r2*y^2)
+	dvmulu $lr24 $lr24 $nowrite
+	dvfmad $lr24 $lr24 $mauf $ln6
+	nop/2
+	dvmulu $ls0 $ln6 $nowrite
+	dvfmad $ls0 $ln6 $mauf $lr26
+	nop/2
+	dvmulu $lm16 $lr26 $nowrite
+	dvfmad $lm16 $lr26 $mauf $ln6
+	nop/2
+	dvadd $lm18 -$ln6 $ls2
+	nop/2
+	dvmulu $lr24 $ls2 $nowrite
+	dvfmad $lr24 $ls2 $mauf $ln6
+	nop/2
+	lpassa $ln6 $lr24
+	nop/2
+	# ニュートン補正: y = y*(1.5 - 0.5*r2*y^2)
+	dvmulu $lr24 $lr24 $nowrite
+	dvfmad $lr24 $lr24 $mauf $ln6
+	nop/2
+	dvmulu $ls0 $ln6 $nowrite
+	dvfmad $ls0 $ln6 $mauf $lr26
+	nop/2
+	dvmulu $lm16 $lr26 $nowrite
+	dvfmad $lm16 $lr26 $mauf $ln6
+	nop/2
+	dvadd $lm18 -$ln6 $ls2
+	nop/2
+	dvmulu $lr24 $ls2 $nowrite
+	dvfmad $lr24 $ls2 $mauf $ln6
+	nop/2
+	lpassa $ln6 $lr24
+	nop/2
+	# ニュートン補正: y = y*(1.5 - 0.5*r2*y^2)
+	dvmulu $lr24 $lr24 $nowrite
+	dvfmad $lr24 $lr24 $mauf $ln6
+	nop/2
+	dvmulu $ls0 $ln6 $nowrite
+	dvfmad $ls0 $ln6 $mauf $lr26
+	nop/2
+	dvmulu $lm16 $lr26 $nowrite
+	dvfmad $lm16 $lr26 $mauf $ln6
+	nop/2
+	dvadd $lm18 -$ln6 $ls2
+	nop/2
+	dvmulu $lr24 $ls2 $nowrite
+	dvfmad $lr24 $ls2 $mauf $ln6
+	nop/2
+	lpassa $ln6 $lr24
+	nop/2
+	dvmulu $lr24 $lr24 $nowrite
+	dvfmad $lr24 $lr24 $mauf $ls0
+	nop/2
+	dvmulu $ls0 $lr24 $nowrite
+	dvfmad $ls0 $lr24 $mauf $ln6
+	nop/2
+	dvmulu $lr22 $ln6 $nowrite
+	dvfmad $lr22 $ln6 $mauf $ls0
+	nop/2
+	dvmulu $ls0 $ln0 $nowrite
+	dvfmad $ls0 $ln0 $mauf $lr24
+	nop/2
+	dvadd $lm8 $lr24 $ln8
+	nop/2
+	lpassa $ln8 $lm8
+	nop/24
+	dvmulu $ls0 $ln2 $nowrite
+	dvfmad $ls0 $ln2 $mauf $lr24
+	nop/2
+	dvadd $lm10 $lr24 $ln10
+	nop/2
+	lpassa $ln10 $lm10
+	nop/24
+	dvmulu $ls0 $ln4 $nowrite
+	dvfmad $ls0 $ln4 $mauf $lr24
+	nop/2
+	dvadd $lm12 $lr24 $ln12
+	nop/2
+	lpassa $ln12 $lm12
+	nop/24
+	# --- ブロック 4: 粒子 4 からの力 ---
+# broadcast_use.vsm — @broadcast: L1BM に載っている値を PE に配る部分
+# 毎回展開される。載っていなかった場合は直前に broadcast_load.vsm が展開されている
+# L1BM の番地は区画の先頭ではなく要求された位置 (ずれは vsmlink が加える)
+
+# @broadcast _pj from_param 8 size 4 $lr16
+# === @broadcast _pj: PDM $p20496 → 全 4096 PE $lr16 ===
+	nop/5
+	l1bmp $lb16 $lr16v
+	nop/24
+	nop/24
+	dvadd $lr16 -$lm0 $ln0
+	nop/2
+	dvadd $lr18 -$lm2 $ln2
+	nop/2
+	dvadd $lr20 -$lm4 $ln4
+	nop/2
+	dvmulu $ln0 $ln0 $nowrite
+	dvfmad $ln0 $ln0 $mauf $ls0
+	nop/2
+	dvmulu $ln2 $ln2 $nowrite
+	dvfmad $ln2 $ln2 $mauf $lr24
+	nop/2
+	dvadd $ls0 $lr24 $ln6
+	nop/2
+	dvmulu $ln4 $ln4 $nowrite
+	dvfmad $ln4 $ln4 $mauf $ls0
+	nop/2
+	dvadd $ln6 $ls0 $lr24
+	nop/2
+	dvadd $lr24 $lm14 $ls0
+	nop/2
+	drsqrt $ls0 $lr24
+	nop/4
+	# ニュートン補正: y = y*(1.5 - 0.5*r2*y^2)
+	dvmulu $lr24 $lr24 $nowrite
+	dvfmad $lr24 $lr24 $mauf $ln6
+	nop/2
+	dvmulu $ls0 $ln6 $nowrite
+	dvfmad $ls0 $ln6 $mauf $lr26
+	nop/2
+	dvmulu $lm16 $lr26 $nowrite
+	dvfmad $lm16 $lr26 $mauf $ln6
+	nop/2
+	dvadd $lm18 -$ln6 $ls2
+	nop/2
+	dvmulu $lr24 $ls2 $nowrite
+	dvfmad $lr24 $ls2 $mauf $ln6
+	nop/2
+	lpassa $ln6 $lr24
+	nop/2
+	# ニュートン補正: y = y*(1.5 - 0.5*r2*y^2)
+	dvmulu $lr24 $lr24 $nowrite
+	dvfmad $lr24 $lr24 $mauf $ln6
+	nop/2
+	dvmulu $ls0 $ln6 $nowrite
+	dvfmad $ls0 $ln6 $mauf $lr26
+	nop/2
+	dvmulu $lm16 $lr26 $nowrite
+	dvfmad $lm16 $lr26 $mauf $ln6
+	nop/2
+	dvadd $lm18 -$ln6 $ls2
+	nop/2
+	dvmulu $lr24 $ls2 $nowrite
+	dvfmad $lr24 $ls2 $mauf $ln6
+	nop/2
+	lpassa $ln6 $lr24
+	nop/2
+	# ニュートン補正: y = y*(1.5 - 0.5*r2*y^2)
+	dvmulu $lr24 $lr24 $nowrite
+	dvfmad $lr24 $lr24 $mauf $ln6
+	nop/2
+	dvmulu $ls0 $ln6 $nowrite
+	dvfmad $ls0 $ln6 $mauf $lr26
+	nop/2
+	dvmulu $lm16 $lr26 $nowrite
+	dvfmad $lm16 $lr26 $mauf $ln6
+	nop/2
+	dvadd $lm18 -$ln6 $ls2
+	nop/2
+	dvmulu $lr24 $ls2 $nowrite
+	dvfmad $lr24 $ls2 $mauf $ln6
+	nop/2
+	lpassa $ln6 $lr24
+	nop/2
+	dvmulu $lr24 $lr24 $nowrite
+	dvfmad $lr24 $lr24 $mauf $ls0
+	nop/2
+	dvmulu $ls0 $lr24 $nowrite
+	dvfmad $ls0 $lr24 $mauf $ln6
+	nop/2
+	dvmulu $lr22 $ln6 $nowrite
+	dvfmad $lr22 $ln6 $mauf $ls0
+	nop/2
+	dvmulu $ls0 $ln0 $nowrite
+	dvfmad $ls0 $ln0 $mauf $lr24
+	nop/2
+	dvadd $lm8 $lr24 $ln8
+	nop/2
+	lpassa $ln8 $lm8
+	nop/24
+	dvmulu $ls0 $ln2 $nowrite
+	dvfmad $ls0 $ln2 $mauf $lr24
+	nop/2
+	dvadd $lm10 $lr24 $ln10
+	nop/2
+	lpassa $ln10 $lm10
+	nop/24
+	dvmulu $ls0 $ln4 $nowrite
+	dvfmad $ls0 $ln4 $mauf $lr24
+	nop/2
+	dvadd $lm12 $lr24 $ln12
+	nop/2
+	lpassa $ln12 $lm12
+	nop/24
+	# --- ブロック 5: 粒子 5 からの力 ---
+# broadcast_use.vsm — @broadcast: L1BM に載っている値を PE に配る部分
+# 毎回展開される。載っていなかった場合は直前に broadcast_load.vsm が展開されている
+# L1BM の番地は区画の先頭ではなく要求された位置 (ずれは vsmlink が加える)
+
+# @broadcast _pj from_param 8 size 4 $lr16
+# === @broadcast _pj: PDM $p20500 → 全 4096 PE $lr16 ===
+	nop/5
+	l1bmp $lb20 $lr16v
+	nop/24
+	nop/24
+	dvadd $lr16 -$lm0 $ln0
+	nop/2
+	dvadd $lr18 -$lm2 $ln2
+	nop/2
+	dvadd $lr20 -$lm4 $ln4
+	nop/2
+	dvmulu $ln0 $ln0 $nowrite
+	dvfmad $ln0 $ln0 $mauf $ls0
+	nop/2
+	dvmulu $ln2 $ln2 $nowrite
+	dvfmad $ln2 $ln2 $mauf $lr24
+	nop/2
+	dvadd $ls0 $lr24 $ln6
+	nop/2
+	dvmulu $ln4 $ln4 $nowrite
+	dvfmad $ln4 $ln4 $mauf $ls0
+	nop/2
+	dvadd $ln6 $ls0 $lr24
+	nop/2
+	dvadd $lr24 $lm14 $ls0
+	nop/2
+	drsqrt $ls0 $lr24
+	nop/4
+	# ニュートン補正: y = y*(1.5 - 0.5*r2*y^2)
+	dvmulu $lr24 $lr24 $nowrite
+	dvfmad $lr24 $lr24 $mauf $ln6
+	nop/2
+	dvmulu $ls0 $ln6 $nowrite
+	dvfmad $ls0 $ln6 $mauf $lr26
+	nop/2
+	dvmulu $lm16 $lr26 $nowrite
+	dvfmad $lm16 $lr26 $mauf $ln6
+	nop/2
+	dvadd $lm18 -$ln6 $ls2
+	nop/2
+	dvmulu $lr24 $ls2 $nowrite
+	dvfmad $lr24 $ls2 $mauf $ln6
+	nop/2
+	lpassa $ln6 $lr24
+	nop/2
+	# ニュートン補正: y = y*(1.5 - 0.5*r2*y^2)
+	dvmulu $lr24 $lr24 $nowrite
+	dvfmad $lr24 $lr24 $mauf $ln6
+	nop/2
+	dvmulu $ls0 $ln6 $nowrite
+	dvfmad $ls0 $ln6 $mauf $lr26
+	nop/2
+	dvmulu $lm16 $lr26 $nowrite
+	dvfmad $lm16 $lr26 $mauf $ln6
+	nop/2
+	dvadd $lm18 -$ln6 $ls2
+	nop/2
+	dvmulu $lr24 $ls2 $nowrite
+	dvfmad $lr24 $ls2 $mauf $ln6
+	nop/2
+	lpassa $ln6 $lr24
+	nop/2
+	# ニュートン補正: y = y*(1.5 - 0.5*r2*y^2)
+	dvmulu $lr24 $lr24 $nowrite
+	dvfmad $lr24 $lr24 $mauf $ln6
+	nop/2
+	dvmulu $ls0 $ln6 $nowrite
+	dvfmad $ls0 $ln6 $mauf $lr26
+	nop/2
+	dvmulu $lm16 $lr26 $nowrite
+	dvfmad $lm16 $lr26 $mauf $ln6
+	nop/2
+	dvadd $lm18 -$ln6 $ls2
+	nop/2
+	dvmulu $lr24 $ls2 $nowrite
+	dvfmad $lr24 $ls2 $mauf $ln6
+	nop/2
+	lpassa $ln6 $lr24
+	nop/2
+	dvmulu $lr24 $lr24 $nowrite
+	dvfmad $lr24 $lr24 $mauf $ls0
+	nop/2
+	dvmulu $ls0 $lr24 $nowrite
+	dvfmad $ls0 $lr24 $mauf $ln6
+	nop/2
+	dvmulu $lr22 $ln6 $nowrite
+	dvfmad $lr22 $ln6 $mauf $ls0
+	nop/2
+	dvmulu $ls0 $ln0 $nowrite
+	dvfmad $ls0 $ln0 $mauf $lr24
+	nop/2
+	dvadd $lm8 $lr24 $ln8
+	nop/2
+	lpassa $ln8 $lm8
+	nop/24
+	dvmulu $ls0 $ln2 $nowrite
+	dvfmad $ls0 $ln2 $mauf $lr24
+	nop/2
+	dvadd $lm10 $lr24 $ln10
+	nop/2
+	lpassa $ln10 $lm10
+	nop/24
+	dvmulu $ls0 $ln4 $nowrite
+	dvfmad $ls0 $ln4 $mauf $lr24
+	nop/2
+	dvadd $lm12 $lr24 $ln12
+	nop/2
+	lpassa $ln12 $lm12
+	nop/24
+	# --- ブロック 6: 粒子 6 からの力 ---
+# broadcast_use.vsm — @broadcast: L1BM に載っている値を PE に配る部分
+# 毎回展開される。載っていなかった場合は直前に broadcast_load.vsm が展開されている
+# L1BM の番地は区画の先頭ではなく要求された位置 (ずれは vsmlink が加える)
+
+# @broadcast _pj from_param 8 size 4 $lr16
+# === @broadcast _pj: PDM $p20504 → 全 4096 PE $lr16 ===
+	nop/5
+	l1bmp $lb24 $lr16v
+	nop/24
+	nop/24
+	dvadd $lr16 -$lm0 $ln0
+	nop/2
+	dvadd $lr18 -$lm2 $ln2
+	nop/2
+	dvadd $lr20 -$lm4 $ln4
+	nop/2
+	dvmulu $ln0 $ln0 $nowrite
+	dvfmad $ln0 $ln0 $mauf $ls0
+	nop/2
+	dvmulu $ln2 $ln2 $nowrite
+	dvfmad $ln2 $ln2 $mauf $lr24
+	nop/2
+	dvadd $ls0 $lr24 $ln6
+	nop/2
+	dvmulu $ln4 $ln4 $nowrite
+	dvfmad $ln4 $ln4 $mauf $ls0
+	nop/2
+	dvadd $ln6 $ls0 $lr24
+	nop/2
+	dvadd $lr24 $lm14 $ls0
+	nop/2
+	drsqrt $ls0 $lr24
+	nop/4
+	# ニュートン補正: y = y*(1.5 - 0.5*r2*y^2)
+	dvmulu $lr24 $lr24 $nowrite
+	dvfmad $lr24 $lr24 $mauf $ln6
+	nop/2
+	dvmulu $ls0 $ln6 $nowrite
+	dvfmad $ls0 $ln6 $mauf $lr26
+	nop/2
+	dvmulu $lm16 $lr26 $nowrite
+	dvfmad $lm16 $lr26 $mauf $ln6
+	nop/2
+	dvadd $lm18 -$ln6 $ls2
+	nop/2
+	dvmulu $lr24 $ls2 $nowrite
+	dvfmad $lr24 $ls2 $mauf $ln6
+	nop/2
+	lpassa $ln6 $lr24
+	nop/2
+	# ニュートン補正: y = y*(1.5 - 0.5*r2*y^2)
+	dvmulu $lr24 $lr24 $nowrite
+	dvfmad $lr24 $lr24 $mauf $ln6
+	nop/2
+	dvmulu $ls0 $ln6 $nowrite
+	dvfmad $ls0 $ln6 $mauf $lr26
+	nop/2
+	dvmulu $lm16 $lr26 $nowrite
+	dvfmad $lm16 $lr26 $mauf $ln6
+	nop/2
+	dvadd $lm18 -$ln6 $ls2
+	nop/2
+	dvmulu $lr24 $ls2 $nowrite
+	dvfmad $lr24 $ls2 $mauf $ln6
+	nop/2
+	lpassa $ln6 $lr24
+	nop/2
+	# ニュートン補正: y = y*(1.5 - 0.5*r2*y^2)
+	dvmulu $lr24 $lr24 $nowrite
+	dvfmad $lr24 $lr24 $mauf $ln6
+	nop/2
+	dvmulu $ls0 $ln6 $nowrite
+	dvfmad $ls0 $ln6 $mauf $lr26
+	nop/2
+	dvmulu $lm16 $lr26 $nowrite
+	dvfmad $lm16 $lr26 $mauf $ln6
+	nop/2
+	dvadd $lm18 -$ln6 $ls2
+	nop/2
+	dvmulu $lr24 $ls2 $nowrite
+	dvfmad $lr24 $ls2 $mauf $ln6
+	nop/2
+	lpassa $ln6 $lr24
+	nop/2
+	dvmulu $lr24 $lr24 $nowrite
+	dvfmad $lr24 $lr24 $mauf $ls0
+	nop/2
+	dvmulu $ls0 $lr24 $nowrite
+	dvfmad $ls0 $lr24 $mauf $ln6
+	nop/2
+	dvmulu $lr22 $ln6 $nowrite
+	dvfmad $lr22 $ln6 $mauf $ls0
+	nop/2
+	dvmulu $ls0 $ln0 $nowrite
+	dvfmad $ls0 $ln0 $mauf $lr24
+	nop/2
+	dvadd $lm8 $lr24 $ln8
+	nop/2
+	lpassa $ln8 $lm8
+	nop/24
+	dvmulu $ls0 $ln2 $nowrite
+	dvfmad $ls0 $ln2 $mauf $lr24
+	nop/2
+	dvadd $lm10 $lr24 $ln10
+	nop/2
+	lpassa $ln10 $lm10
+	nop/24
+	dvmulu $ls0 $ln4 $nowrite
+	dvfmad $ls0 $ln4 $mauf $lr24
+	nop/2
+	dvadd $lm12 $lr24 $ln12
+	nop/2
+	lpassa $ln12 $lm12
+	nop/24
+	# --- ブロック 7: 粒子 7 からの力 ---
+# broadcast_use.vsm — @broadcast: L1BM に載っている値を PE に配る部分
+# 毎回展開される。載っていなかった場合は直前に broadcast_load.vsm が展開されている
+# L1BM の番地は区画の先頭ではなく要求された位置 (ずれは vsmlink が加える)
+
+# @broadcast _pj from_param 8 size 4 $lr16
+# === @broadcast _pj: PDM $p20508 → 全 4096 PE $lr16 ===
+	nop/5
+	l1bmp $lb28 $lr16v
+	nop/24
+	nop/24
+	dvadd $lr16 -$lm0 $ln0
+	nop/2
+	dvadd $lr18 -$lm2 $ln2
+	nop/2
+	dvadd $lr20 -$lm4 $ln4
+	nop/2
+	dvmulu $ln0 $ln0 $nowrite
+	dvfmad $ln0 $ln0 $mauf $ls0
+	nop/2
+	dvmulu $ln2 $ln2 $nowrite
+	dvfmad $ln2 $ln2 $mauf $lr24
+	nop/2
+	dvadd $ls0 $lr24 $ln6
+	nop/2
+	dvmulu $ln4 $ln4 $nowrite
+	dvfmad $ln4 $ln4 $mauf $ls0
+	nop/2
+	dvadd $ln6 $ls0 $lr24
+	nop/2
+	dvadd $lr24 $lm14 $ls0
+	nop/2
+	drsqrt $ls0 $lr24
+	nop/4
+	# ニュートン補正: y = y*(1.5 - 0.5*r2*y^2)
+	dvmulu $lr24 $lr24 $nowrite
+	dvfmad $lr24 $lr24 $mauf $ln6
+	nop/2
+	dvmulu $ls0 $ln6 $nowrite
+	dvfmad $ls0 $ln6 $mauf $lr26
+	nop/2
+	dvmulu $lm16 $lr26 $nowrite
+	dvfmad $lm16 $lr26 $mauf $ln6
+	nop/2
+	dvadd $lm18 -$ln6 $ls2
+	nop/2
+	dvmulu $lr24 $ls2 $nowrite
+	dvfmad $lr24 $ls2 $mauf $ln6
+	nop/2
+	lpassa $ln6 $lr24
+	nop/2
+	# ニュートン補正: y = y*(1.5 - 0.5*r2*y^2)
+	dvmulu $lr24 $lr24 $nowrite
+	dvfmad $lr24 $lr24 $mauf $ln6
+	nop/2
+	dvmulu $ls0 $ln6 $nowrite
+	dvfmad $ls0 $ln6 $mauf $lr26
+	nop/2
+	dvmulu $lm16 $lr26 $nowrite
+	dvfmad $lm16 $lr26 $mauf $ln6
+	nop/2
+	dvadd $lm18 -$ln6 $ls2
+	nop/2
+	dvmulu $lr24 $ls2 $nowrite
+	dvfmad $lr24 $ls2 $mauf $ln6
+	nop/2
+	lpassa $ln6 $lr24
+	nop/2
+	# ニュートン補正: y = y*(1.5 - 0.5*r2*y^2)
+	dvmulu $lr24 $lr24 $nowrite
+	dvfmad $lr24 $lr24 $mauf $ln6
+	nop/2
+	dvmulu $ls0 $ln6 $nowrite
+	dvfmad $ls0 $ln6 $mauf $lr26
+	nop/2
+	dvmulu $lm16 $lr26 $nowrite
+	dvfmad $lm16 $lr26 $mauf $ln6
+	nop/2
+	dvadd $lm18 -$ln6 $ls2
+	nop/2
+	dvmulu $lr24 $ls2 $nowrite
+	dvfmad $lr24 $ls2 $mauf $ln6
+	nop/2
+	lpassa $ln6 $lr24
+	nop/2
+	dvmulu $lr24 $lr24 $nowrite
+	dvfmad $lr24 $lr24 $mauf $ls0
+	nop/2
+	dvmulu $ls0 $lr24 $nowrite
+	dvfmad $ls0 $lr24 $mauf $ln6
+	nop/2
+	dvmulu $lr22 $ln6 $nowrite
+	dvfmad $lr22 $ln6 $mauf $ls0
+	nop/2
+	dvmulu $ls0 $ln0 $nowrite
+	dvfmad $ls0 $ln0 $mauf $lr24
+	nop/2
+	dvadd $lm8 $lr24 $ln8
+	nop/2
+	lpassa $ln8 $lm8
+	nop/24
+	dvmulu $ls0 $ln2 $nowrite
+	dvfmad $ls0 $ln2 $mauf $lr24
+	nop/2
+	dvadd $lm10 $lr24 $ln10
+	nop/2
+	lpassa $ln10 $lm10
+	nop/24
+	dvmulu $ls0 $ln4 $nowrite
+	dvfmad $ls0 $ln4 $mauf $lr24
+	nop/2
+	dvadd $lm12 $lr24 $ln12
+	nop/2
+	lpassa $ln12 $lm12
+	nop/24
+	# --- ブロック 8: 粒子 8 からの力 ---
+# broadcast_use.vsm — @broadcast: L1BM に載っている値を PE に配る部分
+# 毎回展開される。載っていなかった場合は直前に broadcast_load.vsm が展開されている
+# L1BM の番地は区画の先頭ではなく要求された位置 (ずれは vsmlink が加える)
+
+# @broadcast _pj from_param 8 size 4 $lr16
+# === @broadcast _pj: PDM $p20512 → 全 4096 PE $lr16 ===
+	nop/5
+	l1bmp $lb32 $lr16v
+	nop/24
+	nop/24
+	dvadd $lr16 -$lm0 $ln0
+	nop/2
+	dvadd $lr18 -$lm2 $ln2
+	nop/2
+	dvadd $lr20 -$lm4 $ln4
+	nop/2
+	dvmulu $ln0 $ln0 $nowrite
+	dvfmad $ln0 $ln0 $mauf $ls0
+	nop/2
+	dvmulu $ln2 $ln2 $nowrite
+	dvfmad $ln2 $ln2 $mauf $lr24
+	nop/2
+	dvadd $ls0 $lr24 $ln6
+	nop/2
+	dvmulu $ln4 $ln4 $nowrite
+	dvfmad $ln4 $ln4 $mauf $ls0
+	nop/2
+	dvadd $ln6 $ls0 $lr24
+	nop/2
+	dvadd $lr24 $lm14 $ls0
+	nop/2
+	drsqrt $ls0 $lr24
+	nop/4
+	# ニュートン補正: y = y*(1.5 - 0.5*r2*y^2)
+	dvmulu $lr24 $lr24 $nowrite
+	dvfmad $lr24 $lr24 $mauf $ln6
+	nop/2
+	dvmulu $ls0 $ln6 $nowrite
+	dvfmad $ls0 $ln6 $mauf $lr26
+	nop/2
+	dvmulu $lm16 $lr26 $nowrite
+	dvfmad $lm16 $lr26 $mauf $ln6
+	nop/2
+	dvadd $lm18 -$ln6 $ls2
+	nop/2
+	dvmulu $lr24 $ls2 $nowrite
+	dvfmad $lr24 $ls2 $mauf $ln6
+	nop/2
+	lpassa $ln6 $lr24
+	nop/2
+	# ニュートン補正: y = y*(1.5 - 0.5*r2*y^2)
+	dvmulu $lr24 $lr24 $nowrite
+	dvfmad $lr24 $lr24 $mauf $ln6
+	nop/2
+	dvmulu $ls0 $ln6 $nowrite
+	dvfmad $ls0 $ln6 $mauf $lr26
+	nop/2
+	dvmulu $lm16 $lr26 $nowrite
+	dvfmad $lm16 $lr26 $mauf $ln6
+	nop/2
+	dvadd $lm18 -$ln6 $ls2
+	nop/2
+	dvmulu $lr24 $ls2 $nowrite
+	dvfmad $lr24 $ls2 $mauf $ln6
+	nop/2
+	lpassa $ln6 $lr24
+	nop/2
+	# ニュートン補正: y = y*(1.5 - 0.5*r2*y^2)
+	dvmulu $lr24 $lr24 $nowrite
+	dvfmad $lr24 $lr24 $mauf $ln6
+	nop/2
+	dvmulu $ls0 $ln6 $nowrite
+	dvfmad $ls0 $ln6 $mauf $lr26
+	nop/2
+	dvmulu $lm16 $lr26 $nowrite
+	dvfmad $lm16 $lr26 $mauf $ln6
+	nop/2
+	dvadd $lm18 -$ln6 $ls2
+	nop/2
+	dvmulu $lr24 $ls2 $nowrite
+	dvfmad $lr24 $ls2 $mauf $ln6
+	nop/2
+	lpassa $ln6 $lr24
+	nop/2
+	dvmulu $lr24 $lr24 $nowrite
+	dvfmad $lr24 $lr24 $mauf $ls0
+	nop/2
+	dvmulu $ls0 $lr24 $nowrite
+	dvfmad $ls0 $lr24 $mauf $ln6
+	nop/2
+	dvmulu $lr22 $ln6 $nowrite
+	dvfmad $lr22 $ln6 $mauf $ls0
+	nop/2
+	dvmulu $ls0 $ln0 $nowrite
+	dvfmad $ls0 $ln0 $mauf $lr24
+	nop/2
+	dvadd $lm8 $lr24 $ln8
+	nop/2
+	lpassa $ln8 $lm8
+	nop/24
+	dvmulu $ls0 $ln2 $nowrite
+	dvfmad $ls0 $ln2 $mauf $lr24
+	nop/2
+	dvadd $lm10 $lr24 $ln10
+	nop/2
+	lpassa $ln10 $lm10
+	nop/24
+	dvmulu $ls0 $ln4 $nowrite
+	dvfmad $ls0 $ln4 $mauf $lr24
+	nop/2
+	dvadd $lm12 $lr24 $ln12
+	nop/2
+	lpassa $ln12 $lm12
+	nop/24
+	# --- ブロック 9: 粒子 9 からの力 ---
+# broadcast_use.vsm — @broadcast: L1BM に載っている値を PE に配る部分
+# 毎回展開される。載っていなかった場合は直前に broadcast_load.vsm が展開されている
+# L1BM の番地は区画の先頭ではなく要求された位置 (ずれは vsmlink が加える)
+
+# @broadcast _pj from_param 8 size 4 $lr16
+# === @broadcast _pj: PDM $p20516 → 全 4096 PE $lr16 ===
+	nop/5
+	l1bmp $lb36 $lr16v
+	nop/24
+	nop/24
+	dvadd $lr16 -$lm0 $ln0
+	nop/2
+	dvadd $lr18 -$lm2 $ln2
+	nop/2
+	dvadd $lr20 -$lm4 $ln4
+	nop/2
+	dvmulu $ln0 $ln0 $nowrite
+	dvfmad $ln0 $ln0 $mauf $ls0
+	nop/2
+	dvmulu $ln2 $ln2 $nowrite
+	dvfmad $ln2 $ln2 $mauf $lr24
+	nop/2
+	dvadd $ls0 $lr24 $ln6
+	nop/2
+	dvmulu $ln4 $ln4 $nowrite
+	dvfmad $ln4 $ln4 $mauf $ls0
+	nop/2
+	dvadd $ln6 $ls0 $lr24
+	nop/2
+	dvadd $lr24 $lm14 $ls0
+	nop/2
+	drsqrt $ls0 $lr24
+	nop/4
+	# ニュートン補正: y = y*(1.5 - 0.5*r2*y^2)
+	dvmulu $lr24 $lr24 $nowrite
+	dvfmad $lr24 $lr24 $mauf $ln6
+	nop/2
+	dvmulu $ls0 $ln6 $nowrite
+	dvfmad $ls0 $ln6 $mauf $lr26
+	nop/2
+	dvmulu $lm16 $lr26 $nowrite
+	dvfmad $lm16 $lr26 $mauf $ln6
+	nop/2
+	dvadd $lm18 -$ln6 $ls2
+	nop/2
+	dvmulu $lr24 $ls2 $nowrite
+	dvfmad $lr24 $ls2 $mauf $ln6
+	nop/2
+	lpassa $ln6 $lr24
+	nop/2
+	# ニュートン補正: y = y*(1.5 - 0.5*r2*y^2)
+	dvmulu $lr24 $lr24 $nowrite
+	dvfmad $lr24 $lr24 $mauf $ln6
+	nop/2
+	dvmulu $ls0 $ln6 $nowrite
+	dvfmad $ls0 $ln6 $mauf $lr26
+	nop/2
+	dvmulu $lm16 $lr26 $nowrite
+	dvfmad $lm16 $lr26 $mauf $ln6
+	nop/2
+	dvadd $lm18 -$ln6 $ls2
+	nop/2
+	dvmulu $lr24 $ls2 $nowrite
+	dvfmad $lr24 $ls2 $mauf $ln6
+	nop/2
+	lpassa $ln6 $lr24
+	nop/2
+	# ニュートン補正: y = y*(1.5 - 0.5*r2*y^2)
+	dvmulu $lr24 $lr24 $nowrite
+	dvfmad $lr24 $lr24 $mauf $ln6
+	nop/2
+	dvmulu $ls0 $ln6 $nowrite
+	dvfmad $ls0 $ln6 $mauf $lr26
+	nop/2
+	dvmulu $lm16 $lr26 $nowrite
+	dvfmad $lm16 $lr26 $mauf $ln6
+	nop/2
+	dvadd $lm18 -$ln6 $ls2
+	nop/2
+	dvmulu $lr24 $ls2 $nowrite
+	dvfmad $lr24 $ls2 $mauf $ln6
+	nop/2
+	lpassa $ln6 $lr24
+	nop/2
+	dvmulu $lr24 $lr24 $nowrite
+	dvfmad $lr24 $lr24 $mauf $ls0
+	nop/2
+	dvmulu $ls0 $lr24 $nowrite
+	dvfmad $ls0 $lr24 $mauf $ln6
+	nop/2
+	dvmulu $lr22 $ln6 $nowrite
+	dvfmad $lr22 $ln6 $mauf $ls0
+	nop/2
+	dvmulu $ls0 $ln0 $nowrite
+	dvfmad $ls0 $ln0 $mauf $lr24
+	nop/2
+	dvadd $lm8 $lr24 $ln8
+	nop/2
+	lpassa $ln8 $lm8
+	nop/24
+	dvmulu $ls0 $ln2 $nowrite
+	dvfmad $ls0 $ln2 $mauf $lr24
+	nop/2
+	dvadd $lm10 $lr24 $ln10
+	nop/2
+	lpassa $ln10 $lm10
+	nop/24
+	dvmulu $ls0 $ln4 $nowrite
+	dvfmad $ls0 $ln4 $mauf $lr24
+	nop/2
+	dvadd $lm12 $lr24 $ln12
+	nop/2
+	lpassa $ln12 $lm12
+	nop/24
+	# --- ブロック 10: 粒子 10 からの力 ---
+# broadcast_use.vsm — @broadcast: L1BM に載っている値を PE に配る部分
+# 毎回展開される。載っていなかった場合は直前に broadcast_load.vsm が展開されている
+# L1BM の番地は区画の先頭ではなく要求された位置 (ずれは vsmlink が加える)
+
+# @broadcast _pj from_param 8 size 4 $lr16
+# === @broadcast _pj: PDM $p20520 → 全 4096 PE $lr16 ===
+	nop/5
+	l1bmp $lb40 $lr16v
+	nop/24
+	nop/24
+	dvadd $lr16 -$lm0 $ln0
+	nop/2
+	dvadd $lr18 -$lm2 $ln2
+	nop/2
+	dvadd $lr20 -$lm4 $ln4
+	nop/2
+	dvmulu $ln0 $ln0 $nowrite
+	dvfmad $ln0 $ln0 $mauf $ls0
+	nop/2
+	dvmulu $ln2 $ln2 $nowrite
+	dvfmad $ln2 $ln2 $mauf $lr24
+	nop/2
+	dvadd $ls0 $lr24 $ln6
+	nop/2
+	dvmulu $ln4 $ln4 $nowrite
+	dvfmad $ln4 $ln4 $mauf $ls0
+	nop/2
+	dvadd $ln6 $ls0 $lr24
+	nop/2
+	dvadd $lr24 $lm14 $ls0
+	nop/2
+	drsqrt $ls0 $lr24
+	nop/4
+	# ニュートン補正: y = y*(1.5 - 0.5*r2*y^2)
+	dvmulu $lr24 $lr24 $nowrite
+	dvfmad $lr24 $lr24 $mauf $ln6
+	nop/2
+	dvmulu $ls0 $ln6 $nowrite
+	dvfmad $ls0 $ln6 $mauf $lr26
+	nop/2
+	dvmulu $lm16 $lr26 $nowrite
+	dvfmad $lm16 $lr26 $mauf $ln6
+	nop/2
+	dvadd $lm18 -$ln6 $ls2
+	nop/2
+	dvmulu $lr24 $ls2 $nowrite
+	dvfmad $lr24 $ls2 $mauf $ln6
+	nop/2
+	lpassa $ln6 $lr24
+	nop/2
+	# ニュートン補正: y = y*(1.5 - 0.5*r2*y^2)
+	dvmulu $lr24 $lr24 $nowrite
+	dvfmad $lr24 $lr24 $mauf $ln6
+	nop/2
+	dvmulu $ls0 $ln6 $nowrite
+	dvfmad $ls0 $ln6 $mauf $lr26
+	nop/2
+	dvmulu $lm16 $lr26 $nowrite
+	dvfmad $lm16 $lr26 $mauf $ln6
+	nop/2
+	dvadd $lm18 -$ln6 $ls2
+	nop/2
+	dvmulu $lr24 $ls2 $nowrite
+	dvfmad $lr24 $ls2 $mauf $ln6
+	nop/2
+	lpassa $ln6 $lr24
+	nop/2
+	# ニュートン補正: y = y*(1.5 - 0.5*r2*y^2)
+	dvmulu $lr24 $lr24 $nowrite
+	dvfmad $lr24 $lr24 $mauf $ln6
+	nop/2
+	dvmulu $ls0 $ln6 $nowrite
+	dvfmad $ls0 $ln6 $mauf $lr26
+	nop/2
+	dvmulu $lm16 $lr26 $nowrite
+	dvfmad $lm16 $lr26 $mauf $ln6
+	nop/2
+	dvadd $lm18 -$ln6 $ls2
+	nop/2
+	dvmulu $lr24 $ls2 $nowrite
+	dvfmad $lr24 $ls2 $mauf $ln6
+	nop/2
+	lpassa $ln6 $lr24
+	nop/2
+	dvmulu $lr24 $lr24 $nowrite
+	dvfmad $lr24 $lr24 $mauf $ls0
+	nop/2
+	dvmulu $ls0 $lr24 $nowrite
+	dvfmad $ls0 $lr24 $mauf $ln6
+	nop/2
+	dvmulu $lr22 $ln6 $nowrite
+	dvfmad $lr22 $ln6 $mauf $ls0
+	nop/2
+	dvmulu $ls0 $ln0 $nowrite
+	dvfmad $ls0 $ln0 $mauf $lr24
+	nop/2
+	dvadd $lm8 $lr24 $ln8
+	nop/2
+	lpassa $ln8 $lm8
+	nop/24
+	dvmulu $ls0 $ln2 $nowrite
+	dvfmad $ls0 $ln2 $mauf $lr24
+	nop/2
+	dvadd $lm10 $lr24 $ln10
+	nop/2
+	lpassa $ln10 $lm10
+	nop/24
+	dvmulu $ls0 $ln4 $nowrite
+	dvfmad $ls0 $ln4 $mauf $lr24
+	nop/2
+	dvadd $lm12 $lr24 $ln12
+	nop/2
+	lpassa $ln12 $lm12
+	nop/24
+	# --- ブロック 11: 粒子 11 からの力 ---
+# broadcast_use.vsm — @broadcast: L1BM に載っている値を PE に配る部分
+# 毎回展開される。載っていなかった場合は直前に broadcast_load.vsm が展開されている
+# L1BM の番地は区画の先頭ではなく要求された位置 (ずれは vsmlink が加える)
+
+# @broadcast _pj from_param 8 size 4 $lr16
+# === @broadcast _pj: PDM $p20524 → 全 4096 PE $lr16 ===
+	nop/5
+	l1bmp $lb44 $lr16v
+	nop/24
+	nop/24
+	dvadd $lr16 -$lm0 $ln0
+	nop/2
+	dvadd $lr18 -$lm2 $ln2
+	nop/2
+	dvadd $lr20 -$lm4 $ln4
+	nop/2
+	dvmulu $ln0 $ln0 $nowrite
+	dvfmad $ln0 $ln0 $mauf $ls0
+	nop/2
+	dvmulu $ln2 $ln2 $nowrite
+	dvfmad $ln2 $ln2 $mauf $lr24
+	nop/2
+	dvadd $ls0 $lr24 $ln6
+	nop/2
+	dvmulu $ln4 $ln4 $nowrite
+	dvfmad $ln4 $ln4 $mauf $ls0
+	nop/2
+	dvadd $ln6 $ls0 $lr24
+	nop/2
+	dvadd $lr24 $lm14 $ls0
+	nop/2
+	drsqrt $ls0 $lr24
+	nop/4
+	# ニュートン補正: y = y*(1.5 - 0.5*r2*y^2)
+	dvmulu $lr24 $lr24 $nowrite
+	dvfmad $lr24 $lr24 $mauf $ln6
+	nop/2
+	dvmulu $ls0 $ln6 $nowrite
+	dvfmad $ls0 $ln6 $mauf $lr26
+	nop/2
+	dvmulu $lm16 $lr26 $nowrite
+	dvfmad $lm16 $lr26 $mauf $ln6
+	nop/2
+	dvadd $lm18 -$ln6 $ls2
+	nop/2
+	dvmulu $lr24 $ls2 $nowrite
+	dvfmad $lr24 $ls2 $mauf $ln6
+	nop/2
+	lpassa $ln6 $lr24
+	nop/2
+	# ニュートン補正: y = y*(1.5 - 0.5*r2*y^2)
+	dvmulu $lr24 $lr24 $nowrite
+	dvfmad $lr24 $lr24 $mauf $ln6
+	nop/2
+	dvmulu $ls0 $ln6 $nowrite
+	dvfmad $ls0 $ln6 $mauf $lr26
+	nop/2
+	dvmulu $lm16 $lr26 $nowrite
+	dvfmad $lm16 $lr26 $mauf $ln6
+	nop/2
+	dvadd $lm18 -$ln6 $ls2
+	nop/2
+	dvmulu $lr24 $ls2 $nowrite
+	dvfmad $lr24 $ls2 $mauf $ln6
+	nop/2
+	lpassa $ln6 $lr24
+	nop/2
+	# ニュートン補正: y = y*(1.5 - 0.5*r2*y^2)
+	dvmulu $lr24 $lr24 $nowrite
+	dvfmad $lr24 $lr24 $mauf $ln6
+	nop/2
+	dvmulu $ls0 $ln6 $nowrite
+	dvfmad $ls0 $ln6 $mauf $lr26
+	nop/2
+	dvmulu $lm16 $lr26 $nowrite
+	dvfmad $lm16 $lr26 $mauf $ln6
+	nop/2
+	dvadd $lm18 -$ln6 $ls2
+	nop/2
+	dvmulu $lr24 $ls2 $nowrite
+	dvfmad $lr24 $ls2 $mauf $ln6
+	nop/2
+	lpassa $ln6 $lr24
+	nop/2
+	dvmulu $lr24 $lr24 $nowrite
+	dvfmad $lr24 $lr24 $mauf $ls0
+	nop/2
+	dvmulu $ls0 $lr24 $nowrite
+	dvfmad $ls0 $lr24 $mauf $ln6
+	nop/2
+	dvmulu $lr22 $ln6 $nowrite
+	dvfmad $lr22 $ln6 $mauf $ls0
+	nop/2
+	dvmulu $ls0 $ln0 $nowrite
+	dvfmad $ls0 $ln0 $mauf $lr24
+	nop/2
+	dvadd $lm8 $lr24 $ln8
+	nop/2
+	lpassa $ln8 $lm8
+	nop/24
+	dvmulu $ls0 $ln2 $nowrite
+	dvfmad $ls0 $ln2 $mauf $lr24
+	nop/2
+	dvadd $lm10 $lr24 $ln10
+	nop/2
+	lpassa $ln10 $lm10
+	nop/24
+	dvmulu $ls0 $ln4 $nowrite
+	dvfmad $ls0 $ln4 $mauf $lr24
+	nop/2
+	dvadd $lm12 $lr24 $ln12
+	nop/2
+	lpassa $ln12 $lm12
+	nop/24
+	# --- ブロック 12: 粒子 12 からの力 ---
+# broadcast_use.vsm — @broadcast: L1BM に載っている値を PE に配る部分
+# 毎回展開される。載っていなかった場合は直前に broadcast_load.vsm が展開されている
+# L1BM の番地は区画の先頭ではなく要求された位置 (ずれは vsmlink が加える)
+
+# @broadcast _pj from_param 8 size 4 $lr16
+# === @broadcast _pj: PDM $p20528 → 全 4096 PE $lr16 ===
+	nop/5
+	l1bmp $lb48 $lr16v
+	nop/24
+	nop/24
+	dvadd $lr16 -$lm0 $ln0
+	nop/2
+	dvadd $lr18 -$lm2 $ln2
+	nop/2
+	dvadd $lr20 -$lm4 $ln4
+	nop/2
+	dvmulu $ln0 $ln0 $nowrite
+	dvfmad $ln0 $ln0 $mauf $ls0
+	nop/2
+	dvmulu $ln2 $ln2 $nowrite
+	dvfmad $ln2 $ln2 $mauf $lr24
+	nop/2
+	dvadd $ls0 $lr24 $ln6
+	nop/2
+	dvmulu $ln4 $ln4 $nowrite
+	dvfmad $ln4 $ln4 $mauf $ls0
+	nop/2
+	dvadd $ln6 $ls0 $lr24
+	nop/2
+	dvadd $lr24 $lm14 $ls0
+	nop/2
+	drsqrt $ls0 $lr24
+	nop/4
+	# ニュートン補正: y = y*(1.5 - 0.5*r2*y^2)
+	dvmulu $lr24 $lr24 $nowrite
+	dvfmad $lr24 $lr24 $mauf $ln6
+	nop/2
+	dvmulu $ls0 $ln6 $nowrite
+	dvfmad $ls0 $ln6 $mauf $lr26
+	nop/2
+	dvmulu $lm16 $lr26 $nowrite
+	dvfmad $lm16 $lr26 $mauf $ln6
+	nop/2
+	dvadd $lm18 -$ln6 $ls2
+	nop/2
+	dvmulu $lr24 $ls2 $nowrite
+	dvfmad $lr24 $ls2 $mauf $ln6
+	nop/2
+	lpassa $ln6 $lr24
+	nop/2
+	# ニュートン補正: y = y*(1.5 - 0.5*r2*y^2)
+	dvmulu $lr24 $lr24 $nowrite
+	dvfmad $lr24 $lr24 $mauf $ln6
+	nop/2
+	dvmulu $ls0 $ln6 $nowrite
+	dvfmad $ls0 $ln6 $mauf $lr26
+	nop/2
+	dvmulu $lm16 $lr26 $nowrite
+	dvfmad $lm16 $lr26 $mauf $ln6
+	nop/2
+	dvadd $lm18 -$ln6 $ls2
+	nop/2
+	dvmulu $lr24 $ls2 $nowrite
+	dvfmad $lr24 $ls2 $mauf $ln6
+	nop/2
+	lpassa $ln6 $lr24
+	nop/2
+	# ニュートン補正: y = y*(1.5 - 0.5*r2*y^2)
+	dvmulu $lr24 $lr24 $nowrite
+	dvfmad $lr24 $lr24 $mauf $ln6
+	nop/2
+	dvmulu $ls0 $ln6 $nowrite
+	dvfmad $ls0 $ln6 $mauf $lr26
+	nop/2
+	dvmulu $lm16 $lr26 $nowrite
+	dvfmad $lm16 $lr26 $mauf $ln6
+	nop/2
+	dvadd $lm18 -$ln6 $ls2
+	nop/2
+	dvmulu $lr24 $ls2 $nowrite
+	dvfmad $lr24 $ls2 $mauf $ln6
+	nop/2
+	lpassa $ln6 $lr24
+	nop/2
+	dvmulu $lr24 $lr24 $nowrite
+	dvfmad $lr24 $lr24 $mauf $ls0
+	nop/2
+	dvmulu $ls0 $lr24 $nowrite
+	dvfmad $ls0 $lr24 $mauf $ln6
+	nop/2
+	dvmulu $lr22 $ln6 $nowrite
+	dvfmad $lr22 $ln6 $mauf $ls0
+	nop/2
+	dvmulu $ls0 $ln0 $nowrite
+	dvfmad $ls0 $ln0 $mauf $lr24
+	nop/2
+	dvadd $lm8 $lr24 $ln8
+	nop/2
+	lpassa $ln8 $lm8
+	nop/24
+	dvmulu $ls0 $ln2 $nowrite
+	dvfmad $ls0 $ln2 $mauf $lr24
+	nop/2
+	dvadd $lm10 $lr24 $ln10
+	nop/2
+	lpassa $ln10 $lm10
+	nop/24
+	dvmulu $ls0 $ln4 $nowrite
+	dvfmad $ls0 $ln4 $mauf $lr24
+	nop/2
+	dvadd $lm12 $lr24 $ln12
+	nop/2
+	lpassa $ln12 $lm12
+	nop/24
+	# --- ブロック 13: 粒子 13 からの力 ---
+# broadcast_use.vsm — @broadcast: L1BM に載っている値を PE に配る部分
+# 毎回展開される。載っていなかった場合は直前に broadcast_load.vsm が展開されている
+# L1BM の番地は区画の先頭ではなく要求された位置 (ずれは vsmlink が加える)
+
+# @broadcast _pj from_param 8 size 4 $lr16
+# === @broadcast _pj: PDM $p20532 → 全 4096 PE $lr16 ===
+	nop/5
+	l1bmp $lb52 $lr16v
+	nop/24
+	nop/24
+	dvadd $lr16 -$lm0 $ln0
+	nop/2
+	dvadd $lr18 -$lm2 $ln2
+	nop/2
+	dvadd $lr20 -$lm4 $ln4
+	nop/2
+	dvmulu $ln0 $ln0 $nowrite
+	dvfmad $ln0 $ln0 $mauf $ls0
+	nop/2
+	dvmulu $ln2 $ln2 $nowrite
+	dvfmad $ln2 $ln2 $mauf $lr24
+	nop/2
+	dvadd $ls0 $lr24 $ln6
+	nop/2
+	dvmulu $ln4 $ln4 $nowrite
+	dvfmad $ln4 $ln4 $mauf $ls0
+	nop/2
+	dvadd $ln6 $ls0 $lr24
+	nop/2
+	dvadd $lr24 $lm14 $ls0
+	nop/2
+	drsqrt $ls0 $lr24
+	nop/4
+	# ニュートン補正: y = y*(1.5 - 0.5*r2*y^2)
+	dvmulu $lr24 $lr24 $nowrite
+	dvfmad $lr24 $lr24 $mauf $ln6
+	nop/2
+	dvmulu $ls0 $ln6 $nowrite
+	dvfmad $ls0 $ln6 $mauf $lr26
+	nop/2
+	dvmulu $lm16 $lr26 $nowrite
+	dvfmad $lm16 $lr26 $mauf $ln6
+	nop/2
+	dvadd $lm18 -$ln6 $ls2
+	nop/2
+	dvmulu $lr24 $ls2 $nowrite
+	dvfmad $lr24 $ls2 $mauf $ln6
+	nop/2
+	lpassa $ln6 $lr24
+	nop/2
+	# ニュートン補正: y = y*(1.5 - 0.5*r2*y^2)
+	dvmulu $lr24 $lr24 $nowrite
+	dvfmad $lr24 $lr24 $mauf $ln6
+	nop/2
+	dvmulu $ls0 $ln6 $nowrite
+	dvfmad $ls0 $ln6 $mauf $lr26
+	nop/2
+	dvmulu $lm16 $lr26 $nowrite
+	dvfmad $lm16 $lr26 $mauf $ln6
+	nop/2
+	dvadd $lm18 -$ln6 $ls2
+	nop/2
+	dvmulu $lr24 $ls2 $nowrite
+	dvfmad $lr24 $ls2 $mauf $ln6
+	nop/2
+	lpassa $ln6 $lr24
+	nop/2
+	# ニュートン補正: y = y*(1.5 - 0.5*r2*y^2)
+	dvmulu $lr24 $lr24 $nowrite
+	dvfmad $lr24 $lr24 $mauf $ln6
+	nop/2
+	dvmulu $ls0 $ln6 $nowrite
+	dvfmad $ls0 $ln6 $mauf $lr26
+	nop/2
+	dvmulu $lm16 $lr26 $nowrite
+	dvfmad $lm16 $lr26 $mauf $ln6
+	nop/2
+	dvadd $lm18 -$ln6 $ls2
+	nop/2
+	dvmulu $lr24 $ls2 $nowrite
+	dvfmad $lr24 $ls2 $mauf $ln6
+	nop/2
+	lpassa $ln6 $lr24
+	nop/2
+	dvmulu $lr24 $lr24 $nowrite
+	dvfmad $lr24 $lr24 $mauf $ls0
+	nop/2
+	dvmulu $ls0 $lr24 $nowrite
+	dvfmad $ls0 $lr24 $mauf $ln6
+	nop/2
+	dvmulu $lr22 $ln6 $nowrite
+	dvfmad $lr22 $ln6 $mauf $ls0
+	nop/2
+	dvmulu $ls0 $ln0 $nowrite
+	dvfmad $ls0 $ln0 $mauf $lr24
+	nop/2
+	dvadd $lm8 $lr24 $ln8
+	nop/2
+	lpassa $ln8 $lm8
+	nop/24
+	dvmulu $ls0 $ln2 $nowrite
+	dvfmad $ls0 $ln2 $mauf $lr24
+	nop/2
+	dvadd $lm10 $lr24 $ln10
+	nop/2
+	lpassa $ln10 $lm10
+	nop/24
+	dvmulu $ls0 $ln4 $nowrite
+	dvfmad $ls0 $ln4 $mauf $lr24
+	nop/2
+	dvadd $lm12 $lr24 $ln12
+	nop/2
+	lpassa $ln12 $lm12
+	nop/24
+	# --- ブロック 14: 粒子 14 からの力 ---
+# broadcast_use.vsm — @broadcast: L1BM に載っている値を PE に配る部分
+# 毎回展開される。載っていなかった場合は直前に broadcast_load.vsm が展開されている
+# L1BM の番地は区画の先頭ではなく要求された位置 (ずれは vsmlink が加える)
+
+# @broadcast _pj from_param 8 size 4 $lr16
+# === @broadcast _pj: PDM $p20536 → 全 4096 PE $lr16 ===
+	nop/5
+	l1bmp $lb56 $lr16v
+	nop/24
+	nop/24
+	dvadd $lr16 -$lm0 $ln0
+	nop/2
+	dvadd $lr18 -$lm2 $ln2
+	nop/2
+	dvadd $lr20 -$lm4 $ln4
+	nop/2
+	dvmulu $ln0 $ln0 $nowrite
+	dvfmad $ln0 $ln0 $mauf $ls0
+	nop/2
+	dvmulu $ln2 $ln2 $nowrite
+	dvfmad $ln2 $ln2 $mauf $lr24
+	nop/2
+	dvadd $ls0 $lr24 $ln6
+	nop/2
+	dvmulu $ln4 $ln4 $nowrite
+	dvfmad $ln4 $ln4 $mauf $ls0
+	nop/2
+	dvadd $ln6 $ls0 $lr24
+	nop/2
+	dvadd $lr24 $lm14 $ls0
+	nop/2
+	drsqrt $ls0 $lr24
+	nop/4
+	# ニュートン補正: y = y*(1.5 - 0.5*r2*y^2)
+	dvmulu $lr24 $lr24 $nowrite
+	dvfmad $lr24 $lr24 $mauf $ln6
+	nop/2
+	dvmulu $ls0 $ln6 $nowrite
+	dvfmad $ls0 $ln6 $mauf $lr26
+	nop/2
+	dvmulu $lm16 $lr26 $nowrite
+	dvfmad $lm16 $lr26 $mauf $ln6
+	nop/2
+	dvadd $lm18 -$ln6 $ls2
+	nop/2
+	dvmulu $lr24 $ls2 $nowrite
+	dvfmad $lr24 $ls2 $mauf $ln6
+	nop/2
+	lpassa $ln6 $lr24
+	nop/2
+	# ニュートン補正: y = y*(1.5 - 0.5*r2*y^2)
+	dvmulu $lr24 $lr24 $nowrite
+	dvfmad $lr24 $lr24 $mauf $ln6
+	nop/2
+	dvmulu $ls0 $ln6 $nowrite
+	dvfmad $ls0 $ln6 $mauf $lr26
+	nop/2
+	dvmulu $lm16 $lr26 $nowrite
+	dvfmad $lm16 $lr26 $mauf $ln6
+	nop/2
+	dvadd $lm18 -$ln6 $ls2
+	nop/2
+	dvmulu $lr24 $ls2 $nowrite
+	dvfmad $lr24 $ls2 $mauf $ln6
+	nop/2
+	lpassa $ln6 $lr24
+	nop/2
+	# ニュートン補正: y = y*(1.5 - 0.5*r2*y^2)
+	dvmulu $lr24 $lr24 $nowrite
+	dvfmad $lr24 $lr24 $mauf $ln6
+	nop/2
+	dvmulu $ls0 $ln6 $nowrite
+	dvfmad $ls0 $ln6 $mauf $lr26
+	nop/2
+	dvmulu $lm16 $lr26 $nowrite
+	dvfmad $lm16 $lr26 $mauf $ln6
+	nop/2
+	dvadd $lm18 -$ln6 $ls2
+	nop/2
+	dvmulu $lr24 $ls2 $nowrite
+	dvfmad $lr24 $ls2 $mauf $ln6
+	nop/2
+	lpassa $ln6 $lr24
+	nop/2
+	dvmulu $lr24 $lr24 $nowrite
+	dvfmad $lr24 $lr24 $mauf $ls0
+	nop/2
+	dvmulu $ls0 $lr24 $nowrite
+	dvfmad $ls0 $lr24 $mauf $ln6
+	nop/2
+	dvmulu $lr22 $ln6 $nowrite
+	dvfmad $lr22 $ln6 $mauf $ls0
+	nop/2
+	dvmulu $ls0 $ln0 $nowrite
+	dvfmad $ls0 $ln0 $mauf $lr24
+	nop/2
+	dvadd $lm8 $lr24 $ln8
+	nop/2
+	lpassa $ln8 $lm8
+	nop/24
+	dvmulu $ls0 $ln2 $nowrite
+	dvfmad $ls0 $ln2 $mauf $lr24
+	nop/2
+	dvadd $lm10 $lr24 $ln10
+	nop/2
+	lpassa $ln10 $lm10
+	nop/24
+	dvmulu $ls0 $ln4 $nowrite
+	dvfmad $ls0 $ln4 $mauf $lr24
+	nop/2
+	dvadd $lm12 $lr24 $ln12
+	nop/2
+	lpassa $ln12 $lm12
+	nop/24
+	# --- ブロック 15: 粒子 15 からの力 ---
+# broadcast_use.vsm — @broadcast: L1BM に載っている値を PE に配る部分
+# 毎回展開される。載っていなかった場合は直前に broadcast_load.vsm が展開されている
+# L1BM の番地は区画の先頭ではなく要求された位置 (ずれは vsmlink が加える)
+
+# @broadcast _pj from_param 8 size 4 $lr16
+# === @broadcast _pj: PDM $p20540 → 全 4096 PE $lr16 ===
+	nop/5
+	l1bmp $lb60 $lr16v
+	nop/24
+	nop/24
+	dvadd $lr16 -$lm0 $ln0
+	nop/2
+	dvadd $lr18 -$lm2 $ln2
+	nop/2
+	dvadd $lr20 -$lm4 $ln4
+	nop/2
+	dvmulu $ln0 $ln0 $nowrite
+	dvfmad $ln0 $ln0 $mauf $ls0
+	nop/2
+	dvmulu $ln2 $ln2 $nowrite
+	dvfmad $ln2 $ln2 $mauf $lr24
+	nop/2
+	dvadd $ls0 $lr24 $ln6
+	nop/2
+	dvmulu $ln4 $ln4 $nowrite
+	dvfmad $ln4 $ln4 $mauf $ls0
+	nop/2
+	dvadd $ln6 $ls0 $lr24
+	nop/2
+	dvadd $lr24 $lm14 $ls0
+	nop/2
+	drsqrt $ls0 $lr24
+	nop/4
+	# ニュートン補正: y = y*(1.5 - 0.5*r2*y^2)
+	dvmulu $lr24 $lr24 $nowrite
+	dvfmad $lr24 $lr24 $mauf $ln6
+	nop/2
+	dvmulu $ls0 $ln6 $nowrite
+	dvfmad $ls0 $ln6 $mauf $lr26
+	nop/2
+	dvmulu $lm16 $lr26 $nowrite
+	dvfmad $lm16 $lr26 $mauf $ln6
+	nop/2
+	dvadd $lm18 -$ln6 $ls2
+	nop/2
+	dvmulu $lr24 $ls2 $nowrite
+	dvfmad $lr24 $ls2 $mauf $ln6
+	nop/2
+	lpassa $ln6 $lr24
+	nop/2
+	# ニュートン補正: y = y*(1.5 - 0.5*r2*y^2)
+	dvmulu $lr24 $lr24 $nowrite
+	dvfmad $lr24 $lr24 $mauf $ln6
+	nop/2
+	dvmulu $ls0 $ln6 $nowrite
+	dvfmad $ls0 $ln6 $mauf $lr26
+	nop/2
+	dvmulu $lm16 $lr26 $nowrite
+	dvfmad $lm16 $lr26 $mauf $ln6
+	nop/2
+	dvadd $lm18 -$ln6 $ls2
+	nop/2
+	dvmulu $lr24 $ls2 $nowrite
+	dvfmad $lr24 $ls2 $mauf $ln6
+	nop/2
+	lpassa $ln6 $lr24
+	nop/2
+	# ニュートン補正: y = y*(1.5 - 0.5*r2*y^2)
+	dvmulu $lr24 $lr24 $nowrite
+	dvfmad $lr24 $lr24 $mauf $ln6
+	nop/2
+	dvmulu $ls0 $ln6 $nowrite
+	dvfmad $ls0 $ln6 $mauf $lr26
+	nop/2
+	dvmulu $lm16 $lr26 $nowrite
+	dvfmad $lm16 $lr26 $mauf $ln6
+	nop/2
+	dvadd $lm18 -$ln6 $ls2
+	nop/2
+	dvmulu $lr24 $ls2 $nowrite
+	dvfmad $lr24 $ls2 $mauf $ln6
+	nop/2
+	lpassa $ln6 $lr24
+	nop/2
+	dvmulu $lr24 $lr24 $nowrite
+	dvfmad $lr24 $lr24 $mauf $ls0
+	nop/2
+	dvmulu $ls0 $lr24 $nowrite
+	dvfmad $ls0 $lr24 $mauf $ln6
+	nop/2
+	dvmulu $lr22 $ln6 $nowrite
+	dvfmad $lr22 $ln6 $mauf $ls0
+	nop/2
+	dvmulu $ls0 $ln0 $nowrite
+	dvfmad $ls0 $ln0 $mauf $lr24
+	nop/2
+	dvadd $lm8 $lr24 $ln8
+	nop/2
+	lpassa $ln8 $lm8
+	nop/24
+	dvmulu $ls0 $ln2 $nowrite
+	dvfmad $ls0 $ln2 $mauf $lr24
+	nop/2
+	dvadd $lm10 $lr24 $ln10
+	nop/2
+	lpassa $ln10 $lm10
+	nop/24
+	dvmulu $ls0 $ln4 $nowrite
+	dvfmad $ls0 $ln4 $mauf $lr24
+	nop/2
+	dvadd $lm12 $lr24 $ln12
+	nop/2
+	lpassa $ln12 $lm12
+	nop/24
+	# --- ブロック 16: 粒子 16 からの力 ---
+# broadcast_load.vsm — @broadcast: PDM の区画を L1BM に載せる部分
+# その区画がまだ L1BM に載っていないときだけ展開される
+# HW パス: PDM から mvb で全 8 L2BM、 l2bmb で全 64 L1BM へ (64 u64 の区画ごと)
+
+# @broadcast _pj from_param 8 size 4 $lr16
+# === @broadcast _pj: PDM $p20544 → 全 4096 PE $lr16 ===
+	mvb/n64i3f $p20544@0 $lc0
+	nop/2
+	nop; wait i3f
+	nop/5
+	l2bmb $lc0 $lb0
+# broadcast_use.vsm — @broadcast: L1BM に載っている値を PE に配る部分
+# 毎回展開される。載っていなかった場合は直前に broadcast_load.vsm が展開されている
+# L1BM の番地は区画の先頭ではなく要求された位置 (ずれは vsmlink が加える)
+
+
+	nop/5
+	l1bmp $lb0 $lr16v
+	nop/24
+	nop/24
+	dvadd $lr16 -$lm0 $ln0
+	nop/2
+	dvadd $lr18 -$lm2 $ln2
+	nop/2
+	dvadd $lr20 -$lm4 $ln4
+	nop/2
+	dvmulu $ln0 $ln0 $nowrite
+	dvfmad $ln0 $ln0 $mauf $ls0
+	nop/2
+	dvmulu $ln2 $ln2 $nowrite
+	dvfmad $ln2 $ln2 $mauf $lr24
+	nop/2
+	dvadd $ls0 $lr24 $ln6
+	nop/2
+	dvmulu $ln4 $ln4 $nowrite
+	dvfmad $ln4 $ln4 $mauf $ls0
+	nop/2
+	dvadd $ln6 $ls0 $lr24
+	nop/2
+	dvadd $lr24 $lm14 $ls0
+	nop/2
+	drsqrt $ls0 $lr24
+	nop/4
+	# ニュートン補正: y = y*(1.5 - 0.5*r2*y^2)
+	dvmulu $lr24 $lr24 $nowrite
+	dvfmad $lr24 $lr24 $mauf $ln6
+	nop/2
+	dvmulu $ls0 $ln6 $nowrite
+	dvfmad $ls0 $ln6 $mauf $lr26
+	nop/2
+	dvmulu $lm16 $lr26 $nowrite
+	dvfmad $lm16 $lr26 $mauf $ln6
+	nop/2
+	dvadd $lm18 -$ln6 $ls2
+	nop/2
+	dvmulu $lr24 $ls2 $nowrite
+	dvfmad $lr24 $ls2 $mauf $ln6
+	nop/2
+	lpassa $ln6 $lr24
+	nop/2
+	# ニュートン補正: y = y*(1.5 - 0.5*r2*y^2)
+	dvmulu $lr24 $lr24 $nowrite
+	dvfmad $lr24 $lr24 $mauf $ln6
+	nop/2
+	dvmulu $ls0 $ln6 $nowrite
+	dvfmad $ls0 $ln6 $mauf $lr26
+	nop/2
+	dvmulu $lm16 $lr26 $nowrite
+	dvfmad $lm16 $lr26 $mauf $ln6
+	nop/2
+	dvadd $lm18 -$ln6 $ls2
+	nop/2
+	dvmulu $lr24 $ls2 $nowrite
+	dvfmad $lr24 $ls2 $mauf $ln6
+	nop/2
+	lpassa $ln6 $lr24
+	nop/2
+	# ニュートン補正: y = y*(1.5 - 0.5*r2*y^2)
+	dvmulu $lr24 $lr24 $nowrite
+	dvfmad $lr24 $lr24 $mauf $ln6
+	nop/2
+	dvmulu $ls0 $ln6 $nowrite
+	dvfmad $ls0 $ln6 $mauf $lr26
+	nop/2
+	dvmulu $lm16 $lr26 $nowrite
+	dvfmad $lm16 $lr26 $mauf $ln6
+	nop/2
+	dvadd $lm18 -$ln6 $ls2
+	nop/2
+	dvmulu $lr24 $ls2 $nowrite
+	dvfmad $lr24 $ls2 $mauf $ln6
+	nop/2
+	lpassa $ln6 $lr24
+	nop/2
+	dvmulu $lr24 $lr24 $nowrite
+	dvfmad $lr24 $lr24 $mauf $ls0
+	nop/2
+	dvmulu $ls0 $lr24 $nowrite
+	dvfmad $ls0 $lr24 $mauf $ln6
+	nop/2
+	dvmulu $lr22 $ln6 $nowrite
+	dvfmad $lr22 $ln6 $mauf $ls0
+	nop/2
+	dvmulu $ls0 $ln0 $nowrite
+	dvfmad $ls0 $ln0 $mauf $lr24
+	nop/2
+	dvadd $lm8 $lr24 $ln8
+	nop/2
+	lpassa $ln8 $lm8
+	nop/24
+	dvmulu $ls0 $ln2 $nowrite
+	dvfmad $ls0 $ln2 $mauf $lr24
+	nop/2
+	dvadd $lm10 $lr24 $ln10
+	nop/2
+	lpassa $ln10 $lm10
+	nop/24
+	dvmulu $ls0 $ln4 $nowrite
+	dvfmad $ls0 $ln4 $mauf $lr24
+	nop/2
+	dvadd $lm12 $lr24 $ln12
+	nop/2
+	lpassa $ln12 $lm12
+	nop/24
+	# --- ブロック 17: 粒子 17 からの力 ---
+# broadcast_use.vsm — @broadcast: L1BM に載っている値を PE に配る部分
+# 毎回展開される。載っていなかった場合は直前に broadcast_load.vsm が展開されている
+# L1BM の番地は区画の先頭ではなく要求された位置 (ずれは vsmlink が加える)
+
+# @broadcast _pj from_param 8 size 4 $lr16
+# === @broadcast _pj: PDM $p20548 → 全 4096 PE $lr16 ===
+	nop/5
+	l1bmp $lb4 $lr16v
+	nop/24
+	nop/24
+	dvadd $lr16 -$lm0 $ln0
+	nop/2
+	dvadd $lr18 -$lm2 $ln2
+	nop/2
+	dvadd $lr20 -$lm4 $ln4
+	nop/2
+	dvmulu $ln0 $ln0 $nowrite
+	dvfmad $ln0 $ln0 $mauf $ls0
+	nop/2
+	dvmulu $ln2 $ln2 $nowrite
+	dvfmad $ln2 $ln2 $mauf $lr24
+	nop/2
+	dvadd $ls0 $lr24 $ln6
+	nop/2
+	dvmulu $ln4 $ln4 $nowrite
+	dvfmad $ln4 $ln4 $mauf $ls0
+	nop/2
+	dvadd $ln6 $ls0 $lr24
+	nop/2
+	dvadd $lr24 $lm14 $ls0
+	nop/2
+	drsqrt $ls0 $lr24
+	nop/4
+	# ニュートン補正: y = y*(1.5 - 0.5*r2*y^2)
+	dvmulu $lr24 $lr24 $nowrite
+	dvfmad $lr24 $lr24 $mauf $ln6
+	nop/2
+	dvmulu $ls0 $ln6 $nowrite
+	dvfmad $ls0 $ln6 $mauf $lr26
+	nop/2
+	dvmulu $lm16 $lr26 $nowrite
+	dvfmad $lm16 $lr26 $mauf $ln6
+	nop/2
+	dvadd $lm18 -$ln6 $ls2
+	nop/2
+	dvmulu $lr24 $ls2 $nowrite
+	dvfmad $lr24 $ls2 $mauf $ln6
+	nop/2
+	lpassa $ln6 $lr24
+	nop/2
+	# ニュートン補正: y = y*(1.5 - 0.5*r2*y^2)
+	dvmulu $lr24 $lr24 $nowrite
+	dvfmad $lr24 $lr24 $mauf $ln6
+	nop/2
+	dvmulu $ls0 $ln6 $nowrite
+	dvfmad $ls0 $ln6 $mauf $lr26
+	nop/2
+	dvmulu $lm16 $lr26 $nowrite
+	dvfmad $lm16 $lr26 $mauf $ln6
+	nop/2
+	dvadd $lm18 -$ln6 $ls2
+	nop/2
+	dvmulu $lr24 $ls2 $nowrite
+	dvfmad $lr24 $ls2 $mauf $ln6
+	nop/2
+	lpassa $ln6 $lr24
+	nop/2
+	# ニュートン補正: y = y*(1.5 - 0.5*r2*y^2)
+	dvmulu $lr24 $lr24 $nowrite
+	dvfmad $lr24 $lr24 $mauf $ln6
+	nop/2
+	dvmulu $ls0 $ln6 $nowrite
+	dvfmad $ls0 $ln6 $mauf $lr26
+	nop/2
+	dvmulu $lm16 $lr26 $nowrite
+	dvfmad $lm16 $lr26 $mauf $ln6
+	nop/2
+	dvadd $lm18 -$ln6 $ls2
+	nop/2
+	dvmulu $lr24 $ls2 $nowrite
+	dvfmad $lr24 $ls2 $mauf $ln6
+	nop/2
+	lpassa $ln6 $lr24
+	nop/2
+	dvmulu $lr24 $lr24 $nowrite
+	dvfmad $lr24 $lr24 $mauf $ls0
+	nop/2
+	dvmulu $ls0 $lr24 $nowrite
+	dvfmad $ls0 $lr24 $mauf $ln6
+	nop/2
+	dvmulu $lr22 $ln6 $nowrite
+	dvfmad $lr22 $ln6 $mauf $ls0
+	nop/2
+	dvmulu $ls0 $ln0 $nowrite
+	dvfmad $ls0 $ln0 $mauf $lr24
+	nop/2
+	dvadd $lm8 $lr24 $ln8
+	nop/2
+	lpassa $ln8 $lm8
+	nop/24
+	dvmulu $ls0 $ln2 $nowrite
+	dvfmad $ls0 $ln2 $mauf $lr24
+	nop/2
+	dvadd $lm10 $lr24 $ln10
+	nop/2
+	lpassa $ln10 $lm10
+	nop/24
+	dvmulu $ls0 $ln4 $nowrite
+	dvfmad $ls0 $ln4 $mauf $lr24
+	nop/2
+	dvadd $lm12 $lr24 $ln12
+	nop/2
+	lpassa $ln12 $lm12
+	nop/24
+	# --- ブロック 18: 粒子 18 からの力 ---
+# broadcast_use.vsm — @broadcast: L1BM に載っている値を PE に配る部分
+# 毎回展開される。載っていなかった場合は直前に broadcast_load.vsm が展開されている
+# L1BM の番地は区画の先頭ではなく要求された位置 (ずれは vsmlink が加える)
+
+# @broadcast _pj from_param 8 size 4 $lr16
+# === @broadcast _pj: PDM $p20552 → 全 4096 PE $lr16 ===
+	nop/5
+	l1bmp $lb8 $lr16v
+	nop/24
+	nop/24
+	dvadd $lr16 -$lm0 $ln0
+	nop/2
+	dvadd $lr18 -$lm2 $ln2
+	nop/2
+	dvadd $lr20 -$lm4 $ln4
+	nop/2
+	dvmulu $ln0 $ln0 $nowrite
+	dvfmad $ln0 $ln0 $mauf $ls0
+	nop/2
+	dvmulu $ln2 $ln2 $nowrite
+	dvfmad $ln2 $ln2 $mauf $lr24
+	nop/2
+	dvadd $ls0 $lr24 $ln6
+	nop/2
+	dvmulu $ln4 $ln4 $nowrite
+	dvfmad $ln4 $ln4 $mauf $ls0
+	nop/2
+	dvadd $ln6 $ls0 $lr24
+	nop/2
+	dvadd $lr24 $lm14 $ls0
+	nop/2
+	drsqrt $ls0 $lr24
+	nop/4
+	# ニュートン補正: y = y*(1.5 - 0.5*r2*y^2)
+	dvmulu $lr24 $lr24 $nowrite
+	dvfmad $lr24 $lr24 $mauf $ln6
+	nop/2
+	dvmulu $ls0 $ln6 $nowrite
+	dvfmad $ls0 $ln6 $mauf $lr26
+	nop/2
+	dvmulu $lm16 $lr26 $nowrite
+	dvfmad $lm16 $lr26 $mauf $ln6
+	nop/2
+	dvadd $lm18 -$ln6 $ls2
+	nop/2
+	dvmulu $lr24 $ls2 $nowrite
+	dvfmad $lr24 $ls2 $mauf $ln6
+	nop/2
+	lpassa $ln6 $lr24
+	nop/2
+	# ニュートン補正: y = y*(1.5 - 0.5*r2*y^2)
+	dvmulu $lr24 $lr24 $nowrite
+	dvfmad $lr24 $lr24 $mauf $ln6
+	nop/2
+	dvmulu $ls0 $ln6 $nowrite
+	dvfmad $ls0 $ln6 $mauf $lr26
+	nop/2
+	dvmulu $lm16 $lr26 $nowrite
+	dvfmad $lm16 $lr26 $mauf $ln6
+	nop/2
+	dvadd $lm18 -$ln6 $ls2
+	nop/2
+	dvmulu $lr24 $ls2 $nowrite
+	dvfmad $lr24 $ls2 $mauf $ln6
+	nop/2
+	lpassa $ln6 $lr24
+	nop/2
+	# ニュートン補正: y = y*(1.5 - 0.5*r2*y^2)
+	dvmulu $lr24 $lr24 $nowrite
+	dvfmad $lr24 $lr24 $mauf $ln6
+	nop/2
+	dvmulu $ls0 $ln6 $nowrite
+	dvfmad $ls0 $ln6 $mauf $lr26
+	nop/2
+	dvmulu $lm16 $lr26 $nowrite
+	dvfmad $lm16 $lr26 $mauf $ln6
+	nop/2
+	dvadd $lm18 -$ln6 $ls2
+	nop/2
+	dvmulu $lr24 $ls2 $nowrite
+	dvfmad $lr24 $ls2 $mauf $ln6
+	nop/2
+	lpassa $ln6 $lr24
+	nop/2
+	dvmulu $lr24 $lr24 $nowrite
+	dvfmad $lr24 $lr24 $mauf $ls0
+	nop/2
+	dvmulu $ls0 $lr24 $nowrite
+	dvfmad $ls0 $lr24 $mauf $ln6
+	nop/2
+	dvmulu $lr22 $ln6 $nowrite
+	dvfmad $lr22 $ln6 $mauf $ls0
+	nop/2
+	dvmulu $ls0 $ln0 $nowrite
+	dvfmad $ls0 $ln0 $mauf $lr24
+	nop/2
+	dvadd $lm8 $lr24 $ln8
+	nop/2
+	lpassa $ln8 $lm8
+	nop/24
+	dvmulu $ls0 $ln2 $nowrite
+	dvfmad $ls0 $ln2 $mauf $lr24
+	nop/2
+	dvadd $lm10 $lr24 $ln10
+	nop/2
+	lpassa $ln10 $lm10
+	nop/24
+	dvmulu $ls0 $ln4 $nowrite
+	dvfmad $ls0 $ln4 $mauf $lr24
+	nop/2
+	dvadd $lm12 $lr24 $ln12
+	nop/2
+	lpassa $ln12 $lm12
+	nop/24
+	# --- ブロック 19: 粒子 19 からの力 ---
+# broadcast_use.vsm — @broadcast: L1BM に載っている値を PE に配る部分
+# 毎回展開される。載っていなかった場合は直前に broadcast_load.vsm が展開されている
+# L1BM の番地は区画の先頭ではなく要求された位置 (ずれは vsmlink が加える)
+
+# @broadcast _pj from_param 8 size 4 $lr16
+# === @broadcast _pj: PDM $p20556 → 全 4096 PE $lr16 ===
+	nop/5
+	l1bmp $lb12 $lr16v
+	nop/24
+	nop/24
+	dvadd $lr16 -$lm0 $ln0
+	nop/2
+	dvadd $lr18 -$lm2 $ln2
+	nop/2
+	dvadd $lr20 -$lm4 $ln4
+	nop/2
+	dvmulu $ln0 $ln0 $nowrite
+	dvfmad $ln0 $ln0 $mauf $ls0
+	nop/2
+	dvmulu $ln2 $ln2 $nowrite
+	dvfmad $ln2 $ln2 $mauf $lr24
+	nop/2
+	dvadd $ls0 $lr24 $ln6
+	nop/2
+	dvmulu $ln4 $ln4 $nowrite
+	dvfmad $ln4 $ln4 $mauf $ls0
+	nop/2
+	dvadd $ln6 $ls0 $lr24
+	nop/2
+	dvadd $lr24 $lm14 $ls0
+	nop/2
+	drsqrt $ls0 $lr24
+	nop/4
+	# ニュートン補正: y = y*(1.5 - 0.5*r2*y^2)
+	dvmulu $lr24 $lr24 $nowrite
+	dvfmad $lr24 $lr24 $mauf $ln6
+	nop/2
+	dvmulu $ls0 $ln6 $nowrite
+	dvfmad $ls0 $ln6 $mauf $lr26
+	nop/2
+	dvmulu $lm16 $lr26 $nowrite
+	dvfmad $lm16 $lr26 $mauf $ln6
+	nop/2
+	dvadd $lm18 -$ln6 $ls2
+	nop/2
+	dvmulu $lr24 $ls2 $nowrite
+	dvfmad $lr24 $ls2 $mauf $ln6
+	nop/2
+	lpassa $ln6 $lr24
+	nop/2
+	# ニュートン補正: y = y*(1.5 - 0.5*r2*y^2)
+	dvmulu $lr24 $lr24 $nowrite
+	dvfmad $lr24 $lr24 $mauf $ln6
+	nop/2
+	dvmulu $ls0 $ln6 $nowrite
+	dvfmad $ls0 $ln6 $mauf $lr26
+	nop/2
+	dvmulu $lm16 $lr26 $nowrite
+	dvfmad $lm16 $lr26 $mauf $ln6
+	nop/2
+	dvadd $lm18 -$ln6 $ls2
+	nop/2
+	dvmulu $lr24 $ls2 $nowrite
+	dvfmad $lr24 $ls2 $mauf $ln6
+	nop/2
+	lpassa $ln6 $lr24
+	nop/2
+	# ニュートン補正: y = y*(1.5 - 0.5*r2*y^2)
+	dvmulu $lr24 $lr24 $nowrite
+	dvfmad $lr24 $lr24 $mauf $ln6
+	nop/2
+	dvmulu $ls0 $ln6 $nowrite
+	dvfmad $ls0 $ln6 $mauf $lr26
+	nop/2
+	dvmulu $lm16 $lr26 $nowrite
+	dvfmad $lm16 $lr26 $mauf $ln6
+	nop/2
+	dvadd $lm18 -$ln6 $ls2
+	nop/2
+	dvmulu $lr24 $ls2 $nowrite
+	dvfmad $lr24 $ls2 $mauf $ln6
+	nop/2
+	lpassa $ln6 $lr24
+	nop/2
+	dvmulu $lr24 $lr24 $nowrite
+	dvfmad $lr24 $lr24 $mauf $ls0
+	nop/2
+	dvmulu $ls0 $lr24 $nowrite
+	dvfmad $ls0 $lr24 $mauf $ln6
+	nop/2
+	dvmulu $lr22 $ln6 $nowrite
+	dvfmad $lr22 $ln6 $mauf $ls0
+	nop/2
+	dvmulu $ls0 $ln0 $nowrite
+	dvfmad $ls0 $ln0 $mauf $lr24
+	nop/2
+	dvadd $lm8 $lr24 $ln8
+	nop/2
+	lpassa $ln8 $lm8
+	nop/24
+	dvmulu $ls0 $ln2 $nowrite
+	dvfmad $ls0 $ln2 $mauf $lr24
+	nop/2
+	dvadd $lm10 $lr24 $ln10
+	nop/2
+	lpassa $ln10 $lm10
+	nop/24
+	dvmulu $ls0 $ln4 $nowrite
+	dvfmad $ls0 $ln4 $mauf $lr24
+	nop/2
+	dvadd $lm12 $lr24 $ln12
+	nop/2
+	lpassa $ln12 $lm12
+	nop/24
+	# --- ブロック 20: 粒子 20 からの力 ---
+# broadcast_use.vsm — @broadcast: L1BM に載っている値を PE に配る部分
+# 毎回展開される。載っていなかった場合は直前に broadcast_load.vsm が展開されている
+# L1BM の番地は区画の先頭ではなく要求された位置 (ずれは vsmlink が加える)
+
+# @broadcast _pj from_param 8 size 4 $lr16
+# === @broadcast _pj: PDM $p20560 → 全 4096 PE $lr16 ===
+	nop/5
+	l1bmp $lb16 $lr16v
+	nop/24
+	nop/24
+	dvadd $lr16 -$lm0 $ln0
+	nop/2
+	dvadd $lr18 -$lm2 $ln2
+	nop/2
+	dvadd $lr20 -$lm4 $ln4
+	nop/2
+	dvmulu $ln0 $ln0 $nowrite
+	dvfmad $ln0 $ln0 $mauf $ls0
+	nop/2
+	dvmulu $ln2 $ln2 $nowrite
+	dvfmad $ln2 $ln2 $mauf $lr24
+	nop/2
+	dvadd $ls0 $lr24 $ln6
+	nop/2
+	dvmulu $ln4 $ln4 $nowrite
+	dvfmad $ln4 $ln4 $mauf $ls0
+	nop/2
+	dvadd $ln6 $ls0 $lr24
+	nop/2
+	dvadd $lr24 $lm14 $ls0
+	nop/2
+	drsqrt $ls0 $lr24
+	nop/4
+	# ニュートン補正: y = y*(1.5 - 0.5*r2*y^2)
+	dvmulu $lr24 $lr24 $nowrite
+	dvfmad $lr24 $lr24 $mauf $ln6
+	nop/2
+	dvmulu $ls0 $ln6 $nowrite
+	dvfmad $ls0 $ln6 $mauf $lr26
+	nop/2
+	dvmulu $lm16 $lr26 $nowrite
+	dvfmad $lm16 $lr26 $mauf $ln6
+	nop/2
+	dvadd $lm18 -$ln6 $ls2
+	nop/2
+	dvmulu $lr24 $ls2 $nowrite
+	dvfmad $lr24 $ls2 $mauf $ln6
+	nop/2
+	lpassa $ln6 $lr24
+	nop/2
+	# ニュートン補正: y = y*(1.5 - 0.5*r2*y^2)
+	dvmulu $lr24 $lr24 $nowrite
+	dvfmad $lr24 $lr24 $mauf $ln6
+	nop/2
+	dvmulu $ls0 $ln6 $nowrite
+	dvfmad $ls0 $ln6 $mauf $lr26
+	nop/2
+	dvmulu $lm16 $lr26 $nowrite
+	dvfmad $lm16 $lr26 $mauf $ln6
+	nop/2
+	dvadd $lm18 -$ln6 $ls2
+	nop/2
+	dvmulu $lr24 $ls2 $nowrite
+	dvfmad $lr24 $ls2 $mauf $ln6
+	nop/2
+	lpassa $ln6 $lr24
+	nop/2
+	# ニュートン補正: y = y*(1.5 - 0.5*r2*y^2)
+	dvmulu $lr24 $lr24 $nowrite
+	dvfmad $lr24 $lr24 $mauf $ln6
+	nop/2
+	dvmulu $ls0 $ln6 $nowrite
+	dvfmad $ls0 $ln6 $mauf $lr26
+	nop/2
+	dvmulu $lm16 $lr26 $nowrite
+	dvfmad $lm16 $lr26 $mauf $ln6
+	nop/2
+	dvadd $lm18 -$ln6 $ls2
+	nop/2
+	dvmulu $lr24 $ls2 $nowrite
+	dvfmad $lr24 $ls2 $mauf $ln6
+	nop/2
+	lpassa $ln6 $lr24
+	nop/2
+	dvmulu $lr24 $lr24 $nowrite
+	dvfmad $lr24 $lr24 $mauf $ls0
+	nop/2
+	dvmulu $ls0 $lr24 $nowrite
+	dvfmad $ls0 $lr24 $mauf $ln6
+	nop/2
+	dvmulu $lr22 $ln6 $nowrite
+	dvfmad $lr22 $ln6 $mauf $ls0
+	nop/2
+	dvmulu $ls0 $ln0 $nowrite
+	dvfmad $ls0 $ln0 $mauf $lr24
+	nop/2
+	dvadd $lm8 $lr24 $ln8
+	nop/2
+	lpassa $ln8 $lm8
+	nop/24
+	dvmulu $ls0 $ln2 $nowrite
+	dvfmad $ls0 $ln2 $mauf $lr24
+	nop/2
+	dvadd $lm10 $lr24 $ln10
+	nop/2
+	lpassa $ln10 $lm10
+	nop/24
+	dvmulu $ls0 $ln4 $nowrite
+	dvfmad $ls0 $ln4 $mauf $lr24
+	nop/2
+	dvadd $lm12 $lr24 $ln12
+	nop/2
+	lpassa $ln12 $lm12
+	nop/24
+	# --- ブロック 21: 粒子 21 からの力 ---
+# broadcast_use.vsm — @broadcast: L1BM に載っている値を PE に配る部分
+# 毎回展開される。載っていなかった場合は直前に broadcast_load.vsm が展開されている
+# L1BM の番地は区画の先頭ではなく要求された位置 (ずれは vsmlink が加える)
+
+# @broadcast _pj from_param 8 size 4 $lr16
+# === @broadcast _pj: PDM $p20564 → 全 4096 PE $lr16 ===
+	nop/5
+	l1bmp $lb20 $lr16v
+	nop/24
+	nop/24
+	dvadd $lr16 -$lm0 $ln0
+	nop/2
+	dvadd $lr18 -$lm2 $ln2
+	nop/2
+	dvadd $lr20 -$lm4 $ln4
+	nop/2
+	dvmulu $ln0 $ln0 $nowrite
+	dvfmad $ln0 $ln0 $mauf $ls0
+	nop/2
+	dvmulu $ln2 $ln2 $nowrite
+	dvfmad $ln2 $ln2 $mauf $lr24
+	nop/2
+	dvadd $ls0 $lr24 $ln6
+	nop/2
+	dvmulu $ln4 $ln4 $nowrite
+	dvfmad $ln4 $ln4 $mauf $ls0
+	nop/2
+	dvadd $ln6 $ls0 $lr24
+	nop/2
+	dvadd $lr24 $lm14 $ls0
+	nop/2
+	drsqrt $ls0 $lr24
+	nop/4
+	# ニュートン補正: y = y*(1.5 - 0.5*r2*y^2)
+	dvmulu $lr24 $lr24 $nowrite
+	dvfmad $lr24 $lr24 $mauf $ln6
+	nop/2
+	dvmulu $ls0 $ln6 $nowrite
+	dvfmad $ls0 $ln6 $mauf $lr26
+	nop/2
+	dvmulu $lm16 $lr26 $nowrite
+	dvfmad $lm16 $lr26 $mauf $ln6
+	nop/2
+	dvadd $lm18 -$ln6 $ls2
+	nop/2
+	dvmulu $lr24 $ls2 $nowrite
+	dvfmad $lr24 $ls2 $mauf $ln6
+	nop/2
+	lpassa $ln6 $lr24
+	nop/2
+	# ニュートン補正: y = y*(1.5 - 0.5*r2*y^2)
+	dvmulu $lr24 $lr24 $nowrite
+	dvfmad $lr24 $lr24 $mauf $ln6
+	nop/2
+	dvmulu $ls0 $ln6 $nowrite
+	dvfmad $ls0 $ln6 $mauf $lr26
+	nop/2
+	dvmulu $lm16 $lr26 $nowrite
+	dvfmad $lm16 $lr26 $mauf $ln6
+	nop/2
+	dvadd $lm18 -$ln6 $ls2
+	nop/2
+	dvmulu $lr24 $ls2 $nowrite
+	dvfmad $lr24 $ls2 $mauf $ln6
+	nop/2
+	lpassa $ln6 $lr24
+	nop/2
+	# ニュートン補正: y = y*(1.5 - 0.5*r2*y^2)
+	dvmulu $lr24 $lr24 $nowrite
+	dvfmad $lr24 $lr24 $mauf $ln6
+	nop/2
+	dvmulu $ls0 $ln6 $nowrite
+	dvfmad $ls0 $ln6 $mauf $lr26
+	nop/2
+	dvmulu $lm16 $lr26 $nowrite
+	dvfmad $lm16 $lr26 $mauf $ln6
+	nop/2
+	dvadd $lm18 -$ln6 $ls2
+	nop/2
+	dvmulu $lr24 $ls2 $nowrite
+	dvfmad $lr24 $ls2 $mauf $ln6
+	nop/2
+	lpassa $ln6 $lr24
+	nop/2
+	dvmulu $lr24 $lr24 $nowrite
+	dvfmad $lr24 $lr24 $mauf $ls0
+	nop/2
+	dvmulu $ls0 $lr24 $nowrite
+	dvfmad $ls0 $lr24 $mauf $ln6
+	nop/2
+	dvmulu $lr22 $ln6 $nowrite
+	dvfmad $lr22 $ln6 $mauf $ls0
+	nop/2
+	dvmulu $ls0 $ln0 $nowrite
+	dvfmad $ls0 $ln0 $mauf $lr24
+	nop/2
+	dvadd $lm8 $lr24 $ln8
+	nop/2
+	lpassa $ln8 $lm8
+	nop/24
+	dvmulu $ls0 $ln2 $nowrite
+	dvfmad $ls0 $ln2 $mauf $lr24
+	nop/2
+	dvadd $lm10 $lr24 $ln10
+	nop/2
+	lpassa $ln10 $lm10
+	nop/24
+	dvmulu $ls0 $ln4 $nowrite
+	dvfmad $ls0 $ln4 $mauf $lr24
+	nop/2
+	dvadd $lm12 $lr24 $ln12
+	nop/2
+	lpassa $ln12 $lm12
+	nop/24
+	# --- ブロック 22: 粒子 22 からの力 ---
+# broadcast_use.vsm — @broadcast: L1BM に載っている値を PE に配る部分
+# 毎回展開される。載っていなかった場合は直前に broadcast_load.vsm が展開されている
+# L1BM の番地は区画の先頭ではなく要求された位置 (ずれは vsmlink が加える)
+
+# @broadcast _pj from_param 8 size 4 $lr16
+# === @broadcast _pj: PDM $p20568 → 全 4096 PE $lr16 ===
+	nop/5
+	l1bmp $lb24 $lr16v
+	nop/24
+	nop/24
+	dvadd $lr16 -$lm0 $ln0
+	nop/2
+	dvadd $lr18 -$lm2 $ln2
+	nop/2
+	dvadd $lr20 -$lm4 $ln4
+	nop/2
+	dvmulu $ln0 $ln0 $nowrite
+	dvfmad $ln0 $ln0 $mauf $ls0
+	nop/2
+	dvmulu $ln2 $ln2 $nowrite
+	dvfmad $ln2 $ln2 $mauf $lr24
+	nop/2
+	dvadd $ls0 $lr24 $ln6
+	nop/2
+	dvmulu $ln4 $ln4 $nowrite
+	dvfmad $ln4 $ln4 $mauf $ls0
+	nop/2
+	dvadd $ln6 $ls0 $lr24
+	nop/2
+	dvadd $lr24 $lm14 $ls0
+	nop/2
+	drsqrt $ls0 $lr24
+	nop/4
+	# ニュートン補正: y = y*(1.5 - 0.5*r2*y^2)
+	dvmulu $lr24 $lr24 $nowrite
+	dvfmad $lr24 $lr24 $mauf $ln6
+	nop/2
+	dvmulu $ls0 $ln6 $nowrite
+	dvfmad $ls0 $ln6 $mauf $lr26
+	nop/2
+	dvmulu $lm16 $lr26 $nowrite
+	dvfmad $lm16 $lr26 $mauf $ln6
+	nop/2
+	dvadd $lm18 -$ln6 $ls2
+	nop/2
+	dvmulu $lr24 $ls2 $nowrite
+	dvfmad $lr24 $ls2 $mauf $ln6
+	nop/2
+	lpassa $ln6 $lr24
+	nop/2
+	# ニュートン補正: y = y*(1.5 - 0.5*r2*y^2)
+	dvmulu $lr24 $lr24 $nowrite
+	dvfmad $lr24 $lr24 $mauf $ln6
+	nop/2
+	dvmulu $ls0 $ln6 $nowrite
+	dvfmad $ls0 $ln6 $mauf $lr26
+	nop/2
+	dvmulu $lm16 $lr26 $nowrite
+	dvfmad $lm16 $lr26 $mauf $ln6
+	nop/2
+	dvadd $lm18 -$ln6 $ls2
+	nop/2
+	dvmulu $lr24 $ls2 $nowrite
+	dvfmad $lr24 $ls2 $mauf $ln6
+	nop/2
+	lpassa $ln6 $lr24
+	nop/2
+	# ニュートン補正: y = y*(1.5 - 0.5*r2*y^2)
+	dvmulu $lr24 $lr24 $nowrite
+	dvfmad $lr24 $lr24 $mauf $ln6
+	nop/2
+	dvmulu $ls0 $ln6 $nowrite
+	dvfmad $ls0 $ln6 $mauf $lr26
+	nop/2
+	dvmulu $lm16 $lr26 $nowrite
+	dvfmad $lm16 $lr26 $mauf $ln6
+	nop/2
+	dvadd $lm18 -$ln6 $ls2
+	nop/2
+	dvmulu $lr24 $ls2 $nowrite
+	dvfmad $lr24 $ls2 $mauf $ln6
+	nop/2
+	lpassa $ln6 $lr24
+	nop/2
+	dvmulu $lr24 $lr24 $nowrite
+	dvfmad $lr24 $lr24 $mauf $ls0
+	nop/2
+	dvmulu $ls0 $lr24 $nowrite
+	dvfmad $ls0 $lr24 $mauf $ln6
+	nop/2
+	dvmulu $lr22 $ln6 $nowrite
+	dvfmad $lr22 $ln6 $mauf $ls0
+	nop/2
+	dvmulu $ls0 $ln0 $nowrite
+	dvfmad $ls0 $ln0 $mauf $lr24
+	nop/2
+	dvadd $lm8 $lr24 $ln8
+	nop/2
+	lpassa $ln8 $lm8
+	nop/24
+	dvmulu $ls0 $ln2 $nowrite
+	dvfmad $ls0 $ln2 $mauf $lr24
+	nop/2
+	dvadd $lm10 $lr24 $ln10
+	nop/2
+	lpassa $ln10 $lm10
+	nop/24
+	dvmulu $ls0 $ln4 $nowrite
+	dvfmad $ls0 $ln4 $mauf $lr24
+	nop/2
+	dvadd $lm12 $lr24 $ln12
+	nop/2
+	lpassa $ln12 $lm12
+	nop/24
+	# --- ブロック 23: 粒子 23 からの力 ---
+# broadcast_use.vsm — @broadcast: L1BM に載っている値を PE に配る部分
+# 毎回展開される。載っていなかった場合は直前に broadcast_load.vsm が展開されている
+# L1BM の番地は区画の先頭ではなく要求された位置 (ずれは vsmlink が加える)
+
+# @broadcast _pj from_param 8 size 4 $lr16
+# === @broadcast _pj: PDM $p20572 → 全 4096 PE $lr16 ===
+	nop/5
+	l1bmp $lb28 $lr16v
+	nop/24
+	nop/24
+	dvadd $lr16 -$lm0 $ln0
+	nop/2
+	dvadd $lr18 -$lm2 $ln2
+	nop/2
+	dvadd $lr20 -$lm4 $ln4
+	nop/2
+	dvmulu $ln0 $ln0 $nowrite
+	dvfmad $ln0 $ln0 $mauf $ls0
+	nop/2
+	dvmulu $ln2 $ln2 $nowrite
+	dvfmad $ln2 $ln2 $mauf $lr24
+	nop/2
+	dvadd $ls0 $lr24 $ln6
+	nop/2
+	dvmulu $ln4 $ln4 $nowrite
+	dvfmad $ln4 $ln4 $mauf $ls0
+	nop/2
+	dvadd $ln6 $ls0 $lr24
+	nop/2
+	dvadd $lr24 $lm14 $ls0
+	nop/2
+	drsqrt $ls0 $lr24
+	nop/4
+	# ニュートン補正: y = y*(1.5 - 0.5*r2*y^2)
+	dvmulu $lr24 $lr24 $nowrite
+	dvfmad $lr24 $lr24 $mauf $ln6
+	nop/2
+	dvmulu $ls0 $ln6 $nowrite
+	dvfmad $ls0 $ln6 $mauf $lr26
+	nop/2
+	dvmulu $lm16 $lr26 $nowrite
+	dvfmad $lm16 $lr26 $mauf $ln6
+	nop/2
+	dvadd $lm18 -$ln6 $ls2
+	nop/2
+	dvmulu $lr24 $ls2 $nowrite
+	dvfmad $lr24 $ls2 $mauf $ln6
+	nop/2
+	lpassa $ln6 $lr24
+	nop/2
+	# ニュートン補正: y = y*(1.5 - 0.5*r2*y^2)
+	dvmulu $lr24 $lr24 $nowrite
+	dvfmad $lr24 $lr24 $mauf $ln6
+	nop/2
+	dvmulu $ls0 $ln6 $nowrite
+	dvfmad $ls0 $ln6 $mauf $lr26
+	nop/2
+	dvmulu $lm16 $lr26 $nowrite
+	dvfmad $lm16 $lr26 $mauf $ln6
+	nop/2
+	dvadd $lm18 -$ln6 $ls2
+	nop/2
+	dvmulu $lr24 $ls2 $nowrite
+	dvfmad $lr24 $ls2 $mauf $ln6
+	nop/2
+	lpassa $ln6 $lr24
+	nop/2
+	# ニュートン補正: y = y*(1.5 - 0.5*r2*y^2)
+	dvmulu $lr24 $lr24 $nowrite
+	dvfmad $lr24 $lr24 $mauf $ln6
+	nop/2
+	dvmulu $ls0 $ln6 $nowrite
+	dvfmad $ls0 $ln6 $mauf $lr26
+	nop/2
+	dvmulu $lm16 $lr26 $nowrite
+	dvfmad $lm16 $lr26 $mauf $ln6
+	nop/2
+	dvadd $lm18 -$ln6 $ls2
+	nop/2
+	dvmulu $lr24 $ls2 $nowrite
+	dvfmad $lr24 $ls2 $mauf $ln6
+	nop/2
+	lpassa $ln6 $lr24
+	nop/2
+	dvmulu $lr24 $lr24 $nowrite
+	dvfmad $lr24 $lr24 $mauf $ls0
+	nop/2
+	dvmulu $ls0 $lr24 $nowrite
+	dvfmad $ls0 $lr24 $mauf $ln6
+	nop/2
+	dvmulu $lr22 $ln6 $nowrite
+	dvfmad $lr22 $ln6 $mauf $ls0
+	nop/2
+	dvmulu $ls0 $ln0 $nowrite
+	dvfmad $ls0 $ln0 $mauf $lr24
+	nop/2
+	dvadd $lm8 $lr24 $ln8
+	nop/2
+	lpassa $ln8 $lm8
+	nop/24
+	dvmulu $ls0 $ln2 $nowrite
+	dvfmad $ls0 $ln2 $mauf $lr24
+	nop/2
+	dvadd $lm10 $lr24 $ln10
+	nop/2
+	lpassa $ln10 $lm10
+	nop/24
+	dvmulu $ls0 $ln4 $nowrite
+	dvfmad $ls0 $ln4 $mauf $lr24
+	nop/2
+	dvadd $lm12 $lr24 $ln12
+	nop/2
+	lpassa $ln12 $lm12
+	nop/24
+	# --- ブロック 24: 粒子 24 からの力 ---
+# broadcast_use.vsm — @broadcast: L1BM に載っている値を PE に配る部分
+# 毎回展開される。載っていなかった場合は直前に broadcast_load.vsm が展開されている
+# L1BM の番地は区画の先頭ではなく要求された位置 (ずれは vsmlink が加える)
+
+# @broadcast _pj from_param 8 size 4 $lr16
+# === @broadcast _pj: PDM $p20576 → 全 4096 PE $lr16 ===
+	nop/5
+	l1bmp $lb32 $lr16v
+	nop/24
+	nop/24
+	dvadd $lr16 -$lm0 $ln0
+	nop/2
+	dvadd $lr18 -$lm2 $ln2
+	nop/2
+	dvadd $lr20 -$lm4 $ln4
+	nop/2
+	dvmulu $ln0 $ln0 $nowrite
+	dvfmad $ln0 $ln0 $mauf $ls0
+	nop/2
+	dvmulu $ln2 $ln2 $nowrite
+	dvfmad $ln2 $ln2 $mauf $lr24
+	nop/2
+	dvadd $ls0 $lr24 $ln6
+	nop/2
+	dvmulu $ln4 $ln4 $nowrite
+	dvfmad $ln4 $ln4 $mauf $ls0
+	nop/2
+	dvadd $ln6 $ls0 $lr24
+	nop/2
+	dvadd $lr24 $lm14 $ls0
+	nop/2
+	drsqrt $ls0 $lr24
+	nop/4
+	# ニュートン補正: y = y*(1.5 - 0.5*r2*y^2)
+	dvmulu $lr24 $lr24 $nowrite
+	dvfmad $lr24 $lr24 $mauf $ln6
+	nop/2
+	dvmulu $ls0 $ln6 $nowrite
+	dvfmad $ls0 $ln6 $mauf $lr26
+	nop/2
+	dvmulu $lm16 $lr26 $nowrite
+	dvfmad $lm16 $lr26 $mauf $ln6
+	nop/2
+	dvadd $lm18 -$ln6 $ls2
+	nop/2
+	dvmulu $lr24 $ls2 $nowrite
+	dvfmad $lr24 $ls2 $mauf $ln6
+	nop/2
+	lpassa $ln6 $lr24
+	nop/2
+	# ニュートン補正: y = y*(1.5 - 0.5*r2*y^2)
+	dvmulu $lr24 $lr24 $nowrite
+	dvfmad $lr24 $lr24 $mauf $ln6
+	nop/2
+	dvmulu $ls0 $ln6 $nowrite
+	dvfmad $ls0 $ln6 $mauf $lr26
+	nop/2
+	dvmulu $lm16 $lr26 $nowrite
+	dvfmad $lm16 $lr26 $mauf $ln6
+	nop/2
+	dvadd $lm18 -$ln6 $ls2
+	nop/2
+	dvmulu $lr24 $ls2 $nowrite
+	dvfmad $lr24 $ls2 $mauf $ln6
+	nop/2
+	lpassa $ln6 $lr24
+	nop/2
+	# ニュートン補正: y = y*(1.5 - 0.5*r2*y^2)
+	dvmulu $lr24 $lr24 $nowrite
+	dvfmad $lr24 $lr24 $mauf $ln6
+	nop/2
+	dvmulu $ls0 $ln6 $nowrite
+	dvfmad $ls0 $ln6 $mauf $lr26
+	nop/2
+	dvmulu $lm16 $lr26 $nowrite
+	dvfmad $lm16 $lr26 $mauf $ln6
+	nop/2
+	dvadd $lm18 -$ln6 $ls2
+	nop/2
+	dvmulu $lr24 $ls2 $nowrite
+	dvfmad $lr24 $ls2 $mauf $ln6
+	nop/2
+	lpassa $ln6 $lr24
+	nop/2
+	dvmulu $lr24 $lr24 $nowrite
+	dvfmad $lr24 $lr24 $mauf $ls0
+	nop/2
+	dvmulu $ls0 $lr24 $nowrite
+	dvfmad $ls0 $lr24 $mauf $ln6
+	nop/2
+	dvmulu $lr22 $ln6 $nowrite
+	dvfmad $lr22 $ln6 $mauf $ls0
+	nop/2
+	dvmulu $ls0 $ln0 $nowrite
+	dvfmad $ls0 $ln0 $mauf $lr24
+	nop/2
+	dvadd $lm8 $lr24 $ln8
+	nop/2
+	lpassa $ln8 $lm8
+	nop/24
+	dvmulu $ls0 $ln2 $nowrite
+	dvfmad $ls0 $ln2 $mauf $lr24
+	nop/2
+	dvadd $lm10 $lr24 $ln10
+	nop/2
+	lpassa $ln10 $lm10
+	nop/24
+	dvmulu $ls0 $ln4 $nowrite
+	dvfmad $ls0 $ln4 $mauf $lr24
+	nop/2
+	dvadd $lm12 $lr24 $ln12
+	nop/2
+	lpassa $ln12 $lm12
+	nop/24
+	# --- ブロック 25: 粒子 25 からの力 ---
+# broadcast_use.vsm — @broadcast: L1BM に載っている値を PE に配る部分
+# 毎回展開される。載っていなかった場合は直前に broadcast_load.vsm が展開されている
+# L1BM の番地は区画の先頭ではなく要求された位置 (ずれは vsmlink が加える)
+
+# @broadcast _pj from_param 8 size 4 $lr16
+# === @broadcast _pj: PDM $p20580 → 全 4096 PE $lr16 ===
+	nop/5
+	l1bmp $lb36 $lr16v
+	nop/24
+	nop/24
+	dvadd $lr16 -$lm0 $ln0
+	nop/2
+	dvadd $lr18 -$lm2 $ln2
+	nop/2
+	dvadd $lr20 -$lm4 $ln4
+	nop/2
+	dvmulu $ln0 $ln0 $nowrite
+	dvfmad $ln0 $ln0 $mauf $ls0
+	nop/2
+	dvmulu $ln2 $ln2 $nowrite
+	dvfmad $ln2 $ln2 $mauf $lr24
+	nop/2
+	dvadd $ls0 $lr24 $ln6
+	nop/2
+	dvmulu $ln4 $ln4 $nowrite
+	dvfmad $ln4 $ln4 $mauf $ls0
+	nop/2
+	dvadd $ln6 $ls0 $lr24
+	nop/2
+	dvadd $lr24 $lm14 $ls0
+	nop/2
+	drsqrt $ls0 $lr24
+	nop/4
+	# ニュートン補正: y = y*(1.5 - 0.5*r2*y^2)
+	dvmulu $lr24 $lr24 $nowrite
+	dvfmad $lr24 $lr24 $mauf $ln6
+	nop/2
+	dvmulu $ls0 $ln6 $nowrite
+	dvfmad $ls0 $ln6 $mauf $lr26
+	nop/2
+	dvmulu $lm16 $lr26 $nowrite
+	dvfmad $lm16 $lr26 $mauf $ln6
+	nop/2
+	dvadd $lm18 -$ln6 $ls2
+	nop/2
+	dvmulu $lr24 $ls2 $nowrite
+	dvfmad $lr24 $ls2 $mauf $ln6
+	nop/2
+	lpassa $ln6 $lr24
+	nop/2
+	# ニュートン補正: y = y*(1.5 - 0.5*r2*y^2)
+	dvmulu $lr24 $lr24 $nowrite
+	dvfmad $lr24 $lr24 $mauf $ln6
+	nop/2
+	dvmulu $ls0 $ln6 $nowrite
+	dvfmad $ls0 $ln6 $mauf $lr26
+	nop/2
+	dvmulu $lm16 $lr26 $nowrite
+	dvfmad $lm16 $lr26 $mauf $ln6
+	nop/2
+	dvadd $lm18 -$ln6 $ls2
+	nop/2
+	dvmulu $lr24 $ls2 $nowrite
+	dvfmad $lr24 $ls2 $mauf $ln6
+	nop/2
+	lpassa $ln6 $lr24
+	nop/2
+	# ニュートン補正: y = y*(1.5 - 0.5*r2*y^2)
+	dvmulu $lr24 $lr24 $nowrite
+	dvfmad $lr24 $lr24 $mauf $ln6
+	nop/2
+	dvmulu $ls0 $ln6 $nowrite
+	dvfmad $ls0 $ln6 $mauf $lr26
+	nop/2
+	dvmulu $lm16 $lr26 $nowrite
+	dvfmad $lm16 $lr26 $mauf $ln6
+	nop/2
+	dvadd $lm18 -$ln6 $ls2
+	nop/2
+	dvmulu $lr24 $ls2 $nowrite
+	dvfmad $lr24 $ls2 $mauf $ln6
+	nop/2
+	lpassa $ln6 $lr24
+	nop/2
+	dvmulu $lr24 $lr24 $nowrite
+	dvfmad $lr24 $lr24 $mauf $ls0
+	nop/2
+	dvmulu $ls0 $lr24 $nowrite
+	dvfmad $ls0 $lr24 $mauf $ln6
+	nop/2
+	dvmulu $lr22 $ln6 $nowrite
+	dvfmad $lr22 $ln6 $mauf $ls0
+	nop/2
+	dvmulu $ls0 $ln0 $nowrite
+	dvfmad $ls0 $ln0 $mauf $lr24
+	nop/2
+	dvadd $lm8 $lr24 $ln8
+	nop/2
+	lpassa $ln8 $lm8
+	nop/24
+	dvmulu $ls0 $ln2 $nowrite
+	dvfmad $ls0 $ln2 $mauf $lr24
+	nop/2
+	dvadd $lm10 $lr24 $ln10
+	nop/2
+	lpassa $ln10 $lm10
+	nop/24
+	dvmulu $ls0 $ln4 $nowrite
+	dvfmad $ls0 $ln4 $mauf $lr24
+	nop/2
+	dvadd $lm12 $lr24 $ln12
+	nop/2
+	lpassa $ln12 $lm12
+	nop/24
+	# --- ブロック 26: 粒子 26 からの力 ---
+# broadcast_use.vsm — @broadcast: L1BM に載っている値を PE に配る部分
+# 毎回展開される。載っていなかった場合は直前に broadcast_load.vsm が展開されている
+# L1BM の番地は区画の先頭ではなく要求された位置 (ずれは vsmlink が加える)
+
+# @broadcast _pj from_param 8 size 4 $lr16
+# === @broadcast _pj: PDM $p20584 → 全 4096 PE $lr16 ===
+	nop/5
+	l1bmp $lb40 $lr16v
+	nop/24
+	nop/24
+	dvadd $lr16 -$lm0 $ln0
+	nop/2
+	dvadd $lr18 -$lm2 $ln2
+	nop/2
+	dvadd $lr20 -$lm4 $ln4
+	nop/2
+	dvmulu $ln0 $ln0 $nowrite
+	dvfmad $ln0 $ln0 $mauf $ls0
+	nop/2
+	dvmulu $ln2 $ln2 $nowrite
+	dvfmad $ln2 $ln2 $mauf $lr24
+	nop/2
+	dvadd $ls0 $lr24 $ln6
+	nop/2
+	dvmulu $ln4 $ln4 $nowrite
+	dvfmad $ln4 $ln4 $mauf $ls0
+	nop/2
+	dvadd $ln6 $ls0 $lr24
+	nop/2
+	dvadd $lr24 $lm14 $ls0
+	nop/2
+	drsqrt $ls0 $lr24
+	nop/4
+	# ニュートン補正: y = y*(1.5 - 0.5*r2*y^2)
+	dvmulu $lr24 $lr24 $nowrite
+	dvfmad $lr24 $lr24 $mauf $ln6
+	nop/2
+	dvmulu $ls0 $ln6 $nowrite
+	dvfmad $ls0 $ln6 $mauf $lr26
+	nop/2
+	dvmulu $lm16 $lr26 $nowrite
+	dvfmad $lm16 $lr26 $mauf $ln6
+	nop/2
+	dvadd $lm18 -$ln6 $ls2
+	nop/2
+	dvmulu $lr24 $ls2 $nowrite
+	dvfmad $lr24 $ls2 $mauf $ln6
+	nop/2
+	lpassa $ln6 $lr24
+	nop/2
+	# ニュートン補正: y = y*(1.5 - 0.5*r2*y^2)
+	dvmulu $lr24 $lr24 $nowrite
+	dvfmad $lr24 $lr24 $mauf $ln6
+	nop/2
+	dvmulu $ls0 $ln6 $nowrite
+	dvfmad $ls0 $ln6 $mauf $lr26
+	nop/2
+	dvmulu $lm16 $lr26 $nowrite
+	dvfmad $lm16 $lr26 $mauf $ln6
+	nop/2
+	dvadd $lm18 -$ln6 $ls2
+	nop/2
+	dvmulu $lr24 $ls2 $nowrite
+	dvfmad $lr24 $ls2 $mauf $ln6
+	nop/2
+	lpassa $ln6 $lr24
+	nop/2
+	# ニュートン補正: y = y*(1.5 - 0.5*r2*y^2)
+	dvmulu $lr24 $lr24 $nowrite
+	dvfmad $lr24 $lr24 $mauf $ln6
+	nop/2
+	dvmulu $ls0 $ln6 $nowrite
+	dvfmad $ls0 $ln6 $mauf $lr26
+	nop/2
+	dvmulu $lm16 $lr26 $nowrite
+	dvfmad $lm16 $lr26 $mauf $ln6
+	nop/2
+	dvadd $lm18 -$ln6 $ls2
+	nop/2
+	dvmulu $lr24 $ls2 $nowrite
+	dvfmad $lr24 $ls2 $mauf $ln6
+	nop/2
+	lpassa $ln6 $lr24
+	nop/2
+	dvmulu $lr24 $lr24 $nowrite
+	dvfmad $lr24 $lr24 $mauf $ls0
+	nop/2
+	dvmulu $ls0 $lr24 $nowrite
+	dvfmad $ls0 $lr24 $mauf $ln6
+	nop/2
+	dvmulu $lr22 $ln6 $nowrite
+	dvfmad $lr22 $ln6 $mauf $ls0
+	nop/2
+	dvmulu $ls0 $ln0 $nowrite
+	dvfmad $ls0 $ln0 $mauf $lr24
+	nop/2
+	dvadd $lm8 $lr24 $ln8
+	nop/2
+	lpassa $ln8 $lm8
+	nop/24
+	dvmulu $ls0 $ln2 $nowrite
+	dvfmad $ls0 $ln2 $mauf $lr24
+	nop/2
+	dvadd $lm10 $lr24 $ln10
+	nop/2
+	lpassa $ln10 $lm10
+	nop/24
+	dvmulu $ls0 $ln4 $nowrite
+	dvfmad $ls0 $ln4 $mauf $lr24
+	nop/2
+	dvadd $lm12 $lr24 $ln12
+	nop/2
+	lpassa $ln12 $lm12
+	nop/24
+	# --- ブロック 27: 粒子 27 からの力 ---
+# broadcast_use.vsm — @broadcast: L1BM に載っている値を PE に配る部分
+# 毎回展開される。載っていなかった場合は直前に broadcast_load.vsm が展開されている
+# L1BM の番地は区画の先頭ではなく要求された位置 (ずれは vsmlink が加える)
+
+# @broadcast _pj from_param 8 size 4 $lr16
+# === @broadcast _pj: PDM $p20588 → 全 4096 PE $lr16 ===
+	nop/5
+	l1bmp $lb44 $lr16v
+	nop/24
+	nop/24
+	dvadd $lr16 -$lm0 $ln0
+	nop/2
+	dvadd $lr18 -$lm2 $ln2
+	nop/2
+	dvadd $lr20 -$lm4 $ln4
+	nop/2
+	dvmulu $ln0 $ln0 $nowrite
+	dvfmad $ln0 $ln0 $mauf $ls0
+	nop/2
+	dvmulu $ln2 $ln2 $nowrite
+	dvfmad $ln2 $ln2 $mauf $lr24
+	nop/2
+	dvadd $ls0 $lr24 $ln6
+	nop/2
+	dvmulu $ln4 $ln4 $nowrite
+	dvfmad $ln4 $ln4 $mauf $ls0
+	nop/2
+	dvadd $ln6 $ls0 $lr24
+	nop/2
+	dvadd $lr24 $lm14 $ls0
+	nop/2
+	drsqrt $ls0 $lr24
+	nop/4
+	# ニュートン補正: y = y*(1.5 - 0.5*r2*y^2)
+	dvmulu $lr24 $lr24 $nowrite
+	dvfmad $lr24 $lr24 $mauf $ln6
+	nop/2
+	dvmulu $ls0 $ln6 $nowrite
+	dvfmad $ls0 $ln6 $mauf $lr26
+	nop/2
+	dvmulu $lm16 $lr26 $nowrite
+	dvfmad $lm16 $lr26 $mauf $ln6
+	nop/2
+	dvadd $lm18 -$ln6 $ls2
+	nop/2
+	dvmulu $lr24 $ls2 $nowrite
+	dvfmad $lr24 $ls2 $mauf $ln6
+	nop/2
+	lpassa $ln6 $lr24
+	nop/2
+	# ニュートン補正: y = y*(1.5 - 0.5*r2*y^2)
+	dvmulu $lr24 $lr24 $nowrite
+	dvfmad $lr24 $lr24 $mauf $ln6
+	nop/2
+	dvmulu $ls0 $ln6 $nowrite
+	dvfmad $ls0 $ln6 $mauf $lr26
+	nop/2
+	dvmulu $lm16 $lr26 $nowrite
+	dvfmad $lm16 $lr26 $mauf $ln6
+	nop/2
+	dvadd $lm18 -$ln6 $ls2
+	nop/2
+	dvmulu $lr24 $ls2 $nowrite
+	dvfmad $lr24 $ls2 $mauf $ln6
+	nop/2
+	lpassa $ln6 $lr24
+	nop/2
+	# ニュートン補正: y = y*(1.5 - 0.5*r2*y^2)
+	dvmulu $lr24 $lr24 $nowrite
+	dvfmad $lr24 $lr24 $mauf $ln6
+	nop/2
+	dvmulu $ls0 $ln6 $nowrite
+	dvfmad $ls0 $ln6 $mauf $lr26
+	nop/2
+	dvmulu $lm16 $lr26 $nowrite
+	dvfmad $lm16 $lr26 $mauf $ln6
+	nop/2
+	dvadd $lm18 -$ln6 $ls2
+	nop/2
+	dvmulu $lr24 $ls2 $nowrite
+	dvfmad $lr24 $ls2 $mauf $ln6
+	nop/2
+	lpassa $ln6 $lr24
+	nop/2
+	dvmulu $lr24 $lr24 $nowrite
+	dvfmad $lr24 $lr24 $mauf $ls0
+	nop/2
+	dvmulu $ls0 $lr24 $nowrite
+	dvfmad $ls0 $lr24 $mauf $ln6
+	nop/2
+	dvmulu $lr22 $ln6 $nowrite
+	dvfmad $lr22 $ln6 $mauf $ls0
+	nop/2
+	dvmulu $ls0 $ln0 $nowrite
+	dvfmad $ls0 $ln0 $mauf $lr24
+	nop/2
+	dvadd $lm8 $lr24 $ln8
+	nop/2
+	lpassa $ln8 $lm8
+	nop/24
+	dvmulu $ls0 $ln2 $nowrite
+	dvfmad $ls0 $ln2 $mauf $lr24
+	nop/2
+	dvadd $lm10 $lr24 $ln10
+	nop/2
+	lpassa $ln10 $lm10
+	nop/24
+	dvmulu $ls0 $ln4 $nowrite
+	dvfmad $ls0 $ln4 $mauf $lr24
+	nop/2
+	dvadd $lm12 $lr24 $ln12
+	nop/2
+	lpassa $ln12 $lm12
+	nop/24
+	# --- ブロック 28: 粒子 28 からの力 ---
+# broadcast_use.vsm — @broadcast: L1BM に載っている値を PE に配る部分
+# 毎回展開される。載っていなかった場合は直前に broadcast_load.vsm が展開されている
+# L1BM の番地は区画の先頭ではなく要求された位置 (ずれは vsmlink が加える)
+
+# @broadcast _pj from_param 8 size 4 $lr16
+# === @broadcast _pj: PDM $p20592 → 全 4096 PE $lr16 ===
+	nop/5
+	l1bmp $lb48 $lr16v
+	nop/24
+	nop/24
+	dvadd $lr16 -$lm0 $ln0
+	nop/2
+	dvadd $lr18 -$lm2 $ln2
+	nop/2
+	dvadd $lr20 -$lm4 $ln4
+	nop/2
+	dvmulu $ln0 $ln0 $nowrite
+	dvfmad $ln0 $ln0 $mauf $ls0
+	nop/2
+	dvmulu $ln2 $ln2 $nowrite
+	dvfmad $ln2 $ln2 $mauf $lr24
+	nop/2
+	dvadd $ls0 $lr24 $ln6
+	nop/2
+	dvmulu $ln4 $ln4 $nowrite
+	dvfmad $ln4 $ln4 $mauf $ls0
+	nop/2
+	dvadd $ln6 $ls0 $lr24
+	nop/2
+	dvadd $lr24 $lm14 $ls0
+	nop/2
+	drsqrt $ls0 $lr24
+	nop/4
+	# ニュートン補正: y = y*(1.5 - 0.5*r2*y^2)
+	dvmulu $lr24 $lr24 $nowrite
+	dvfmad $lr24 $lr24 $mauf $ln6
+	nop/2
+	dvmulu $ls0 $ln6 $nowrite
+	dvfmad $ls0 $ln6 $mauf $lr26
+	nop/2
+	dvmulu $lm16 $lr26 $nowrite
+	dvfmad $lm16 $lr26 $mauf $ln6
+	nop/2
+	dvadd $lm18 -$ln6 $ls2
+	nop/2
+	dvmulu $lr24 $ls2 $nowrite
+	dvfmad $lr24 $ls2 $mauf $ln6
+	nop/2
+	lpassa $ln6 $lr24
+	nop/2
+	# ニュートン補正: y = y*(1.5 - 0.5*r2*y^2)
+	dvmulu $lr24 $lr24 $nowrite
+	dvfmad $lr24 $lr24 $mauf $ln6
+	nop/2
+	dvmulu $ls0 $ln6 $nowrite
+	dvfmad $ls0 $ln6 $mauf $lr26
+	nop/2
+	dvmulu $lm16 $lr26 $nowrite
+	dvfmad $lm16 $lr26 $mauf $ln6
+	nop/2
+	dvadd $lm18 -$ln6 $ls2
+	nop/2
+	dvmulu $lr24 $ls2 $nowrite
+	dvfmad $lr24 $ls2 $mauf $ln6
+	nop/2
+	lpassa $ln6 $lr24
+	nop/2
+	# ニュートン補正: y = y*(1.5 - 0.5*r2*y^2)
+	dvmulu $lr24 $lr24 $nowrite
+	dvfmad $lr24 $lr24 $mauf $ln6
+	nop/2
+	dvmulu $ls0 $ln6 $nowrite
+	dvfmad $ls0 $ln6 $mauf $lr26
+	nop/2
+	dvmulu $lm16 $lr26 $nowrite
+	dvfmad $lm16 $lr26 $mauf $ln6
+	nop/2
+	dvadd $lm18 -$ln6 $ls2
+	nop/2
+	dvmulu $lr24 $ls2 $nowrite
+	dvfmad $lr24 $ls2 $mauf $ln6
+	nop/2
+	lpassa $ln6 $lr24
+	nop/2
+	dvmulu $lr24 $lr24 $nowrite
+	dvfmad $lr24 $lr24 $mauf $ls0
+	nop/2
+	dvmulu $ls0 $lr24 $nowrite
+	dvfmad $ls0 $lr24 $mauf $ln6
+	nop/2
+	dvmulu $lr22 $ln6 $nowrite
+	dvfmad $lr22 $ln6 $mauf $ls0
+	nop/2
+	dvmulu $ls0 $ln0 $nowrite
+	dvfmad $ls0 $ln0 $mauf $lr24
+	nop/2
+	dvadd $lm8 $lr24 $ln8
+	nop/2
+	lpassa $ln8 $lm8
+	nop/24
+	dvmulu $ls0 $ln2 $nowrite
+	dvfmad $ls0 $ln2 $mauf $lr24
+	nop/2
+	dvadd $lm10 $lr24 $ln10
+	nop/2
+	lpassa $ln10 $lm10
+	nop/24
+	dvmulu $ls0 $ln4 $nowrite
+	dvfmad $ls0 $ln4 $mauf $lr24
+	nop/2
+	dvadd $lm12 $lr24 $ln12
+	nop/2
+	lpassa $ln12 $lm12
+	nop/24
+	# --- ブロック 29: 粒子 29 からの力 ---
+# broadcast_use.vsm — @broadcast: L1BM に載っている値を PE に配る部分
+# 毎回展開される。載っていなかった場合は直前に broadcast_load.vsm が展開されている
+# L1BM の番地は区画の先頭ではなく要求された位置 (ずれは vsmlink が加える)
+
+# @broadcast _pj from_param 8 size 4 $lr16
+# === @broadcast _pj: PDM $p20596 → 全 4096 PE $lr16 ===
+	nop/5
+	l1bmp $lb52 $lr16v
+	nop/24
+	nop/24
+	dvadd $lr16 -$lm0 $ln0
+	nop/2
+	dvadd $lr18 -$lm2 $ln2
+	nop/2
+	dvadd $lr20 -$lm4 $ln4
+	nop/2
+	dvmulu $ln0 $ln0 $nowrite
+	dvfmad $ln0 $ln0 $mauf $ls0
+	nop/2
+	dvmulu $ln2 $ln2 $nowrite
+	dvfmad $ln2 $ln2 $mauf $lr24
+	nop/2
+	dvadd $ls0 $lr24 $ln6
+	nop/2
+	dvmulu $ln4 $ln4 $nowrite
+	dvfmad $ln4 $ln4 $mauf $ls0
+	nop/2
+	dvadd $ln6 $ls0 $lr24
+	nop/2
+	dvadd $lr24 $lm14 $ls0
+	nop/2
+	drsqrt $ls0 $lr24
+	nop/4
+	# ニュートン補正: y = y*(1.5 - 0.5*r2*y^2)
+	dvmulu $lr24 $lr24 $nowrite
+	dvfmad $lr24 $lr24 $mauf $ln6
+	nop/2
+	dvmulu $ls0 $ln6 $nowrite
+	dvfmad $ls0 $ln6 $mauf $lr26
+	nop/2
+	dvmulu $lm16 $lr26 $nowrite
+	dvfmad $lm16 $lr26 $mauf $ln6
+	nop/2
+	dvadd $lm18 -$ln6 $ls2
+	nop/2
+	dvmulu $lr24 $ls2 $nowrite
+	dvfmad $lr24 $ls2 $mauf $ln6
+	nop/2
+	lpassa $ln6 $lr24
+	nop/2
+	# ニュートン補正: y = y*(1.5 - 0.5*r2*y^2)
+	dvmulu $lr24 $lr24 $nowrite
+	dvfmad $lr24 $lr24 $mauf $ln6
+	nop/2
+	dvmulu $ls0 $ln6 $nowrite
+	dvfmad $ls0 $ln6 $mauf $lr26
+	nop/2
+	dvmulu $lm16 $lr26 $nowrite
+	dvfmad $lm16 $lr26 $mauf $ln6
+	nop/2
+	dvadd $lm18 -$ln6 $ls2
+	nop/2
+	dvmulu $lr24 $ls2 $nowrite
+	dvfmad $lr24 $ls2 $mauf $ln6
+	nop/2
+	lpassa $ln6 $lr24
+	nop/2
+	# ニュートン補正: y = y*(1.5 - 0.5*r2*y^2)
+	dvmulu $lr24 $lr24 $nowrite
+	dvfmad $lr24 $lr24 $mauf $ln6
+	nop/2
+	dvmulu $ls0 $ln6 $nowrite
+	dvfmad $ls0 $ln6 $mauf $lr26
+	nop/2
+	dvmulu $lm16 $lr26 $nowrite
+	dvfmad $lm16 $lr26 $mauf $ln6
+	nop/2
+	dvadd $lm18 -$ln6 $ls2
+	nop/2
+	dvmulu $lr24 $ls2 $nowrite
+	dvfmad $lr24 $ls2 $mauf $ln6
+	nop/2
+	lpassa $ln6 $lr24
+	nop/2
+	dvmulu $lr24 $lr24 $nowrite
+	dvfmad $lr24 $lr24 $mauf $ls0
+	nop/2
+	dvmulu $ls0 $lr24 $nowrite
+	dvfmad $ls0 $lr24 $mauf $ln6
+	nop/2
+	dvmulu $lr22 $ln6 $nowrite
+	dvfmad $lr22 $ln6 $mauf $ls0
+	nop/2
+	dvmulu $ls0 $ln0 $nowrite
+	dvfmad $ls0 $ln0 $mauf $lr24
+	nop/2
+	dvadd $lm8 $lr24 $ln8
+	nop/2
+	lpassa $ln8 $lm8
+	nop/24
+	dvmulu $ls0 $ln2 $nowrite
+	dvfmad $ls0 $ln2 $mauf $lr24
+	nop/2
+	dvadd $lm10 $lr24 $ln10
+	nop/2
+	lpassa $ln10 $lm10
+	nop/24
+	dvmulu $ls0 $ln4 $nowrite
+	dvfmad $ls0 $ln4 $mauf $lr24
+	nop/2
+	dvadd $lm12 $lr24 $ln12
+	nop/2
+	lpassa $ln12 $lm12
+	nop/24
+	# --- ブロック 30: 粒子 30 からの力 ---
+# broadcast_use.vsm — @broadcast: L1BM に載っている値を PE に配る部分
+# 毎回展開される。載っていなかった場合は直前に broadcast_load.vsm が展開されている
+# L1BM の番地は区画の先頭ではなく要求された位置 (ずれは vsmlink が加える)
+
+# @broadcast _pj from_param 8 size 4 $lr16
+# === @broadcast _pj: PDM $p20600 → 全 4096 PE $lr16 ===
+	nop/5
+	l1bmp $lb56 $lr16v
+	nop/24
+	nop/24
+	dvadd $lr16 -$lm0 $ln0
+	nop/2
+	dvadd $lr18 -$lm2 $ln2
+	nop/2
+	dvadd $lr20 -$lm4 $ln4
+	nop/2
+	dvmulu $ln0 $ln0 $nowrite
+	dvfmad $ln0 $ln0 $mauf $ls0
+	nop/2
+	dvmulu $ln2 $ln2 $nowrite
+	dvfmad $ln2 $ln2 $mauf $lr24
+	nop/2
+	dvadd $ls0 $lr24 $ln6
+	nop/2
+	dvmulu $ln4 $ln4 $nowrite
+	dvfmad $ln4 $ln4 $mauf $ls0
+	nop/2
+	dvadd $ln6 $ls0 $lr24
+	nop/2
+	dvadd $lr24 $lm14 $ls0
+	nop/2
+	drsqrt $ls0 $lr24
+	nop/4
+	# ニュートン補正: y = y*(1.5 - 0.5*r2*y^2)
+	dvmulu $lr24 $lr24 $nowrite
+	dvfmad $lr24 $lr24 $mauf $ln6
+	nop/2
+	dvmulu $ls0 $ln6 $nowrite
+	dvfmad $ls0 $ln6 $mauf $lr26
+	nop/2
+	dvmulu $lm16 $lr26 $nowrite
+	dvfmad $lm16 $lr26 $mauf $ln6
+	nop/2
+	dvadd $lm18 -$ln6 $ls2
+	nop/2
+	dvmulu $lr24 $ls2 $nowrite
+	dvfmad $lr24 $ls2 $mauf $ln6
+	nop/2
+	lpassa $ln6 $lr24
+	nop/2
+	# ニュートン補正: y = y*(1.5 - 0.5*r2*y^2)
+	dvmulu $lr24 $lr24 $nowrite
+	dvfmad $lr24 $lr24 $mauf $ln6
+	nop/2
+	dvmulu $ls0 $ln6 $nowrite
+	dvfmad $ls0 $ln6 $mauf $lr26
+	nop/2
+	dvmulu $lm16 $lr26 $nowrite
+	dvfmad $lm16 $lr26 $mauf $ln6
+	nop/2
+	dvadd $lm18 -$ln6 $ls2
+	nop/2
+	dvmulu $lr24 $ls2 $nowrite
+	dvfmad $lr24 $ls2 $mauf $ln6
+	nop/2
+	lpassa $ln6 $lr24
+	nop/2
+	# ニュートン補正: y = y*(1.5 - 0.5*r2*y^2)
+	dvmulu $lr24 $lr24 $nowrite
+	dvfmad $lr24 $lr24 $mauf $ln6
+	nop/2
+	dvmulu $ls0 $ln6 $nowrite
+	dvfmad $ls0 $ln6 $mauf $lr26
+	nop/2
+	dvmulu $lm16 $lr26 $nowrite
+	dvfmad $lm16 $lr26 $mauf $ln6
+	nop/2
+	dvadd $lm18 -$ln6 $ls2
+	nop/2
+	dvmulu $lr24 $ls2 $nowrite
+	dvfmad $lr24 $ls2 $mauf $ln6
+	nop/2
+	lpassa $ln6 $lr24
+	nop/2
+	dvmulu $lr24 $lr24 $nowrite
+	dvfmad $lr24 $lr24 $mauf $ls0
+	nop/2
+	dvmulu $ls0 $lr24 $nowrite
+	dvfmad $ls0 $lr24 $mauf $ln6
+	nop/2
+	dvmulu $lr22 $ln6 $nowrite
+	dvfmad $lr22 $ln6 $mauf $ls0
+	nop/2
+	dvmulu $ls0 $ln0 $nowrite
+	dvfmad $ls0 $ln0 $mauf $lr24
+	nop/2
+	dvadd $lm8 $lr24 $ln8
+	nop/2
+	lpassa $ln8 $lm8
+	nop/24
+	dvmulu $ls0 $ln2 $nowrite
+	dvfmad $ls0 $ln2 $mauf $lr24
+	nop/2
+	dvadd $lm10 $lr24 $ln10
+	nop/2
+	lpassa $ln10 $lm10
+	nop/24
+	dvmulu $ls0 $ln4 $nowrite
+	dvfmad $ls0 $ln4 $mauf $lr24
+	nop/2
+	dvadd $lm12 $lr24 $ln12
+	nop/2
+	lpassa $ln12 $lm12
+	nop/24
+	# --- ブロック 31: 粒子 31 からの力 ---
+# broadcast_use.vsm — @broadcast: L1BM に載っている値を PE に配る部分
+# 毎回展開される。載っていなかった場合は直前に broadcast_load.vsm が展開されている
+# L1BM の番地は区画の先頭ではなく要求された位置 (ずれは vsmlink が加える)
+
+# @broadcast _pj from_param 8 size 4 $lr16
+# === @broadcast _pj: PDM $p20604 → 全 4096 PE $lr16 ===
+	nop/5
+	l1bmp $lb60 $lr16v
+	nop/24
+	nop/24
+	dvadd $lr16 -$lm0 $ln0
+	nop/2
+	dvadd $lr18 -$lm2 $ln2
+	nop/2
+	dvadd $lr20 -$lm4 $ln4
+	nop/2
+	dvmulu $ln0 $ln0 $nowrite
+	dvfmad $ln0 $ln0 $mauf $ls0
+	nop/2
+	dvmulu $ln2 $ln2 $nowrite
+	dvfmad $ln2 $ln2 $mauf $lr24
+	nop/2
+	dvadd $ls0 $lr24 $ln6
+	nop/2
+	dvmulu $ln4 $ln4 $nowrite
+	dvfmad $ln4 $ln4 $mauf $ls0
+	nop/2
+	dvadd $ln6 $ls0 $lr24
+	nop/2
+	dvadd $lr24 $lm14 $ls0
+	nop/2
+	drsqrt $ls0 $lr24
+	nop/4
+	# ニュートン補正: y = y*(1.5 - 0.5*r2*y^2)
+	dvmulu $lr24 $lr24 $nowrite
+	dvfmad $lr24 $lr24 $mauf $ln6
+	nop/2
+	dvmulu $ls0 $ln6 $nowrite
+	dvfmad $ls0 $ln6 $mauf $lr26
+	nop/2
+	dvmulu $lm16 $lr26 $nowrite
+	dvfmad $lm16 $lr26 $mauf $ln6
+	nop/2
+	dvadd $lm18 -$ln6 $ls2
+	nop/2
+	dvmulu $lr24 $ls2 $nowrite
+	dvfmad $lr24 $ls2 $mauf $ln6
+	nop/2
+	lpassa $ln6 $lr24
+	nop/2
+	# ニュートン補正: y = y*(1.5 - 0.5*r2*y^2)
+	dvmulu $lr24 $lr24 $nowrite
+	dvfmad $lr24 $lr24 $mauf $ln6
+	nop/2
+	dvmulu $ls0 $ln6 $nowrite
+	dvfmad $ls0 $ln6 $mauf $lr26
+	nop/2
+	dvmulu $lm16 $lr26 $nowrite
+	dvfmad $lm16 $lr26 $mauf $ln6
+	nop/2
+	dvadd $lm18 -$ln6 $ls2
+	nop/2
+	dvmulu $lr24 $ls2 $nowrite
+	dvfmad $lr24 $ls2 $mauf $ln6
+	nop/2
+	lpassa $ln6 $lr24
+	nop/2
+	# ニュートン補正: y = y*(1.5 - 0.5*r2*y^2)
+	dvmulu $lr24 $lr24 $nowrite
+	dvfmad $lr24 $lr24 $mauf $ln6
+	nop/2
+	dvmulu $ls0 $ln6 $nowrite
+	dvfmad $ls0 $ln6 $mauf $lr26
+	nop/2
+	dvmulu $lm16 $lr26 $nowrite
+	dvfmad $lm16 $lr26 $mauf $ln6
+	nop/2
+	dvadd $lm18 -$ln6 $ls2
+	nop/2
+	dvmulu $lr24 $ls2 $nowrite
+	dvfmad $lr24 $ls2 $mauf $ln6
+	nop/2
+	lpassa $ln6 $lr24
+	nop/2
+	dvmulu $lr24 $lr24 $nowrite
+	dvfmad $lr24 $lr24 $mauf $ls0
+	nop/2
+	dvmulu $ls0 $lr24 $nowrite
+	dvfmad $ls0 $lr24 $mauf $ln6
+	nop/2
+	dvmulu $lr22 $ln6 $nowrite
+	dvfmad $lr22 $ln6 $mauf $ls0
+	nop/2
+	dvmulu $ls0 $ln0 $nowrite
+	dvfmad $ls0 $ln0 $mauf $lr24
+	nop/2
+	dvadd $lm8 $lr24 $ln8
+	nop/2
+	lpassa $ln8 $lm8
+	nop/24
+	dvmulu $ls0 $ln2 $nowrite
+	dvfmad $ls0 $ln2 $mauf $lr24
+	nop/2
+	dvadd $lm10 $lr24 $ln10
+	nop/2
+	lpassa $ln10 $lm10
+	nop/24
+	dvmulu $ls0 $ln4 $nowrite
+	dvfmad $ls0 $ln4 $mauf $lr24
+	nop/2
+	dvadd $lm12 $lr24 $ln12
+	nop/2
+	lpassa $ln12 $lm12
+	nop/24
+# (:pdm :directive "@broadcast" :id "_pj" :slot 8 :place :pdm0 :addr 20480 :size 128 :access :read)

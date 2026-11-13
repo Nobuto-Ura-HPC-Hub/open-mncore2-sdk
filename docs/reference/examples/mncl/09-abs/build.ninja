@@ -19,7 +19,7 @@ build $builddir/abs.vsm: vsmlink $builddir/abs._vsm abs.param abs.stparam
   stparam = abs.stparam
 
 build $builddir/abs.asm: asm3 $builddir/abs.vsm
-build $builddir/abs.idma.dat: asm3_loader $builddir/abs.vsm
+build $builddir/abs.idma.dat | $builddir/abs.idma.inst $builddir/abs.idma.inst.txt $builddir/abs.ddma.dat $builddir/abs.ddma.inst $builddir/abs.ddma.inst.txt: asm3_loader $builddir/abs.vsm
   stem = $builddir/abs
 
 # --- host driver ---
@@ -34,6 +34,5 @@ build test-emu-lib: test_emu_lib $builddir/test_abs | $builddir/abs.asm $builddi
 build test-device:  test_device  $builddir/test_abs | $builddir/abs.asm $builddir/abs.idma.dat
 build test:         test_usage
 
-build clean: clean
 
 default $builddir/abs.asm $builddir/abs.idma.dat

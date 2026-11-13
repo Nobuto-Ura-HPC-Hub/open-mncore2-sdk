@@ -1,4 +1,4 @@
-# 10-odd-even-sort: 奇偶転置ソート 1 ステップ (4096 PE, fp64, neighbor + if/else)
+# 10-odd-even-sort: 奇偶転置ソート 1 ステップ (4096 PE, fp64, load_neighbor + if/else)
 # even / odd / reduce の 3 kernel 構成。 分割の理由は README.md を参照。
 
 include ../scripts/mncl.ninja
@@ -14,7 +14,7 @@ build $builddir/odd-even-sort-even.vsm: vsmlink $builddir/odd-even-sort-even._vs
   param = odd-even-sort-even.param
   stparam = odd-even-sort.stparam
 build $builddir/odd-even-sort-even.asm: asm3 $builddir/odd-even-sort-even.vsm
-build $builddir/odd-even-sort-even.idma.dat: asm3_loader $builddir/odd-even-sort-even.vsm
+build $builddir/odd-even-sort-even.idma.dat | $builddir/odd-even-sort-even.idma.inst $builddir/odd-even-sort-even.idma.inst.txt $builddir/odd-even-sort-even.ddma.dat $builddir/odd-even-sort-even.ddma.inst $builddir/odd-even-sort-even.ddma.inst.txt: asm3_loader $builddir/odd-even-sort-even.vsm
   stem = $builddir/odd-even-sort-even
 
 # --- odd kernel ---
@@ -24,7 +24,7 @@ build $builddir/odd-even-sort-odd.vsm: vsmlink $builddir/odd-even-sort-odd._vsm 
   param = odd-even-sort-odd.param
   stparam = odd-even-sort.stparam
 build $builddir/odd-even-sort-odd.asm: asm3 $builddir/odd-even-sort-odd.vsm
-build $builddir/odd-even-sort-odd.idma.dat: asm3_loader $builddir/odd-even-sort-odd.vsm
+build $builddir/odd-even-sort-odd.idma.dat | $builddir/odd-even-sort-odd.idma.inst $builddir/odd-even-sort-odd.idma.inst.txt $builddir/odd-even-sort-odd.ddma.dat $builddir/odd-even-sort-odd.ddma.inst $builddir/odd-even-sort-odd.ddma.inst.txt: asm3_loader $builddir/odd-even-sort-odd.vsm
   stem = $builddir/odd-even-sort-odd
 
 # --- reduce kernel ---
@@ -34,7 +34,7 @@ build $builddir/odd-even-sort-reduce.vsm: vsmlink $builddir/odd-even-sort-reduce
   param = odd-even-sort-reduce.param
   stparam = odd-even-sort.stparam
 build $builddir/odd-even-sort-reduce.asm: asm3 $builddir/odd-even-sort-reduce.vsm
-build $builddir/odd-even-sort-reduce.idma.dat: asm3_loader $builddir/odd-even-sort-reduce.vsm
+build $builddir/odd-even-sort-reduce.idma.dat | $builddir/odd-even-sort-reduce.idma.inst $builddir/odd-even-sort-reduce.idma.inst.txt $builddir/odd-even-sort-reduce.ddma.dat $builddir/odd-even-sort-reduce.ddma.inst $builddir/odd-even-sort-reduce.ddma.inst.txt: asm3_loader $builddir/odd-even-sort-reduce.vsm
   stem = $builddir/odd-even-sort-reduce
 
 # --- host ---
@@ -61,7 +61,6 @@ build test-device:  test_device  $builddir/test_odd-even-sort | $
     $builddir/odd-even-sort-reduce.idma.dat $builddir/collected_flags.bin
 build test:         test_usage
 
-build clean: clean
 
 default $builddir/odd-even-sort-even.asm $builddir/odd-even-sort-even.idma.dat $
     $builddir/odd-even-sort-odd.asm $builddir/odd-even-sort-odd.idma.dat $

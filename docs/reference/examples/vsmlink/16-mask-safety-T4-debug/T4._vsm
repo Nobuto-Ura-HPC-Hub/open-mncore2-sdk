@@ -19,8 +19,8 @@
 #
 # Verification: debug_read で GRF0 から r16/r18 を直接読み出す。
 # @collect 不要のため wd タグ衝突の問題なし。
-# ただし emu:lib では debug_read(GRF0) が常に 0 を返す。
-# emu:process または実機で使用すること。
+# GRF0 の debug_read は emu:lib と emu:process で使える。実機は対応しない
+# (libmnc2 の api-reference.md の「対応メモリ領域」)。
 #
 	@distribute _arg_a from_param 8 size 1 $lm0
 	@distribute _arg_flag1 from_param 24 size 1 $lm8

@@ -4,7 +4,7 @@
 
 15-mask-safety-T4 の debug_read 版。@collect を使わず、debug_read で GRF0 から r16/r18 を直接読み出す。
 
-制約: emu:lib では debug_read(GRF0) が常に 0 を返す。emu:process または実機で使用すること。
+このテストは emu:lib と emu:process で動かすものである。GRF0 の debug_read は emu:lib と emu:process で使え、実機は未サポート（`MNC2_ERROR_DEVICE`）なので対象外である（根拠: libmnc2 の `share/mnc2/api-reference.md` の「対応メモリ領域」の表）。emu:lib では 2026-10-03 に 4 ケースとも全 PE で期待値と一致することを確認した。debug_read が使えないバックエンド（実機を含む）では、ホストは最初のケースで判定して SKIP（終了コード 0）で終わる。実機で SKIP になっても確認済みにはならない。emu:lib の lit テストは `ALL PASS` を確かめるので、SKIP になれば落ちる。
 
 ## パターン: 初期処理 + 例外上書き
 

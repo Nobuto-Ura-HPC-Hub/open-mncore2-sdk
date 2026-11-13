@@ -1,0 +1,2 @@
+# PDM に置いたデータを 4 語ずつ配り、 添字の交換を通して PDM に戻す。 PDM 上の並びの変化を検証する。
+# RUN: ninja -C %examples/69-dmwrite-dmread-pdm test-emu-lib

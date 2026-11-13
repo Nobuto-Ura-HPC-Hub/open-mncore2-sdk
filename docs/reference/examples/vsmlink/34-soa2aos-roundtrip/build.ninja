@@ -1,0 +1,49 @@
+# 34-soa2aos-roundtrip: @distribute_aos2soa / @collect_soa2aos の対で、PDM の並びが元に戻ること
+#
+# ninja                      vsmlink (.vsm 生成)
+# ninja verify               expected.vsm との diff (vsmlink の出力が変わっていないこと)
+# ninja build-e2e            + assemble3 + host C ビルド
+# ninja test-emu-lib         + emu:lib で roundtrip (対で元に戻る)
+# ninja test-emu-lib-pe-order + emu:lib で pe_order (配る側で PE の対応が変わる)
+# ninja test-device          実機で roundtrip
+# ninja test-device-pe-order 実機で pe_order
+
+include ../../scripts/sdk.ninja
+include ../scripts/vsmlink.ninja
+builddir = _build
+
+build $builddir/roundtrip.vsm: vsmlink roundtrip._vsm roundtrip.param roundtrip.stparam
+  vsm = roundtrip._vsm
+  param = roundtrip.param
+  stparam = roundtrip.stparam
+build $builddir/roundtrip.idma.dat: asm3_loader $builddir/roundtrip.vsm
+  stem = $builddir/roundtrip
+build $builddir/pe_order.vsm: vsmlink pe_order._vsm roundtrip.param roundtrip.stparam
+  vsm = pe_order._vsm
+  param = roundtrip.param
+  stparam = roundtrip.stparam
+build $builddir/pe_order.idma.dat: asm3_loader $builddir/pe_order.vsm
+  stem = $builddir/pe_order
+build $builddir/roundtrip.o: cc roundtrip.c
+build $builddir/roundtrip: link_exe $builddir/roundtrip.o
+
+build build-e2e: phony $builddir/roundtrip.idma.dat $builddir/pe_order.idma.dat $builddir/roundtrip
+build test: test_usage
+build test-emu-lib: test_emu_lib $builddir/roundtrip | $builddir/roundtrip.idma.dat
+build test-emu-lib-pe-order: test_emu_lib $builddir/roundtrip | $builddir/pe_order.idma.dat
+  args = --pe-order
+build test-device: test_device $builddir/roundtrip | $builddir/roundtrip.idma.dat
+build test-device-pe-order: test_device $builddir/roundtrip | $builddir/pe_order.idma.dat
+  args = --pe-order
+
+build clean: clean
+default $builddir/roundtrip.vsm $builddir/pe_order.vsm
+
+# --- verify: golden data ---
+build verify-roundtrip: verify_cmd $builddir/roundtrip.vsm
+  expected = expected.vsm
+  actual = $builddir/roundtrip.vsm
+build verify-pe-order: verify_cmd $builddir/pe_order.vsm
+  expected = expected_pe_order.vsm
+  actual = $builddir/pe_order.vsm
+build verify: phony verify-roundtrip verify-pe-order

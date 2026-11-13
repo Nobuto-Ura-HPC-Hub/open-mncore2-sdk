@@ -1,1 +1,6 @@
-# RUN: ninja -C %root/examples/16-mask-safety-T4-debug test-emu-lib
+# 16-mask-safety-T4-debug: debug_read で GRF0 の r16 / r18 を読む (emu:lib)
+# debug_read が使えないとホストは SKIP で終了コード 0 を返すので、4 ケースが実行されて
+# すべて通ったことを ALL PASS で確かめる (SKIP では落ちる)。
+# REQUIRES: filecheck
+# RUN: ninja -C %root/examples/16-mask-safety-T4-debug test-emu-lib 2>&1 | %FileCheck %s
+# CHECK: ALL PASS

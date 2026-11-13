@@ -26,7 +26,7 @@ long id = get_global_id(0);
 double is_left = ((id & 1) == 0) ? 1.0 : 0.0;   // even。 odd は ((id & 1) != 0)
 ```
 
-**kernel 本体（比較・swap・collect）と境界処理（`neighbor` の clamp = boundary_flags）は例 10 と
+**kernel 本体（比較・swap・collect）と境界処理（`load_neighbor` の clamp = boundary_flags）は例 10 と
 完全に同一**。 3 kernel 構成（even / odd / reduce）、 データの ping-pong 2 バッファ、 検証の
 3 パターン（desc / sorted / dup）も例 10 のまま。 設計の理由は例 10 の README を参照。
 

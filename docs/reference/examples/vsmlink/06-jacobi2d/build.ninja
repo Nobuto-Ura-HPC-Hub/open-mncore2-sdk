@@ -17,6 +17,10 @@ rule clean
   command = rm -rf _build
   description = CLEAN
 
+rule verify_cmd
+  command = diff -u $expected $actual && echo "OK: $actual matches expected"
+  description = VERIFY $actual
+
 # --- default: vsmlink only ---
 build $builddir/out.vsm: vsmlink ../02-vecadd/vecadd._vsm ../02-vecadd/vecadd.param jacobi2d.stparam
   vsm = ../02-vecadd/vecadd._vsm
@@ -26,3 +30,8 @@ build $builddir/out.vsm: vsmlink ../02-vecadd/vecadd._vsm ../02-vecadd/vecadd.pa
 build clean: clean
 
 default $builddir/out.vsm
+
+# --- verify: golden data ---
+build verify: verify_cmd $builddir/out.vsm
+  expected = expected.vsm
+  actual = $builddir/out.vsm
