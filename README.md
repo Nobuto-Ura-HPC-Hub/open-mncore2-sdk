@@ -5,6 +5,21 @@ Unofficial development SDK for MN-Core 2.
 MN-Core 2 向けの非公式開発環境です。
 PFN が公開している MN-Core SDK（apt パッケージ `mncore-sdk`）と組み合わせて使います。
 
+## できること
+
+- OpenCL C（mncl）または MN-Core 2 のアセンブリ（.vsm と vsmlink）で計算（kernel）を書く
+- C のホストプログラムから libmnc2 で、kernel の読み込み、データの送受信、実行を行う
+- 同じプログラムを、手元の PC ではエミュレータで、PFCP では MN-Core 2 の実機で動かす
+
+## 始め方
+
+| 方法 | 向いている用途 | 説明 |
+|------|----------------|------|
+| PFCP で使う | 実機で動かす | SDK を入れたコンテナイメージから pod を作る。インストール不要（[docs/pfcp.md](docs/pfcp.md)） |
+| 手元の PC で使う | エミュレータで確かめる | 下の「前提」と「セットアップ」の手順でインストールする（[docs/local.md](docs/local.md)） |
+
+ドキュメントの入口は [docs/index.md](docs/index.md) です。
+
 ## 前提
 
 - Ubuntu 24.04+
@@ -87,7 +102,7 @@ ninja test-emu-lib    # emu:lib（エミュレータ）で実行・検証
 
 ## チュートリアル
 
-libmnc2 を使った開発の手順は、[チュートリアル](docs/index.md)（`docs/`）を参照してください。
+道具の流れとサンプルの種類は、[docs/tools.md](docs/tools.md) を参照してください。
 `sdk-examples libmnc2` でコピーされる各サンプルの詳細は、サンプルごとの `README.md` にあります。
 
 ## 含まれる kit
@@ -99,7 +114,6 @@ libmnc2 を使った開発の手順は、[チュートリアル](docs/index.md)�
 | libmnc2-kit | MN-Core 2 ホスト API ライブラリ | 提供中 |
 | vsmlink-kit | VSM リンカライブラリ | 提供中 |
 | mncl-kit | MN-Core 2 OpenCL C コンパイラ（clang ベース） | 提供中 |
-| openacc-c-kit | OpenACC C コンバータ + E2E サンプル | 当面提供しない（v0.6.0 から） |
 
 ## ライセンス
 
