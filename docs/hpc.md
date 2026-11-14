@@ -45,4 +45,4 @@ MN-Core 2 の数を指定できます（[PFCP で使う](pfcp.md) の Deployment
 
 ## 詳しくは
 
-詳しくは、n-body shop 登戸浦支店（準備中）で、N 体計算などの実例とともに紹介します。
+詳しくは、[The N-Body Shop 登戸浦支店](https://nobuto-ura-hpc-hub.github.io/n-bodyshop-japan/) で、N 体計算などの実例とともに紹介します。
