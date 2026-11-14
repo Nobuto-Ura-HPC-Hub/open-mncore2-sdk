@@ -45,4 +45,6 @@ MN-Core 2 の数を指定できます（[PFCP で使う](pfcp.md) の Deployment
 
 ## 詳しくは
 
-詳しくは、[The N-Body Shop 登戸浦支店](https://nobuto-ura-hpc-hub.github.io/n-bodyshop-japan/) で、N 体計算などの実例とともに紹介します。
+PE の数（4096）より多い粒子を、どう分けて計算したかの例（32K 粒子の N 体計算）は、The N-Body Shop 登戸浦支店の
+[HPC と分散メモリ（MN-Core 2 の N 体計算の例）](https://nobuto-ura-hpc-hub.github.io/n-bodyshop-japan/hpc-distributed-memory.html)
+で紹介しています。
