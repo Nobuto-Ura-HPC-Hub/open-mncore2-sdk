@@ -26,10 +26,8 @@ Preferred Networks, Inc. の公式配布ではありません。詳細は [READM
      pod を作る
    - [B: 手元の PC で使う](local.md) — エミュレータで確かめる。PFN の `mncore-sdk` と SDK の kit を
      インストールする
-7. [SDK でプログラムを作る流れを知り、サンプルを動かす](tools.md) — .cl や .vsm から、ホストで
-   動かすまでの順序と、最初のサンプルの動かし方
-8. [SDK の各 kit の説明書を読む（リファレンス）](./reference/README.md) — 考え方、仕様、使い方、
-   サンプル（SDK v0.6.0 の `share/` と同じ内容）
+7. [SDK でプログラムを作る流れを知り、サンプルを動かす](tools.md)
+8. [SDK の各 kit の説明書を読む（リファレンス）](./reference/README.md)
 
 ## ソフトウェアの層
 
