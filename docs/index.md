@@ -1,5 +1,7 @@
 # Open MN-Core 2 SDK
 
+<img src="img/die.png" width="20%">
+
 **Open MN-Core 2 SDK** は、MN-Core 2 で動く計算を書いて動かすための開発環境です（非公式プロジェクト。
 Preferred Networks, Inc. の公式配布ではありません。詳細は [README](https://github.com/Nobuto-Ura-HPC-Hub/open-mncore2-sdk#disclaimer) の Disclaimer を参照）。
 
@@ -17,7 +19,7 @@ Preferred Networks, Inc. の公式配布ではありません。詳細は [READM
 ## 目次
 
 1. [MN-Core 2 とは](mncore2.md)
-2. MN-Core 2 に合わせたプログラムの作り方（準備中）
+2. [MN-Core 2 に合わせたプログラムの作り方](programming.md)
 3. AI を使ったアプローチ（vsm 編）（準備中）
 4. AI を使ったアプローチ（登戸浦版 mncl 編）（準備中）
 5. HPC と分散メモリ（n-body shop 登戸浦支店の紹介）（準備中）
@@ -28,6 +30,7 @@ Preferred Networks, Inc. の公式配布ではありません。詳細は [READM
      インストールする
 7. [SDK でプログラムを作る流れを知り、サンプルを動かす](tools.md)
 8. [SDK の各 kit の説明書を読む（リファレンス）](./reference/README.md)
+9. [用語集](terms.md)
 
 ## ソフトウェアの層
 

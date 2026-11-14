@@ -9,6 +9,28 @@ MN-Core 2 の実機で動かせます。インストールは要りません。
 333975443171.dkr.ecr.ap-northeast-1.amazonaws.com/open-mncore2-sdk:v0.6
 ```
 
+## Kubernetes と pod（Docker を使ったことがある人へ）
+
+PFCP の実行環境は Kubernetes（k8s）です。Docker と同じ形式のコンテナイメージを動かしますが、
+使い方と言葉が少し違います。
+
+- **pod**: 実行時の実体（最小の単位）です。pod を作って中に入れば、Docker のコンテナと同じように
+  bash で作業できます。
+- **Deployment**: pod を作り、消えたら作り直す役目です。このページでは、Deployment を通して pod を
+  作ります。
+- **イミュータブル**: pod は、作り直されると中身が元のイメージに戻ります。pod の中で作ったファイル
+  （`/root` など）は消えます。残したいファイルは、pod の外へ取り出してください。
+- **ServiceAccount**: pod が ECR からイメージを取得するときに使う身分です。
+- **kubectl**: Kubernetes を操作するコマンドです。
+
+| したいこと | Docker | kubectl |
+|------------|--------|---------|
+| 起動する | `docker run` | `kubectl apply -f deployment.yaml` |
+| 状態を見る | `docker ps` | `kubectl get pods` |
+| 中に入る | `docker exec -it <コンテナ> bash` | `kubectl exec -it <pod 名> -- bash` |
+| ファイルを取り出す | `docker cp` | `kubectl cp` |
+| 止める | `docker stop` | `kubectl scale deployment <名前> --replicas=0` |
+
 ## イメージに入っているもの
 
 | もの | 場所・版 |
