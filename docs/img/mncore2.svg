@@ -11619,33 +11619,7 @@
     <g
        id="g394274"
        transform="translate(135.20079,-40.311679)">
-      <g
-         id="g394280"
-         transform="rotate(-8.7623993,363.51516,203.87651)">
-        <text
-           xml:space="preserve"
-           style="font-size:22.5778px;line-height:120%;font-family:'Takao P明朝';-inkscape-font-specification:'Takao P明朝';letter-spacing:0px;word-spacing:0px;stroke-width:0.264583"
-           x="298.05823"
-           y="299.09448"
-           id="text324878"><tspan
-             sodipodi:role="line"
-             id="tspan324876"
-             style="font-size:22.5778px;stroke-width:0.264583"
-             x="298.05823"
-             y="299.09448">想像図</tspan><tspan
-             sodipodi:role="line"
-             style="font-size:22.5778px;stroke-width:0.264583"
-             x="298.05823"
-             y="326.18784"
-             id="tspan324880">　by Sinby</tspan></text>
-        <rect
-           style="fill:none;fill-opacity:1;stroke:#1966d0;stroke-width:1;stroke-linejoin:round;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1"
-           id="rect394166"
-           width="142.02728"
-           height="63.729794"
-           x="284.71829"
-           y="273.59943" />
-      </g>
+      
       <text
          xml:space="preserve"
          style="font-size:9.87777px;line-height:120%;font-family:'Takao P明朝';-inkscape-font-specification:'Takao P明朝';letter-spacing:0px;word-spacing:0px;stroke-width:0.264583"
@@ -11656,12 +11630,7 @@
            style="stroke-width:0.264583"
            x="177.57295"
            y="511.69754"
-           id="tspan395892">この絵は Sinby が独自に想像して書いたもので</tspan><tspan
-           sodipodi:role="line"
-           style="stroke-width:0.264583"
-           x="177.57295"
-           y="523.55084"
-           id="tspan395896">たんなるイメージの図です。</tspan></text>
+           id="tspan395892">この絵はあくまで理解のためのイメージ図です。</tspan></text>
     </g>
   </g>
 </svg>
