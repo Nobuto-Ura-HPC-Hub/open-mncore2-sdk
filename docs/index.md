@@ -1,6 +1,6 @@
-# Open MN-Core2 SDK
+# Open MN-Core 2 SDK
 
-**Open MN-Core2 SDK** は、MN-Core 2 で動く計算を書いて動かすための開発環境です（非公式プロジェクト。
+**Open MN-Core 2 SDK** は、MN-Core 2 で動く計算を書いて動かすための開発環境です（非公式プロジェクト。
 Preferred Networks, Inc. の公式配布ではありません。詳細は [README](https://github.com/Nobuto-Ura-HPC-Hub/open-mncore2-sdk#disclaimer) の Disclaimer を参照）。
 
 このドキュメントは v0.6.0 に対応しています。
@@ -14,12 +14,23 @@ Preferred Networks, Inc. の公式配布ではありません。詳細は [READM
 - **同じプログラムを、エミュレータと実機の両方で動かす**: 手元の PC ではエミュレータで、
   PFCP（Preferred Computing Platform）では MN-Core 2 の実機で動かせます
 
-## 始め方
+## 目次
 
-| 方法 | 向いている用途 | 準備 |
-|------|----------------|------|
-| [A: PFCP で使う](pfcp.md) | 実機で動かす | インストール不要。SDK を入れたコンテナイメージから pod を作る |
-| [B: 手元の PC で使う](local.md) | エミュレータで確かめる | PFN の `mncore-sdk` と SDK の kit をインストールする |
+1. [MN-Core 2 とは](mncore2.md) — チップの構成、メモリの階層、データの幅と演算、命令の種類
+2. MN-Core 2 に合わせたプログラムの作り方（準備中） — 分岐のない 1 本の命令列、キャッシュがなく
+   転送を明示すること、メモリの容量、パイプラインと待ち、配る・集める、ホストとのデータの受け渡し
+3. AI を使ったアプローチ（vsm 編）（準備中）
+4. AI を使ったアプローチ（登戸浦版 mncl 編）（準備中）
+5. HPC と分散メモリ（n-body shop 登戸浦支店の紹介）（準備中）
+6. SDK を使える環境を用意する
+   - [A: PFCP で使う](pfcp.md) — 実機で動かす。インストール不要。SDK を入れたコンテナイメージから
+     pod を作る
+   - [B: 手元の PC で使う](local.md) — エミュレータで確かめる。PFN の `mncore-sdk` と SDK の kit を
+     インストールする
+7. [SDK でプログラムを作る流れを知り、サンプルを動かす](tools.md) — .cl や .vsm から、ホストで
+   動かすまでの順序と、最初のサンプルの動かし方
+8. [SDK の各 kit の説明書を読む（リファレンス）](./reference/README.md) — 考え方、仕様、使い方、
+   サンプル（SDK v0.6.0 の `share/` と同じ内容）
 
 ## ソフトウェアの層
 
@@ -32,8 +43,3 @@ Preferred Networks, Inc. の公式配布ではありません。詳細は [READM
 | libmnc2 | ホスト側のライブラリ | この SDK |
 | エミュレータ（gpfn3_package_main） | 実機の代わりに実行する | PFN（`mncore-sdk`） |
 | libgpfn3、ドライバ、MN-Core 2 | 実機 | PFN |
-
-## 次に読むもの
-
-- [道具の流れとサンプル](tools.md) — 道具をどの順に使うか、最初のサンプルの動かし方
-- [リファレンス](./reference/README.md) — 各 kit の API とサンプル（SDK v0.6.0 の `share/` と同じ内容）

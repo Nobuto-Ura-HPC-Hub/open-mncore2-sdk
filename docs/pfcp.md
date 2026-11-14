@@ -14,7 +14,7 @@ MN-Core 2 の実機で動かせます。インストールは要りません。
 | もの | 場所・版 |
 |------|----------|
 | OS | Ubuntu 24.04 |
-| Open MN-Core2 SDK v0.6 | `/opt/_mncore2-sdk-v0.6`（`/opt/mncore2-sdk` から参照） |
+| Open MN-Core 2 SDK v0.6 | `/opt/_mncore2-sdk-v0.6`（`/opt/mncore2-sdk` から参照） |
 | PFN の `mncore-sdk` | 0.8（`assemble3`、`gpfn3_package_main` を含む） |
 | PFN の `libgpfn3-0` / `libgpfn3-dev` / `gpfn3-smi` | 1.0-1 / 1.0-1 / 1.1-1 |
 | ビルドの道具 | `build-essential`、`ninja-build`、`xxd`、`gawk`、`pkgconf`、lit 23.1.5 |
