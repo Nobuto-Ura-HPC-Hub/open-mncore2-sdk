@@ -1,4 +1,4 @@
-# A: PFCP で使う
+# PFCP で使う
 
 PFCP（Preferred Computing Platform）では、SDK を入れたコンテナイメージから pod を作り、
 MN-Core 2 の実機で動かせます。インストールは要りません。

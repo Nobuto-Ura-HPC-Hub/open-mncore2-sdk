@@ -24,9 +24,9 @@ Preferred Networks, Inc. の公式配布ではありません。詳細は [READM
 4. AI を使ったアプローチ（登戸浦版 mncl 編）（準備中）
 5. HPC と分散メモリ（n-body shop 登戸浦支店の紹介）（準備中）
 6. SDK を使える環境を用意する
-   - [A: PFCP で使う](pfcp.md) — 実機で動かす。インストール不要。SDK を入れたコンテナイメージから
+   - [PFCP で使う](pfcp.md) — 実機で動かす。インストール不要。SDK を入れたコンテナイメージから
      pod を作る
-   - [B: 手元の PC で使う](local.md) — エミュレータで確かめる。PFN の `mncore-sdk` と SDK の kit を
+   - [手元の PC で使う](local.md) — エミュレータで確かめる。PFN の `mncore-sdk` と SDK の kit を
      インストールする
 7. [SDK でプログラムを作る流れを知り、サンプルを動かす](tools.md)
 8. [SDK の各 kit の説明書を読む（リファレンス）](./reference/README.md)
