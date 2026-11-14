@@ -7,7 +7,7 @@ PFN が公開している MN-Core SDK（apt パッケージ `mncore-sdk`）と�
 
 ## できること
 
-- OpenCL C（mncl）または MN-Core 2 のアセンブリ（.vsm と vsmlink）で計算（kernel）を書く
+- OpenCL C（MNCL）または MN-Core 2 のアセンブリ（.vsm と vsmlink）で計算（kernel）を書く
 - C のホストプログラムから libmnc2 で、kernel の読み込み、データの送受信、実行を行う
 - 同じプログラムを、手元の PC ではエミュレータで、PFCP では MN-Core 2 の実機で動かす
 

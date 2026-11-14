@@ -43,6 +43,17 @@
 | flat モード | 命令ストリームの形式の 1 つ。GRF0、GRF1、LM0、LM1 のアドレスをサイクルごとに指定できる |
 | wait | PE 命令に含める指定。指定した MV 命令が完了するまで、その PE 命令の発行を待たせる |
 
+## ファイル
+
+| 用語 | 意味 |
+|------|------|
+| `.vsm` | MN-Core 2 のアセンブリ言語（vsm）のプログラム。assemble3 で命令列にする |
+| `_vsm` | ほぼ `.vsm` と同じもの（vsm のアセンブリ）。違いは、vsmlink の directive（`@distribute` など）が入っていることと、PDM のアドレスなどがまだ決まっていないことだけ。vsmlink が `.vsm` に変換する。MNCL が出力するか、人が書く |
+| `.param` | 配置パラメタ。PDM のアドレス、待ちのタグなど。vsmlink が `_vsm` を変換するときに使う |
+| `.stparam` | 構造パラメタ。次元、PE の形など。vsmlink が使う |
+| `.cl` | MNCL で書く kernel（OpenCL C に近い書き方） |
+| directive | `_vsm` に書く、vsmlink への指示（`@distribute`、`@broadcast`、`@collect` など）。vsmlink が実際の命令の並びに展開する |
+
 ## 転送の操作
 
 | 用語 | 英語 | 意味 |

@@ -9,19 +9,27 @@ Preferred Networks, Inc. の公式配布ではありません。詳細は [READM
 
 ## できること
 
-- **計算（kernel）を書く**: OpenCL C で書いて mncl でコンパイルする方法と、MN-Core 2 のアセンブリ
+- **計算（kernel）を書く**: OpenCL C で書いて MNCL でコンパイルする方法と、MN-Core 2 のアセンブリ
   （.vsm）を書いて vsmlink で配置を決める方法があります
 - **ホストから動かす**: C のプログラムから libmnc2 を使い、kernel の読み込み、データの送受信、
   kernel の実行を行います
 - **同じプログラムを、エミュレータと実機の両方で動かす**: 手元の PC ではエミュレータで、
   PFCP（Preferred Computing Platform）では MN-Core 2 の実機で動かせます
 
+## 結果として、何ができたか
+
+この SDK で作った N 体計算の結果です。詳しくは n-body shop 登戸浦支店で紹介しています。
+
+| 3 体問題 | 太陽系 | 4096 粒子の球状星団の衝突 | 32K 粒子の球状星団の衝突 |
+|----------|--------|---------------------------|--------------------------|
+| <a href="https://nobuto-ura-hpc-hub.github.io/n-bodyshop-japan/"><img src="img/nbody-3tai.png" width="180"></a> | <a href="https://nobuto-ura-hpc-hub.github.io/n-bodyshop-japan/"><img src="img/nbody-solar.png" width="180"></a> | <a href="https://nobuto-ura-hpc-hub.github.io/n-bodyshop-japan/"><img src="img/nbody-4096.png" width="180"></a> | <a href="https://nobuto-ura-hpc-hub.github.io/n-bodyshop-japan/"><img src="img/nbody-32k.png" width="180"></a> |
+
 ## 目次
 
 1. [MN-Core 2 とは](mncore2.md)
 2. [MN-Core 2 に合わせたプログラムの作り方](programming.md)
 3. [AI を使ったアプローチ（vsm 編）](ai-vsm.md)
-4. AI を使ったアプローチ（登戸浦版 mncl 編）（準備中）
+4. [AI を使ったアプローチ（登戸浦版 MNCL 編）](ai-mncl.md)
 5. [HPC と分散メモリ](hpc.md)
 6. SDK を使える環境を用意する
    - [PFCP で使う](pfcp.md) — 実機で動かす。インストール不要。SDK を入れたコンテナイメージから
@@ -37,7 +45,7 @@ Preferred Networks, Inc. の公式配布ではありません。詳細は [READM
 | 層 | 役割 | 提供 |
 |----|------|------|
 | アプリ（.cl、.vsm、ホストの C） | 計算とその呼び出しを書く | 利用者 |
-| mncl | OpenCL C のコンパイラ。.cl から _vsm を出力する | この SDK |
+| MNCL | OpenCL C のコンパイラ。.cl から _vsm を出力する | この SDK |
 | vsmlink | _vsm と配置パラメタから、実行できる .vsm を出力する | この SDK |
 | assemble3 | アセンブラ。.vsm から命令列を作る | PFN（`mncore-sdk`） |
 | libmnc2 | ホスト側のライブラリ | この SDK |
