@@ -20,9 +20,10 @@ Preferred Networks, Inc. の公式配布ではありません。詳細は [READM
 
 MNCL で作った N 体計算の結果です。詳しくは The N-Body Shop 登戸浦支店で紹介しています。
 
-| 3 体問題 | 太陽系 | 4096 粒子の球状星団の衝突 | 32K 粒子の球状星団の衝突 |
-|----------|--------|---------------------------|--------------------------|
-| <a href="https://nobuto-ura-hpc-hub.github.io/n-bodyshop-japan/"><img src="img/nbody-3tai.png" width="180"></a> | <a href="https://nobuto-ura-hpc-hub.github.io/n-bodyshop-japan/"><img src="img/nbody-solar.png" width="180"></a> | <a href="https://nobuto-ura-hpc-hub.github.io/n-bodyshop-japan/"><img src="img/nbody-4096.png" width="180"></a> | <a href="https://nobuto-ura-hpc-hub.github.io/n-bodyshop-japan/"><img src="img/nbody-32k.png" width="180"></a> |
+<table style="table-layout: fixed; width: 100%;">
+<tr><th><a href="https://nobuto-ura-hpc-hub.github.io/n-bodyshop-japan/results/3body.html">3 体問題</a></th><th><a href="https://nobuto-ura-hpc-hub.github.io/n-bodyshop-japan/results/solar.html">太陽系</a></th><th><a href="https://nobuto-ura-hpc-hub.github.io/n-bodyshop-japan/results/plummer-4096.html">4096 粒子の球状星団の衝突</a></th><th><a href="https://nobuto-ura-hpc-hub.github.io/n-bodyshop-japan/results/plummer-32k.html">32K 粒子の球状星団の衝突</a></th></tr>
+<tr><td><a href="https://nobuto-ura-hpc-hub.github.io/n-bodyshop-japan/results/3body.html"><img src="img/nbody-3tai.png" style="width: 100%;" alt="3 体問題"></a></td><td><a href="https://nobuto-ura-hpc-hub.github.io/n-bodyshop-japan/results/solar.html"><img src="img/nbody-solar.png" style="width: 100%;" alt="太陽系"></a></td><td><a href="https://nobuto-ura-hpc-hub.github.io/n-bodyshop-japan/results/plummer-4096.html"><img src="img/nbody-4096.png" style="width: 100%;" alt="4096 粒子の球状星団の衝突"></a></td><td><a href="https://nobuto-ura-hpc-hub.github.io/n-bodyshop-japan/results/plummer-32k.html"><img src="img/nbody-32k.png" style="width: 100%;" alt="32K 粒子の球状星団の衝突"></a></td></tr>
+</table>
 
 ## 目次
 
