@@ -22,7 +22,7 @@ Preferred Networks, Inc. の公式配布ではありません。詳細は [READM
 2. [MN-Core 2 に合わせたプログラムの作り方](programming.md)
 3. [AI を使ったアプローチ（vsm 編）](ai-vsm.md)
 4. AI を使ったアプローチ（登戸浦版 mncl 編）（準備中）
-5. [HPC と分散メモリ](hpc.md)（n-body shop 登戸浦支店の紹介は準備中）
+5. [HPC と分散メモリ](hpc.md)
 6. SDK を使える環境を用意する
    - [PFCP で使う](pfcp.md) — 実機で動かす。インストール不要。SDK を入れたコンテナイメージから
      pod を作る
