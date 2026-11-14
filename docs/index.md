@@ -20,7 +20,7 @@ Preferred Networks, Inc. の公式配布ではありません。詳細は [READM
 
 1. [MN-Core 2 とは](mncore2.md)
 2. [MN-Core 2 に合わせたプログラムの作り方](programming.md)
-3. AI を使ったアプローチ（vsm 編）（準備中）
+3. [AI を使ったアプローチ（vsm 編）](ai-vsm.md)
 4. AI を使ったアプローチ（登戸浦版 mncl 編）（準備中）
 5. [HPC と分散メモリ](hpc.md)（n-body shop 登戸浦支店の紹介は準備中）
 6. SDK を使える環境を用意する
