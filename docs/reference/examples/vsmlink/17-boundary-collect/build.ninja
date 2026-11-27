@@ -1,6 +1,6 @@
-# 17-boundary-collect: @boundary_flags 8bit フラグを @collect で回収・検証
+# 17-boundary-collect: 境界フラグ（10bit）を @collect で回収・検証
 #
-# ninja              → vsmlink: _vsm + .param + .stparam → .vsm
+# ninja              → vsmlink: _vsm + .param → .vsm
 # ninja build-e2e    → + assemble3 + host C ビルド
 # ninja test-emu-lib → + emu:lib で実行・sha256 検証
 # ninja test-device  → + 実機で実行・sha256 検証
@@ -51,7 +51,7 @@ rule dump_flags_human
   description = DUMP_FLAGS [human] $in
 
 rule vsmlink_edge
-  command = vsmlink $vsm $param $stparam $out
+  command = vsmlink $vsm $param $out
   description = VSMLINK [edge] $out
 
 rule run_edge
@@ -70,10 +70,9 @@ rule test_edge
   description = TEST [edge] $label
 
 # --- default: vsmlink only ---
-build $builddir/boundary-collect.vsm: vsmlink boundary-collect._vsm boundary-collect.param boundary-collect.stparam
+build $builddir/boundary-collect.vsm: vsmlink boundary-collect._vsm boundary-collect.param
   vsm = boundary-collect._vsm
   param = boundary-collect.param
-  stparam = boundary-collect.stparam
 
 # --- build-e2e: assemble + host C ---
 build $builddir/boundary-collect.asm: asm3 $builddir/boundary-collect.vsm
@@ -112,31 +111,27 @@ build dump: dump_flags $builddir/collected_flags.bin
 build dump-human: dump_flags_human $builddir/collected_flags.bin
 
 # --- data_edge テスト (4 パターン) ---
-build $builddir/bc-edge11.vsm: vsmlink_edge boundary-collect._vsm boundary-collect.param boundary-collect-edge11.stparam
-  vsm = boundary-collect._vsm
+build $builddir/bc-edge11.vsm: vsmlink_edge boundary-collect-edge11._vsm boundary-collect.param
+  vsm = boundary-collect-edge11._vsm
   param = boundary-collect.param
-  stparam = boundary-collect-edge11.stparam
 build $builddir/bc-edge11.idma.dat: asm3_loader $builddir/bc-edge11.vsm
   stem = $builddir/bc-edge11
 
-build $builddir/bc-edge10.vsm: vsmlink_edge boundary-collect._vsm boundary-collect.param boundary-collect-edge10.stparam
-  vsm = boundary-collect._vsm
+build $builddir/bc-edge10.vsm: vsmlink_edge boundary-collect-edge10._vsm boundary-collect.param
+  vsm = boundary-collect-edge10._vsm
   param = boundary-collect.param
-  stparam = boundary-collect-edge10.stparam
 build $builddir/bc-edge10.idma.dat: asm3_loader $builddir/bc-edge10.vsm
   stem = $builddir/bc-edge10
 
-build $builddir/bc-edge01.vsm: vsmlink_edge boundary-collect._vsm boundary-collect.param boundary-collect-edge01.stparam
-  vsm = boundary-collect._vsm
+build $builddir/bc-edge01.vsm: vsmlink_edge boundary-collect-edge01._vsm boundary-collect.param
+  vsm = boundary-collect-edge01._vsm
   param = boundary-collect.param
-  stparam = boundary-collect-edge01.stparam
 build $builddir/bc-edge01.idma.dat: asm3_loader $builddir/bc-edge01.vsm
   stem = $builddir/bc-edge01
 
-build $builddir/bc-edge00.vsm: vsmlink_edge boundary-collect._vsm boundary-collect.param boundary-collect-edge00.stparam
+build $builddir/bc-edge00.vsm: vsmlink_edge boundary-collect._vsm boundary-collect.param
   vsm = boundary-collect._vsm
   param = boundary-collect.param
-  stparam = boundary-collect-edge00.stparam
 build $builddir/bc-edge00.idma.dat: asm3_loader $builddir/bc-edge00.vsm
   stem = $builddir/bc-edge00
 

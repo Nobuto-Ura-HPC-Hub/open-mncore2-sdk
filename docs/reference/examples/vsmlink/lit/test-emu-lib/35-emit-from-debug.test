@@ -1,0 +1,4 @@
+# @distribute + @broadcast 4197 回 + dvadd + @emit_from（HW PE ID 817 と 529）+ @reduce。emu:lib で 1 分半ほどかかる。
+# 長いテスト: 4197 回の書き出しは、L1BM、L2BM、PDM へ溢れる境目（領域の大きさで決まる）を通すための回数で、減らすと溢れる経路を通らない。普段は流さず、--param long=1 のときだけ流す。
+# REQUIRES: long
+# RUN: ninja -C %examples/35-emit-from-debug test-emu-lib

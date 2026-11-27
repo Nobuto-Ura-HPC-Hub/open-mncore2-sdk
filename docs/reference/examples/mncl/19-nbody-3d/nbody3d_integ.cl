@@ -9,15 +9,11 @@
 //                        エネルギーが有界振動する）
 //
 // **このカーネルは triggerless（起動トリガの送信が不要）。** 入力（pos/vel/acc/dt）はすべて PDM
-// 常駐で、host から新しく送るデータが無い。.param に send_wait_tag を付けないと vsm-linker は先頭の
-// 起動ゲート wait を出さず、mnc2_exec_kernel 単独でカーネルが走る（10-odd-even-sort の reduce
-// カーネルと同じ正攻法）。順序は host の sync recv で担保する。
+// 常駐で、host から新しく送るデータが無い。.param に send_wait_tag を付けないと vsmlink は先頭の
+// 起動待ちの wait を出さず、mnc2_exec_kernel 単独でカーネルが走る（10-odd-even-sort の reduce
+// カーネルと同じ書き方）。順序は host の sync recv で担保する。
 //
 // **dt は broadcast で受けるが、host が init で 1 回だけ送る常駐値である**（毎ステップは送らない）。
-// runtime 値なので f64 即値制約（下位 32bit=0）も回避できる。
-//
-// **dt * a / dt * v はスカラ × ベクタ（splat）**。dt は全レーン共通なので v 無しレジスタで複製される。
-// double3 の 4 レーン目（padding）は空振りで書かれるが、collect3 は 3 成分しか書き戻さないので無害。
 
 __kernel void nbody3d_integ(__global double* _pos,
                             __global double* _vel,

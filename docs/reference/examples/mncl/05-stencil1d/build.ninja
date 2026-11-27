@@ -13,10 +13,9 @@ builddir = _build
 # --- kernel ---
 build $builddir/stencil1d._vsm: emit-vsm stencil1d.cl
 
-build $builddir/stencil1d.vsm: vsmlink $builddir/stencil1d._vsm stencil1d.param stencil1d.stparam
+build $builddir/stencil1d.vsm: vsmlink $builddir/stencil1d._vsm stencil1d.param
   vsm = $builddir/stencil1d._vsm
   param = stencil1d.param
-  stparam = stencil1d.stparam
 
 build $builddir/stencil1d.asm: asm3 $builddir/stencil1d.vsm
 build $builddir/stencil1d.idma.dat | $builddir/stencil1d.idma.inst $builddir/stencil1d.idma.inst.txt $builddir/stencil1d.ddma.dat $builddir/stencil1d.ddma.inst $builddir/stencil1d.ddma.inst.txt: asm3_loader $builddir/stencil1d.vsm

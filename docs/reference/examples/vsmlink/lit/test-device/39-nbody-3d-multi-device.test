@@ -1,0 +1,5 @@
+# 39-nbody-3d-multi-device の実機での値照合 (N=32、デバイス 0 の 1 枚、4 タイムステップ)。
+# 2 枚の動作 (N=4096 の分け方の比較、N=8192、星団の衝突 2000 タイムステップ) は、2 枚が見える環境で
+# 手動で行う (README の「実機での確認」)。時間がかかるので lit には入れない。
+# REQUIRES: device, assemble3
+# RUN: ninja -C %examples/39-nbody-3d-multi-device test-device

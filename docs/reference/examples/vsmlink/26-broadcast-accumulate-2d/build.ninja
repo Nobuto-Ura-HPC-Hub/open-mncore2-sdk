@@ -14,34 +14,30 @@ include ../scripts/vsmlink.ninja
 builddir = _build
 
 # --- init (自粒子 distribute + ax,ay=0) ---
-build $builddir/init.vsm: vsmlink init._vsm init.param accumulate2d.stparam
+build $builddir/init.vsm: vsmlink init._vsm init.param
   vsm = init._vsm
   param = init.param
-  stparam = accumulate2d.stparam
 build $builddir/init.idma.dat: asm3_loader $builddir/init.vsm
   stem = $builddir/init
 
 # --- accumulate (broadcast 他粒子 + 総和 + LM 累積) ---
-build $builddir/accumulate.vsm: vsmlink accumulate._vsm accumulate.param accumulate2d.stparam
+build $builddir/accumulate.vsm: vsmlink accumulate._vsm accumulate.param
   vsm = accumulate._vsm
   param = accumulate.param
-  stparam = accumulate2d.stparam
 build $builddir/accumulate.idma.dat: asm3_loader $builddir/accumulate.vsm
   stem = $builddir/accumulate
 
 # --- collect (ax,ay 回収) ---
-build $builddir/collect.vsm: vsmlink collect._vsm collect.param accumulate2d.stparam
+build $builddir/collect.vsm: vsmlink collect._vsm collect.param
   vsm = collect._vsm
   param = collect.param
-  stparam = accumulate2d.stparam
 build $builddir/collect.idma.dat: asm3_loader $builddir/collect.vsm
   stem = $builddir/collect
 
 # --- landing (段階1: l1bmp 着地レジスタ実測。単独ターゲット test-landing で実行) ---
-build $builddir/landing.vsm: vsmlink landing._vsm landing.param accumulate2d.stparam
+build $builddir/landing.vsm: vsmlink landing._vsm landing.param
   vsm = landing._vsm
   param = landing.param
-  stparam = accumulate2d.stparam
 build $builddir/landing.idma.dat: asm3_loader $builddir/landing.vsm
   stem = $builddir/landing
 build $builddir/test_landing.o: cc test_landing.c

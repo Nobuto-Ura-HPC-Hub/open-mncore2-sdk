@@ -5,7 +5,7 @@
 **Open MN-Core 2 SDK** は、MN-Core 2 で動く計算を書いて動かすための開発環境です（非公式プロジェクト。
 Preferred Networks, Inc. の公式配布ではありません。詳細は [README](https://github.com/Nobuto-Ura-HPC-Hub/open-mncore2-sdk#disclaimer) の Disclaimer を参照）。
 
-このドキュメントは v0.6.0 に対応しています。
+このドキュメントは v0.7.0 に対応しています。v0.7.0 で何が入ったかは [v0.7.0 の内容](releases/v0.7.0.md) を参照してください。
 
 ## できること
 

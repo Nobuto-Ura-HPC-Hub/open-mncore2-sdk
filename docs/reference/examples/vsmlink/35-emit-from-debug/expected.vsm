@@ -1,0 +1,314 @@
+# ABI PFN3_SBY64
+#
+# @emit_from のデバッグ用の使い方: 8 回の @broadcast の後で、HW PE ID 817（4 回目まで）と 529 の値を書き出す
+#
+# distribute.vsm — @distribute テンプレート
+
+	nop; wait i10
+	nop/3
+# @distribute _init from_param 8 size 1 $lr8
+# === @distribute _init: PDM $p0 → L2BM → L1BM → $lr8 ===
+# (:pdm :directive "@distribute" :id "_init" :slot 8 :place :pdm0 :addr 0 :size 4096 :access :read)
+	mvp/n512 $p0@0 $lc0@0.0
+	mvp/n512 $p512@0 $lc0@0.1
+	mvp/n512 $p1024@0 $lc0@1.0
+	mvp/n512 $p1536@0 $lc0@1.1
+	mvp/n512 $p2048@0 $lc0@2.0
+	mvp/n512 $p2560@0 $lc0@2.1
+	mvp/n512 $p3072@0 $lc0@3.0
+	mvp/n512i3f $p3584@0 $lc0@3.1
+	nop/2
+	nop; wait i3f
+	l2bmb@0 $lc0 $lb0
+	l2bmb@1 $lc64 $lb0
+	l2bmb@2 $lc128 $lb0
+	l2bmb@3 $lc192 $lb0
+	l2bmb@4 $lc256 $lb0
+	l2bmb@5 $lc320 $lb0
+	l2bmb@6 $lc384 $lb0
+	l2bmb@7 $lc448 $lb0
+	# L2BM -> L1BM の後、同じ番地を読む L1BM -> PE（distribute_tail.vsm の l1bmd）まで 2 ステップ（dev manual 3.6.3.6）
+	nop/2
+	l1bmd $lb0 $lr8v/1000
+# broadcast_load.vsm — @broadcast: PDM の 64 u64 を L1BM に移動する部分
+# その 64 u64 がまだ L1BM に移動していないときだけ展開される
+# HW パス: PDM から mvb で全 8 L2BM、 l2bmb で全 64 L1BM へ (64 u64 ごと)
+
+# @broadcast _b from_param 16 size 1 $lr16
+# === @broadcast _b: PDM $p4096 → 全 4096 PE $lr16 ===
+	mvb/n64i3f $p4096@0 $lc0
+	nop/2
+	nop; wait i3f
+	l2bmb $lc0 $lb0
+# broadcast_use.vsm — @broadcast: L1BM に移動した値を PE に配る部分
+# 毎回展開される。移動していなかった場合は直前に broadcast_load.vsm が展開されている
+# L1BM の番地は移動した 64 u64 の先頭ではなく要求された位置 (ずれは vsmlink が加える)
+
+
+	# 直前の命令が L1BM に書いた場合の待ち。内部マルチキャスト => L1BM -> PE は 3 ステップ（dev manual 3.6.3.5）、
+	# L2BM -> L1BM（broadcast_load.vsm の l2bmb）=> L1BM -> PE は 2 ステップ（3.6.3.6）、PE -> L1BM => L1BM -> PE は 2 ステップ（3.6.3.8）
+	nop/3
+	l1bmp $lb0 $lr16v/1000
+	# 直後の命令が $lr16 を読む場合の待ち（dev manual 3.6.3.9。LM0 / LM1 は 2 ステップ）
+	nop/2
+	nop/2
+	lpassa $lr16 $ln0
+	nop/2
+	dvadd $ln0 $lr8 $lr8
+# emit_from_collect.vsm — @emit_from の収集（PE → L1BM）
+#
+# 全 PE の値を l1bmd のコレクトで L1BM の専用の領域の続きに集める（dev manual 3.6.8.21）。コレクトは 64 u64 × 4 サイクルを
+# 書く。$lr8 は読むだけで、PE のレジスタは書かない。
+#
+# 先頭の nop/2: 直前の命令が $lr8 に書いた場合の待ち（dev manual 3.6.3.9。LM0 / LM1 は 2 ステップ）。
+# 末尾の nop/2: 直後の directive が L1BM から PE へ読むときの待ち（PE -> L1BM 転送の後の L1BM -> PE 転送は 2 ステップ。
+# dev manual 3.6.3.8）。
+# @emit_from em pe 817 to_param 40 size 1 $lr8
+# === @emit_from em: HW PE ID 817（L1B 4、L2B 1）→ L1BM → L2BM → PDM $p16384 ===
+nop/2
+l1bmd $lr8v $lb64
+nop/2
+# broadcast_use.vsm — @broadcast: L1BM に移動した値を PE に配る部分
+# 毎回展開される。移動していなかった場合は直前に broadcast_load.vsm が展開されている
+# L1BM の番地は移動した 64 u64 の先頭ではなく要求された位置 (ずれは vsmlink が加える)
+
+# @broadcast _b from_param 16 size 1 $lr16
+# === @broadcast _b: PDM $p4097 → 全 4096 PE $lr16 ===
+	# 直前の命令が L1BM に書いた場合の待ち。内部マルチキャスト => L1BM -> PE は 3 ステップ（dev manual 3.6.3.5）、
+	# L2BM -> L1BM（broadcast_load.vsm の l2bmb）=> L1BM -> PE は 2 ステップ（3.6.3.6）、PE -> L1BM => L1BM -> PE は 2 ステップ（3.6.3.8）
+	nop/3
+	l1bmp $lb1 $lr16v/1000
+	# 直後の命令が $lr16 を読む場合の待ち（dev manual 3.6.3.9。LM0 / LM1 は 2 ステップ）
+	nop/2
+	nop/2
+	lpassa $lr16 $ln0
+	nop/2
+	dvadd $ln0 $lr8 $lr8
+# emit_from_collect.vsm — @emit_from の収集（PE → L1BM）
+#
+# 全 PE の値を l1bmd のコレクトで L1BM の専用の領域の続きに集める（dev manual 3.6.8.21）。コレクトは 64 u64 × 4 サイクルを
+# 書く。$lr8 は読むだけで、PE のレジスタは書かない。
+#
+# 先頭の nop/2: 直前の命令が $lr8 に書いた場合の待ち（dev manual 3.6.3.9。LM0 / LM1 は 2 ステップ）。
+# 末尾の nop/2: 直後の directive が L1BM から PE へ読むときの待ち（PE -> L1BM 転送の後の L1BM -> PE 転送は 2 ステップ。
+# dev manual 3.6.3.8）。
+# @emit_from em pe 817 to_param 40 size 1 $lr8
+# === @emit_from em: HW PE ID 817（L1B 4、L2B 1）→ L1BM → L2BM → PDM $p16448 ===
+nop/2
+l1bmd $lr8v $lb128
+nop/2
+# broadcast_use.vsm — @broadcast: L1BM に移動した値を PE に配る部分
+# 毎回展開される。移動していなかった場合は直前に broadcast_load.vsm が展開されている
+# L1BM の番地は移動した 64 u64 の先頭ではなく要求された位置 (ずれは vsmlink が加える)
+
+# @broadcast _b from_param 16 size 1 $lr16
+# === @broadcast _b: PDM $p4098 → 全 4096 PE $lr16 ===
+	# 直前の命令が L1BM に書いた場合の待ち。内部マルチキャスト => L1BM -> PE は 3 ステップ（dev manual 3.6.3.5）、
+	# L2BM -> L1BM（broadcast_load.vsm の l2bmb）=> L1BM -> PE は 2 ステップ（3.6.3.6）、PE -> L1BM => L1BM -> PE は 2 ステップ（3.6.3.8）
+	nop/3
+	l1bmp $lb2 $lr16v/1000
+	# 直後の命令が $lr16 を読む場合の待ち（dev manual 3.6.3.9。LM0 / LM1 は 2 ステップ）
+	nop/2
+	nop/2
+	lpassa $lr16 $ln0
+	nop/2
+	dvadd $ln0 $lr8 $lr8
+# emit_from_collect.vsm — @emit_from の収集（PE → L1BM）
+#
+# 全 PE の値を l1bmd のコレクトで L1BM の専用の領域の続きに集める（dev manual 3.6.8.21）。コレクトは 64 u64 × 4 サイクルを
+# 書く。$lr8 は読むだけで、PE のレジスタは書かない。
+#
+# 先頭の nop/2: 直前の命令が $lr8 に書いた場合の待ち（dev manual 3.6.3.9。LM0 / LM1 は 2 ステップ）。
+# 末尾の nop/2: 直後の directive が L1BM から PE へ読むときの待ち（PE -> L1BM 転送の後の L1BM -> PE 転送は 2 ステップ。
+# dev manual 3.6.3.8）。
+# @emit_from em pe 817 to_param 40 size 1 $lr8
+# === @emit_from em: HW PE ID 817（L1B 4、L2B 1）→ L1BM → L2BM → PDM $p16512 ===
+nop/2
+l1bmd $lr8v $lb192
+nop/2
+# broadcast_use.vsm — @broadcast: L1BM に移動した値を PE に配る部分
+# 毎回展開される。移動していなかった場合は直前に broadcast_load.vsm が展開されている
+# L1BM の番地は移動した 64 u64 の先頭ではなく要求された位置 (ずれは vsmlink が加える)
+
+# @broadcast _b from_param 16 size 1 $lr16
+# === @broadcast _b: PDM $p4099 → 全 4096 PE $lr16 ===
+	# 直前の命令が L1BM に書いた場合の待ち。内部マルチキャスト => L1BM -> PE は 3 ステップ（dev manual 3.6.3.5）、
+	# L2BM -> L1BM（broadcast_load.vsm の l2bmb）=> L1BM -> PE は 2 ステップ（3.6.3.6）、PE -> L1BM => L1BM -> PE は 2 ステップ（3.6.3.8）
+	nop/3
+	l1bmp $lb3 $lr16v/1000
+	# 直後の命令が $lr16 を読む場合の待ち（dev manual 3.6.3.9。LM0 / LM1 は 2 ステップ）
+	nop/2
+	nop/2
+	lpassa $lr16 $ln0
+	nop/2
+	dvadd $ln0 $lr8 $lr8
+# emit_from_collect.vsm — @emit_from の収集（PE → L1BM）
+#
+# 全 PE の値を l1bmd のコレクトで L1BM の専用の領域の続きに集める（dev manual 3.6.8.21）。コレクトは 64 u64 × 4 サイクルを
+# 書く。$lr8 は読むだけで、PE のレジスタは書かない。
+#
+# 先頭の nop/2: 直前の命令が $lr8 に書いた場合の待ち（dev manual 3.6.3.9。LM0 / LM1 は 2 ステップ）。
+# 末尾の nop/2: 直後の directive が L1BM から PE へ読むときの待ち（PE -> L1BM 転送の後の L1BM -> PE 転送は 2 ステップ。
+# dev manual 3.6.3.8）。
+# @emit_from em pe 817 to_param 40 size 1 $lr8
+# === @emit_from em: HW PE ID 817（L1B 4、L2B 1）→ L1BM → L2BM → PDM $p16576 ===
+nop/2
+l1bmd $lr8v $lb256
+nop/2
+# broadcast_use.vsm — @broadcast: L1BM に移動した値を PE に配る部分
+# 毎回展開される。移動していなかった場合は直前に broadcast_load.vsm が展開されている
+# L1BM の番地は移動した 64 u64 の先頭ではなく要求された位置 (ずれは vsmlink が加える)
+
+# @broadcast _b from_param 16 size 1 $lr16
+# === @broadcast _b: PDM $p4100 → 全 4096 PE $lr16 ===
+	# 直前の命令が L1BM に書いた場合の待ち。内部マルチキャスト => L1BM -> PE は 3 ステップ（dev manual 3.6.3.5）、
+	# L2BM -> L1BM（broadcast_load.vsm の l2bmb）=> L1BM -> PE は 2 ステップ（3.6.3.6）、PE -> L1BM => L1BM -> PE は 2 ステップ（3.6.3.8）
+	nop/3
+	l1bmp $lb4 $lr16v/1000
+	# 直後の命令が $lr16 を読む場合の待ち（dev manual 3.6.3.9。LM0 / LM1 は 2 ステップ）
+	nop/2
+	nop/2
+	lpassa $lr16 $ln0
+	nop/2
+	dvadd $ln0 $lr8 $lr8
+# emit_from_collect.vsm — @emit_from の収集（PE → L1BM）
+#
+# 全 PE の値を l1bmd のコレクトで L1BM の専用の領域の続きに集める（dev manual 3.6.8.21）。コレクトは 64 u64 × 4 サイクルを
+# 書く。$lr8 は読むだけで、PE のレジスタは書かない。
+#
+# 先頭の nop/2: 直前の命令が $lr8 に書いた場合の待ち（dev manual 3.6.3.9。LM0 / LM1 は 2 ステップ）。
+# 末尾の nop/2: 直後の directive が L1BM から PE へ読むときの待ち（PE -> L1BM 転送の後の L1BM -> PE 転送は 2 ステップ。
+# dev manual 3.6.3.8）。
+# @emit_from em pe 529 to_param 40 size 1 $lr8
+# === @emit_from em: HW PE ID 529（L1B 0、L2B 1）→ L1BM → L2BM → PDM $p16640 ===
+nop/2
+l1bmd $lr8v $lb320
+nop/2
+# broadcast_use.vsm — @broadcast: L1BM に移動した値を PE に配る部分
+# 毎回展開される。移動していなかった場合は直前に broadcast_load.vsm が展開されている
+# L1BM の番地は移動した 64 u64 の先頭ではなく要求された位置 (ずれは vsmlink が加える)
+
+# @broadcast _b from_param 16 size 1 $lr16
+# === @broadcast _b: PDM $p4101 → 全 4096 PE $lr16 ===
+	# 直前の命令が L1BM に書いた場合の待ち。内部マルチキャスト => L1BM -> PE は 3 ステップ（dev manual 3.6.3.5）、
+	# L2BM -> L1BM（broadcast_load.vsm の l2bmb）=> L1BM -> PE は 2 ステップ（3.6.3.6）、PE -> L1BM => L1BM -> PE は 2 ステップ（3.6.3.8）
+	nop/3
+	l1bmp $lb5 $lr16v/1000
+	# 直後の命令が $lr16 を読む場合の待ち（dev manual 3.6.3.9。LM0 / LM1 は 2 ステップ）
+	nop/2
+	nop/2
+	lpassa $lr16 $ln0
+	nop/2
+	dvadd $ln0 $lr8 $lr8
+# emit_from_collect.vsm — @emit_from の収集（PE → L1BM）
+#
+# 全 PE の値を l1bmd のコレクトで L1BM の専用の領域の続きに集める（dev manual 3.6.8.21）。コレクトは 64 u64 × 4 サイクルを
+# 書く。$lr8 は読むだけで、PE のレジスタは書かない。
+#
+# 先頭の nop/2: 直前の命令が $lr8 に書いた場合の待ち（dev manual 3.6.3.9。LM0 / LM1 は 2 ステップ）。
+# 末尾の nop/2: 直後の directive が L1BM から PE へ読むときの待ち（PE -> L1BM 転送の後の L1BM -> PE 転送は 2 ステップ。
+# dev manual 3.6.3.8）。
+# @emit_from em pe 529 to_param 40 size 1 $lr8
+# === @emit_from em: HW PE ID 529（L1B 0、L2B 1）→ L1BM → L2BM → PDM $p16704 ===
+nop/2
+l1bmd $lr8v $lb384
+nop/2
+# broadcast_use.vsm — @broadcast: L1BM に移動した値を PE に配る部分
+# 毎回展開される。移動していなかった場合は直前に broadcast_load.vsm が展開されている
+# L1BM の番地は移動した 64 u64 の先頭ではなく要求された位置 (ずれは vsmlink が加える)
+
+# @broadcast _b from_param 16 size 1 $lr16
+# === @broadcast _b: PDM $p4102 → 全 4096 PE $lr16 ===
+	# 直前の命令が L1BM に書いた場合の待ち。内部マルチキャスト => L1BM -> PE は 3 ステップ（dev manual 3.6.3.5）、
+	# L2BM -> L1BM（broadcast_load.vsm の l2bmb）=> L1BM -> PE は 2 ステップ（3.6.3.6）、PE -> L1BM => L1BM -> PE は 2 ステップ（3.6.3.8）
+	nop/3
+	l1bmp $lb6 $lr16v/1000
+	# 直後の命令が $lr16 を読む場合の待ち（dev manual 3.6.3.9。LM0 / LM1 は 2 ステップ）
+	nop/2
+	nop/2
+	lpassa $lr16 $ln0
+	nop/2
+	dvadd $ln0 $lr8 $lr8
+# emit_from_collect.vsm — @emit_from の収集（PE → L1BM）
+#
+# 全 PE の値を l1bmd のコレクトで L1BM の専用の領域の続きに集める（dev manual 3.6.8.21）。コレクトは 64 u64 × 4 サイクルを
+# 書く。$lr8 は読むだけで、PE のレジスタは書かない。
+#
+# 先頭の nop/2: 直前の命令が $lr8 に書いた場合の待ち（dev manual 3.6.3.9。LM0 / LM1 は 2 ステップ）。
+# 末尾の nop/2: 直後の directive が L1BM から PE へ読むときの待ち（PE -> L1BM 転送の後の L1BM -> PE 転送は 2 ステップ。
+# dev manual 3.6.3.8）。
+# @emit_from em pe 529 to_param 40 size 1 $lr8
+# === @emit_from em: HW PE ID 529（L1B 0、L2B 1）→ L1BM → L2BM → PDM $p16768 ===
+nop/2
+l1bmd $lr8v $lb448
+nop/2
+# broadcast_use.vsm — @broadcast: L1BM に移動した値を PE に配る部分
+# 毎回展開される。移動していなかった場合は直前に broadcast_load.vsm が展開されている
+# L1BM の番地は移動した 64 u64 の先頭ではなく要求された位置 (ずれは vsmlink が加える)
+
+# @broadcast _b from_param 16 size 1 $lr16
+# === @broadcast _b: PDM $p4103 → 全 4096 PE $lr16 ===
+	# 直前の命令が L1BM に書いた場合の待ち。内部マルチキャスト => L1BM -> PE は 3 ステップ（dev manual 3.6.3.5）、
+	# L2BM -> L1BM（broadcast_load.vsm の l2bmb）=> L1BM -> PE は 2 ステップ（3.6.3.6）、PE -> L1BM => L1BM -> PE は 2 ステップ（3.6.3.8）
+	nop/3
+	l1bmp $lb7 $lr16v/1000
+	# 直後の命令が $lr16 を読む場合の待ち（dev manual 3.6.3.9。LM0 / LM1 は 2 ステップ）
+	nop/2
+	nop/2
+	lpassa $lr16 $ln0
+	nop/2
+	dvadd $ln0 $lr8 $lr8
+# emit_from_collect.vsm — @emit_from の収集（PE → L1BM）
+#
+# 全 PE の値を l1bmd のコレクトで L1BM の専用の領域の続きに集める（dev manual 3.6.8.21）。コレクトは 64 u64 × 4 サイクルを
+# 書く。$lr8 は読むだけで、PE のレジスタは書かない。
+#
+# 先頭の nop/2: 直前の命令が $lr8 に書いた場合の待ち（dev manual 3.6.3.9。LM0 / LM1 は 2 ステップ）。
+# 末尾の nop/2: 直後の directive が L1BM から PE へ読むときの待ち（PE -> L1BM 転送の後の L1BM -> PE 転送は 2 ステップ。
+# dev manual 3.6.3.8）。
+# @emit_from em pe 529 to_param 40 size 1 $lr8
+# === @emit_from em: HW PE ID 529（L1B 0、L2B 1）→ L1BM → L2BM → PDM $p16832 ===
+nop/2
+l1bmd $lr8v $lb512
+nop/2
+# emit_from_move_head.vsm — @emit_from の、L1BM の専用の領域から L2BM の専用の領域へ移す前の待ち
+#
+# PE -> L1BM 転送の後に L1BM -> L2BM 転送を置くときは 3 ステップ空ける（dev manual 3.6.3.7）。
+nop/3
+l2bm@4 $lb64 $lc0
+l2bm@4 $lb128 $lc64
+l2bm@4 $lb192 $lc128
+l2bm@4 $lb256 $lc192
+l2bm@0 $lb320 $lc256
+l2bm@0 $lb384 $lc320
+l2bm@0 $lb448 $lc384
+l2bm@0 $lb512 $lc448
+# emit_from_flush_head.vsm — @emit_from の、L2BM の専用の領域から PDM へ書く前の待ち
+#
+# L1BM -> L2BM 転送の後に、領域が重なる L2BM を読む MV 命令を置くときは 2 ステップ空ける（dev manual 3.6.3.1 と assemble3 は 1 ステップとするが、実機では 1 ステップ後の MV 命令が、書き終わる前の L2BM を読む。2 ステップでは読まない）。
+# 直前のテンプレート（emit_from_move_block.vsm）は L1BM -> L2BM 転送で終わり、次（emit_from_flush_block*.vsm）は L2BM を読む mvp で始まる。
+nop/2
+mvp/n64 $lc0@0.1 $p16384@0
+mvp/n64 $lc64@0.1 $p16448@0
+mvp/n64 $lc128@0.1 $p16512@0
+mvp/n64 $lc192@0.1 $p16576@0
+mvp/n64 $lc256@0.1 $p16640@0
+mvp/n64 $lc320@0.1 $p16704@0
+mvp/n64 $lc384@0.1 $p16768@0
+mvp/n64 $lc448@0.1 $p16832@0
+# reduce.vsm — @reduce テンプレート
+
+# @reduce _sum to_param 24 $lr8 dfadd
+# === @reduce _sum: $lr8 → L1BM → L2BM → PDM $p8448 (dfadd) ===
+# (:pdm :directive "@reduce" :id "_sum" :slot 24 :place :pdm0 :addr 8448 :size 64 :access :write)
+	l1bmrdfadd $lr8 $lb1280
+	# PE -> L1BM の後、同じ L1BM を読む L1BM -> L2BM まで 3 ステップ（dev manual 3.6.3.7）
+	nop/3
+	l2bmrdfadd $lb1280 $lc4096
+	# L1BM -> L2BM の後、その L2BM を読む MV 命令まで 2 ステップ（dev manual 3.6.3.1 と assemble3 は 1 ステップとするが、実機では 1 ステップ後の MV 命令が、書き終わる前の L2BM を読む。2 ステップでは読まない）
+	nop/2
+	mvrdfadd/n64i06 $lc4096 $p8448@0
+	nop/2
+	nop; wait i06
+# (:pdm :directive "@emit_from" :id "em" :slot 40 :place :pdm0 :addr 16384 :size 512 :access :write)
+# (:pdm :directive "@broadcast" :id "_b" :slot 16 :place :pdm0 :addr 4096 :size 8 :access :read)

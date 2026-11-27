@@ -29,13 +29,13 @@
 ## 使い方
 
 ```
-source scripts/overlay
-ninja -C examples/34-soa2aos-roundtrip                       # vsmlink
-ninja -C examples/34-soa2aos-roundtrip verify                # expected.vsm との diff
-ninja -C examples/34-soa2aos-roundtrip test-emu-lib          # emu:lib で roundtrip
-ninja -C examples/34-soa2aos-roundtrip test-emu-lib-pe-order # emu:lib で pe_order
-ninja -C examples/34-soa2aos-roundtrip test-device           # 実機で roundtrip
-ninja -C examples/34-soa2aos-roundtrip test-device-pe-order  # 実機で pe_order
+# SDK を有効にし、この example のディレクトリで実行する（examples の README.md の「動かし方」）
+ninja                       # vsmlink
+ninja verify                # expected.vsm との diff
+ninja test-emu-lib          # emu:lib で roundtrip
+ninja test-emu-lib-pe-order # emu:lib で pe_order
+ninja test-device           # 実機で roundtrip
+ninja test-device-pe-order  # 実機で pe_order
 ```
 
 転置の `dmwrite` から `dmread` までの待ちは 0 である（実機で確かめた値）。
@@ -47,7 +47,6 @@ ninja -C examples/34-soa2aos-roundtrip test-device-pe-order  # 実機で pe_orde
 | `roundtrip._vsm` | 対で使う kernel |
 | `pe_order._vsm` | 配る側だけを通し、PE の順で書く kernel |
 | `roundtrip.param` | slot 8（入力）と slot 16（出力）の PDM の番地と wait タグ。両 kernel で共用 |
-| `roundtrip.stparam` | `:pe_shape (4096)` `:pe_local (4)` |
 | `roundtrip.c` | ホスト。引数なしで roundtrip、`--pe-order` で pe_order を実行して検証する |
 | `expected.vsm` / `expected_pe_order.vsm` | vsmlink の出力の期待値（`ninja verify`）|
 | `build.ninja` | vsmlink + assemble3 + host ビルド + test target |

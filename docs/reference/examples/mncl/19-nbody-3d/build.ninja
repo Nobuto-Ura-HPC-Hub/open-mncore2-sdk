@@ -3,7 +3,6 @@
 # 2 カーネル構成（14-odd-even-sort-full と同形）:
 #   nbody3d_force  力フェーズ（加速度 accumulator に積む）
 #   nbody3d_integ  積分フェーズ（semi-implicit Euler の 1 ステップ）
-# stparam は 2 カーネル共通（nbody3d.stparam）。
 #
 # ninja build-e2e        -> .cl -> ._vsm -> .vsm + vsmlink + assemble3 + host C
 # ninja test-emu-lib     -> emu:lib backend で実行・検証 (CI: N=128 / STEPS=2)
@@ -30,20 +29,18 @@ rule test_device_full
 
 # --- force kernel ---
 build $builddir/nbody3d_force._vsm: emit-vsm nbody3d_force.cl
-build $builddir/nbody3d_force.vsm: vsmlink $builddir/nbody3d_force._vsm nbody3d_force.param nbody3d.stparam
+build $builddir/nbody3d_force.vsm: vsmlink $builddir/nbody3d_force._vsm nbody3d_force.param
   vsm = $builddir/nbody3d_force._vsm
   param = nbody3d_force.param
-  stparam = nbody3d.stparam
 build $builddir/nbody3d_force.asm: asm3 $builddir/nbody3d_force.vsm
 build $builddir/nbody3d_force.idma.dat | $builddir/nbody3d_force.idma.inst $builddir/nbody3d_force.idma.inst.txt $builddir/nbody3d_force.ddma.dat $builddir/nbody3d_force.ddma.inst $builddir/nbody3d_force.ddma.inst.txt: asm3_loader $builddir/nbody3d_force.vsm
   stem = $builddir/nbody3d_force
 
 # --- integ kernel ---
 build $builddir/nbody3d_integ._vsm: emit-vsm nbody3d_integ.cl
-build $builddir/nbody3d_integ.vsm: vsmlink $builddir/nbody3d_integ._vsm nbody3d_integ.param nbody3d.stparam
+build $builddir/nbody3d_integ.vsm: vsmlink $builddir/nbody3d_integ._vsm nbody3d_integ.param
   vsm = $builddir/nbody3d_integ._vsm
   param = nbody3d_integ.param
-  stparam = nbody3d.stparam
 build $builddir/nbody3d_integ.asm: asm3 $builddir/nbody3d_integ.vsm
 build $builddir/nbody3d_integ.idma.dat | $builddir/nbody3d_integ.idma.inst $builddir/nbody3d_integ.idma.inst.txt $builddir/nbody3d_integ.ddma.dat $builddir/nbody3d_integ.ddma.inst $builddir/nbody3d_integ.ddma.inst.txt: asm3_loader $builddir/nbody3d_integ.vsm
   stem = $builddir/nbody3d_integ

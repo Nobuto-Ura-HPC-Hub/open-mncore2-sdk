@@ -46,34 +46,29 @@ build $builddir/ic_n4096.bin: gen_ic gen_ic.py
   unroll = 4096
 
 # --- 共有カーネル (N 非依存: init / kick / drift / collect) ---
-build $builddir/init.vsm: vsmlink init._vsm init.param nbody3d.stparam
+build $builddir/init.vsm: vsmlink init._vsm init.param
   vsm = init._vsm
   param = init.param
-  stparam = nbody3d.stparam
 build $builddir/init.idma.dat: asm3_loader $builddir/init.vsm
   stem = $builddir/init
-build $builddir/kick.vsm: vsmlink kick._vsm kick.param nbody3d.stparam
+build $builddir/kick.vsm: vsmlink kick._vsm kick.param
   vsm = kick._vsm
   param = kick.param
-  stparam = nbody3d.stparam
 build $builddir/kick.idma.dat: asm3_loader $builddir/kick.vsm
   stem = $builddir/kick
-build $builddir/drift.vsm: vsmlink drift._vsm drift.param nbody3d.stparam
+build $builddir/drift.vsm: vsmlink drift._vsm drift.param
   vsm = drift._vsm
   param = drift.param
-  stparam = nbody3d.stparam
 build $builddir/drift.idma.dat: asm3_loader $builddir/drift.vsm
   stem = $builddir/drift
-build $builddir/collect_pos.vsm: vsmlink collect_pos._vsm collect_pos.param nbody3d.stparam
+build $builddir/collect_pos.vsm: vsmlink collect_pos._vsm collect_pos.param
   vsm = collect_pos._vsm
   param = collect_pos.param
-  stparam = nbody3d.stparam
 build $builddir/collect_pos.idma.dat: asm3_loader $builddir/collect_pos.vsm
   stem = $builddir/collect_pos
-build $builddir/collect_vel.vsm: vsmlink collect_vel._vsm collect_vel.param nbody3d.stparam
+build $builddir/collect_vel.vsm: vsmlink collect_vel._vsm collect_vel.param
   vsm = collect_vel._vsm
   param = collect_vel.param
-  stparam = nbody3d.stparam
 build $builddir/collect_vel.idma.dat: asm3_loader $builddir/collect_vel.vsm
   stem = $builddir/collect_vel
 

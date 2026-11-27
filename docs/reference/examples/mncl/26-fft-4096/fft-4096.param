@@ -1,0 +1,21 @@
+;; send_wait_tag は、ホストが 0 以外のタグで送る slot にだけ付ける（vsmlink の E120）。
+;; slot 8 は distribute2 の入力（実部 4096 個、虚部 4096 個）、slot 16 + 8 * (j - 1) が段 j の w の表（wr 4096 個、wi 4096 個）、slot 104 が collect2 の出力。
+;; :identify は get_global_id と同じ（ホストが PE の番号 [0..4095] を addr 0 へ送る）。
+;; :buffer は get_hypercube_neighbor の deep 9〜11 が PDM の作業領域として使う（4096 u64 以上）。
+((:version :0.1)
+ (:reserved_wait_tag #x3f)
+ (:slot 8 :place :pdm0 :addr 4096 :send_wait_tag #x11)
+ (:slot 16 :place :pdm0 :addr 12288 :send_wait_tag #x12)
+ (:slot 24 :place :pdm0 :addr 20480 :send_wait_tag #x13)
+ (:slot 32 :place :pdm0 :addr 28672 :send_wait_tag #x14)
+ (:slot 40 :place :pdm0 :addr 36864 :send_wait_tag #x15)
+ (:slot 48 :place :pdm0 :addr 45056 :send_wait_tag #x16)
+ (:slot 56 :place :pdm0 :addr 53248 :send_wait_tag #x17)
+ (:slot 64 :place :pdm0 :addr 61440 :send_wait_tag #x18)
+ (:slot 72 :place :pdm0 :addr 69632 :send_wait_tag #x19)
+ (:slot 80 :place :pdm0 :addr 77824 :send_wait_tag #x1a)
+ (:slot 88 :place :pdm0 :addr 86016 :send_wait_tag #x1b)
+ (:slot 96 :place :pdm0 :addr 94208 :send_wait_tag #x1c)
+ (:slot 104 :place :pdm0 :addr 102400 :recv_wait_tag #x1e)
+ (:identify 0 :place :pdm0 :addr 0 :send_wait_tag #x10)
+ (:buffer nbuf0 :place :pdm0 :addr 110592 :buf_size 4160))

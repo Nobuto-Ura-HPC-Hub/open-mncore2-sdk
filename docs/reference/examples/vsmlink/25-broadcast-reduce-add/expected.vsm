@@ -27,7 +27,6 @@
 	mvp/n512i3f $p3584@0 $lc0@3.1
 	nop/2
 	nop; wait i3f
-	nop/5
 	l2bmb@0 $lc0 $lb0
 	l2bmb@1 $lc64 $lb0
 	l2bmb@2 $lc128 $lb0
@@ -36,30 +35,32 @@
 	l2bmb@5 $lc320 $lb0
 	l2bmb@6 $lc384 $lb0
 	l2bmb@7 $lc448 $lb0
-	nop/5
+	# L2BM -> L1BM の後、同じ番地を読む L1BM -> PE（distribute_tail.vsm の l1bmd）まで 2 ステップ（dev manual 3.6.3.6）
+	nop/2
 	l1bmd $lb0 $lr8v/1000
-# broadcast_load.vsm — @broadcast: PDM の区画を L1BM に載せる部分
-# その区画がまだ L1BM に載っていないときだけ展開される
-# HW パス: PDM から mvb で全 8 L2BM、 l2bmb で全 64 L1BM へ (64 u64 の区画ごと)
+# broadcast_load.vsm — @broadcast: PDM の 64 u64 を L1BM に移動する部分
+# その 64 u64 がまだ L1BM に移動していないときだけ展開される
+# HW パス: PDM から mvb で全 8 L2BM、 l2bmb で全 64 L1BM へ (64 u64 ごと)
 
-	nop/4
 # @broadcast _C from_param 16 size 1 $lr16     # $lr16 に C (全 PE 同値、 l1bmp で放送)
 # === @broadcast _C: PDM $p4096 → 全 4096 PE $lr16 ===
 	mvb/n64i3f $p4096@0 $lc0
 	nop/2
 	nop; wait i3f
-	nop/5
 	l2bmb $lc0 $lb0
-# broadcast_use.vsm — @broadcast: L1BM に載っている値を PE に配る部分
-# 毎回展開される。載っていなかった場合は直前に broadcast_load.vsm が展開されている
-# L1BM の番地は区画の先頭ではなく要求された位置 (ずれは vsmlink が加える)
+# broadcast_use.vsm — @broadcast: L1BM に移動した値を PE に配る部分
+# 毎回展開される。移動していなかった場合は直前に broadcast_load.vsm が展開されている
+# L1BM の番地は移動した 64 u64 の先頭ではなく要求された位置 (ずれは vsmlink が加える)
 
 
-	nop/5
+	# 直前の命令が L1BM に書いた場合の待ち。内部マルチキャスト => L1BM -> PE は 3 ステップ（dev manual 3.6.3.5）、
+	# L2BM -> L1BM（broadcast_load.vsm の l2bmb）=> L1BM -> PE は 2 ステップ（3.6.3.6）、PE -> L1BM => L1BM -> PE は 2 ステップ（3.6.3.8）
+	nop/3
 	l1bmp $lb0 $lr16v/1000
-	nop/24
+	# 直後の命令が $lr16 を読む場合の待ち（dev manual 3.6.3.9。LM0 / LM1 は 2 ステップ）
+	nop/2
 	# id + C_p → $lr32 (iadd の src1 は $ln 系経由が必要)
-	nop/24
+	nop/2
 	lpassa $lr16 $ln0
 	nop/24
 	iadd $ln0 $lr8 $lr32
@@ -70,11 +71,12 @@
 # === @reduce _sum: $lr32 → L1BM → L2BM → PDM $p8192 (liadd) ===
 # (:pdm :directive "@reduce" :id "_sum" :slot 24 :place :pdm0 :addr 8192 :size 64 :access :write)
 	l1bmrliadd $lr32 $lb64
-	nop/24
+	# PE -> L1BM の後、同じ L1BM を読む L1BM -> L2BM まで 3 ステップ（dev manual 3.6.3.7）
+	nop/3
 	l2bmrliadd $lb64 $lc0
-	nop/24
+	# L1BM -> L2BM の後、その L2BM を読む MV 命令まで 2 ステップ（dev manual 3.6.3.1 と assemble3 は 1 ステップとするが、実機では 1 ステップ後の MV 命令が、書き終わる前の L2BM を読む。2 ステップでは読まない）
+	nop/2
 	mvrliadd/n64i06 $lc0 $p8192@0
 	nop/2
 	nop; wait i06
-	nop/5
 # (:pdm :directive "@broadcast" :id "_C" :slot 16 :place :pdm0 :addr 4096 :size 1 :access :read)

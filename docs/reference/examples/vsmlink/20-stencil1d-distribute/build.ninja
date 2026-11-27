@@ -1,11 +1,13 @@
-# 20-stencil1d-distribute: @boundary_flags distribute の stencil1d
+# 20-stencil1d-distribute: 境界フラグを PE の上で計算する stencil1d
 #
-# example 05 と同じ 1D 3-point stencil だが、境界フラグをホスト側で計算し
-# PDM に send してからカーネルを実行する。
+# example 05 と同じ 1D 3-point stencil だが、境界フラグを、廃止した @boundary_flags_compute の展開を
+# _vsm に直接書いた命令列で、各 PE が自分の位置のレジスタから計算する（ホストからの送信と PDM の領域は無い）。
 #
-# ninja              → vsmlink: _vsm + .param + .stparam → .vsm
-# ninja build-e2e    → + assemble3 + host C ビルド (emu:lib)
-# ninja test         → + 実行・検証
+# ninja              → vsmlink: _vsm + .param → .vsm
+# ninja verify       → expected.vsm との diff 検証
+# ninja build-e2e    → + assemble3 + host C ビルド
+# ninja test-emu-lib → + emu:lib で実行・検証
+# ninja test-device  → + 実機で実行・検証
 #
 # 前提: SDK activate 済み (vsmlink, assemble3, mnc2.h が利用可能)
 
@@ -14,10 +16,9 @@ include ../scripts/vsmlink.ninja
 builddir = _build
 
 # --- default: vsmlink only ---
-build $builddir/stencil1d.vsm: vsmlink stencil1d._vsm stencil1d.param stencil1d.stparam
+build $builddir/stencil1d.vsm: vsmlink stencil1d._vsm stencil1d.param
   vsm = stencil1d._vsm
   param = stencil1d.param
-  stparam = stencil1d.stparam
 
 # --- build-e2e: assemble + host C ---
 build $builddir/stencil1d.asm: asm3 $builddir/stencil1d.vsm

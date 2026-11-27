@@ -2,12 +2,12 @@
  *
  * input[i] = i + 1  (1.0, 2.0, ..., 4096.0)
  * 期待: output[i] = input[i+1] = i+2  (内部 PE: i=0..4094)
- *       PE 4095: clamp → 自分自身 = input[4095] = 4096.0
+ *       PE 4095: clamp（端の指定 :reg $lm0）→ 自分自身 = input[4095] = 4096.0
  *
  * PDM レイアウト (get_left.param と共通):
- *   input:  PDM[0..4095]       — slot 8,  addr 0
- *   output: PDM[4096..8191]    — slot 16, addr 4096
- *   bf:     PDM[8192..12287]   — boundary_flags bf1, addr 8192
+ *   input:  PDM[4096..8191]    — slot 8,  addr 4096
+ *   output: PDM[8192..12287]   — slot 16, addr 8192
+ *   bf:     PDM[12288..16383]  — boundary_flags bf1, addr 12288
  */
 
 #include <stdio.h>

@@ -1,0 +1,37 @@
+# 24-bitonic-sort: バイトニックソート（4096 個、double。get_hypercube_neighbor を使う）
+#
+# ninja              -> .cl -> ._vsm -> .vsm
+# ninja build-e2e    -> + vsmlink + assemble3 + host C
+# ninja test         -> usage 表示
+# ninja test-emu-lib -> emu:lib backend で実行・検証
+# ninja test-device  -> 実機 backend で実行・検証
+
+include ../scripts/mncl.ninja
+include ../../scripts/sdk.ninja
+builddir = _build
+
+# --- kernel ---
+build $builddir/bitonic-sort._vsm: emit-vsm bitonic-sort.cl
+
+build $builddir/bitonic-sort.vsm: vsmlink $builddir/bitonic-sort._vsm bitonic-sort.param
+  vsm = $builddir/bitonic-sort._vsm
+  param = bitonic-sort.param
+
+build $builddir/bitonic-sort.asm: asm3 $builddir/bitonic-sort.vsm
+build $builddir/bitonic-sort.idma.dat | $builddir/bitonic-sort.idma.inst $builddir/bitonic-sort.idma.inst.txt $builddir/bitonic-sort.ddma.dat $builddir/bitonic-sort.ddma.inst $builddir/bitonic-sort.ddma.inst.txt: asm3_loader $builddir/bitonic-sort.vsm
+  stem = $builddir/bitonic-sort
+
+# --- host driver ---
+build $builddir/test_bitonic-sort.o: cc test_bitonic-sort.c
+build $builddir/test_bitonic-sort: link $builddir/test_bitonic-sort.o
+
+# --- ビルド段階 phony ---
+build build-e2e: phony $builddir/bitonic-sort.asm $builddir/bitonic-sort.idma.dat $builddir/test_bitonic-sort
+
+# --- test 3 種 ---
+build test-emu-lib: test_emu_lib $builddir/test_bitonic-sort | $builddir/bitonic-sort.asm $builddir/bitonic-sort.idma.dat
+build test-device:  test_device  $builddir/test_bitonic-sort | $builddir/bitonic-sort.asm $builddir/bitonic-sort.idma.dat
+build test:         test_usage
+
+
+default $builddir/bitonic-sort.asm $builddir/bitonic-sort.idma.dat

@@ -1,0 +1,2 @@
+# RUN: ninja -C %examples/21-nop build-e2e
+# RUN: ninja -C %examples/21-nop test-device

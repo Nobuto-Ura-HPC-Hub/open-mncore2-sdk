@@ -29,7 +29,6 @@
 	mvp/n512i3f $p3584@0 $lc0@3.1
 	nop/2
 	nop; wait i3f
-	nop/5
 	l2bmb@0 $lc0 $lb0
 	l2bmb@1 $lc64 $lb0
 	l2bmb@2 $lc128 $lb0
@@ -38,7 +37,8 @@
 	l2bmb@5 $lc320 $lb0
 	l2bmb@6 $lc384 $lb0
 	l2bmb@7 $lc448 $lb0
-	nop/5
+	# L2BM -> L1BM の後、同じ番地を読む L1BM -> PE（distribute_tail.vsm の l1bmd）まで 2 ステップ（dev manual 3.6.3.6）
+	nop/2
 	mvp/n512 $p4096@0 $lc512@0.0
 	mvp/n512 $p4608@0 $lc512@0.1
 	mvp/n512 $p5120@0 $lc512@1.0
@@ -49,7 +49,6 @@
 	mvp/n512i3f $p7680@0 $lc512@3.1
 	nop/2
 	nop; wait i3f
-	nop/5
 	l2bmb@0 $lc512 $lb64
 	l2bmb@1 $lc576 $lb64
 	l2bmb@2 $lc640 $lb64
@@ -58,7 +57,8 @@
 	l2bmb@5 $lc832 $lb64
 	l2bmb@6 $lc896 $lb64
 	l2bmb@7 $lc960 $lb64
-	nop/5
+	# L2BM -> L1BM の後、同じ番地を読む L1BM -> PE（distribute_tail.vsm の l1bmd）まで 2 ステップ（dev manual 3.6.3.6）
+	nop/2
 	mvp/n512 $p8192@0 $lc1024@0.0
 	mvp/n512 $p8704@0 $lc1024@0.1
 	mvp/n512 $p9216@0 $lc1024@1.0
@@ -69,7 +69,6 @@
 	mvp/n512i3f $p11776@0 $lc1024@3.1
 	nop/2
 	nop; wait i3f
-	nop/5
 	l2bmb@0 $lc1024 $lb128
 	l2bmb@1 $lc1088 $lb128
 	l2bmb@2 $lc1152 $lb128
@@ -78,7 +77,8 @@
 	l2bmb@5 $lc1344 $lb128
 	l2bmb@6 $lc1408 $lb128
 	l2bmb@7 $lc1472 $lb128
-	nop/5
+	# L2BM -> L1BM の後、同じ番地を読む L1BM -> PE（distribute_tail.vsm の l1bmd）まで 2 ステップ（dev manual 3.6.3.6）
+	nop/2
 	mvp/n512 $p12288@0 $lc1536@0.0
 	mvp/n512 $p12800@0 $lc1536@0.1
 	mvp/n512 $p13312@0 $lc1536@1.0
@@ -89,7 +89,6 @@
 	mvp/n512i3f $p15872@0 $lc1536@3.1
 	nop/2
 	nop; wait i3f
-	nop/5
 	l2bmb@0 $lc1536 $lb192
 	l2bmb@1 $lc1600 $lb192
 	l2bmb@2 $lc1664 $lb192
@@ -98,7 +97,8 @@
 	l2bmb@5 $lc1856 $lb192
 	l2bmb@6 $lc1920 $lb192
 	l2bmb@7 $lc1984 $lb192
-	nop/5
+	# L2BM -> L1BM の後、同じ番地を読む L1BM -> PE（distribute_tail.vsm の l1bmd）まで 2 ステップ（dev manual 3.6.3.6）
+	nop/2
 	l1bmd $lb0 $lm8v
 # distribute_aos2soa.vsm — @distribute_aos2soa の転置の部分。distribute_tail.vsm の
 # l1bmd の後に続く
@@ -113,7 +113,7 @@
 	nop/2
 	dmwrite $lm8v $lx0
 	dmread $lx0 $lm0v
-	nop/24
+	nop/2
 	nop/2
 # collect_soa2aos.vsm — @collect_soa2aos の転置の部分。この後に collect.vsm 以下が続く
 #
@@ -130,9 +130,11 @@
 # collect.vsm — @collect テンプレート
 
 # --- @collect size 4 と同じ転送 ---
-	nop/24
+	# 直前の命令が $lm8 に書いた場合の待ち（dev manual 3.6.3.9。LM0 / LM1 は 2 ステップ）
+	nop/2
 	l1bmd $lm8v $lb0
-	nop/24
+	# PE -> L1BM の後、同じ L1BM を読む L1BM -> L2BM（collect_stage.vsm の l2bm@）まで 3 ステップ（dev manual 3.6.3.7）
+	nop/3
 	l2bm@0 $lb0 $lc0
 	l2bm@1 $lb0 $lc64
 	l2bm@2 $lb0 $lc128
@@ -141,7 +143,8 @@
 	l2bm@5 $lb0 $lc320
 	l2bm@6 $lb0 $lc384
 	l2bm@7 $lb0 $lc448
-	nop/5
+	# L1BM -> L2BM の後、その L2BM を読む MV 命令まで 2 ステップ（dev manual 3.6.3.1 と assemble3 は 1 ステップとするが、実機では 1 ステップ後の MV 命令が、書き終わる前の L2BM を読む。2 ステップでは読まない）
+	nop/2
 	mvp/n512 $lc0@0.0 $p131072@0
 	mvp/n512i3f $lc0@0.1 $p131584@0
 	nop/3
@@ -166,7 +169,8 @@
 	l2bm@5 $lb64 $lc832
 	l2bm@6 $lb64 $lc896
 	l2bm@7 $lb64 $lc960
-	nop/5
+	# L1BM -> L2BM の後、その L2BM を読む MV 命令まで 2 ステップ（dev manual 3.6.3.1 と assemble3 は 1 ステップとするが、実機では 1 ステップ後の MV 命令が、書き終わる前の L2BM を読む。2 ステップでは読まない）
+	nop/2
 	mvp/n512 $lc512@0.0 $p135168@0
 	mvp/n512i3f $lc512@0.1 $p135680@0
 	nop/3
@@ -191,7 +195,8 @@
 	l2bm@5 $lb128 $lc1344
 	l2bm@6 $lb128 $lc1408
 	l2bm@7 $lb128 $lc1472
-	nop/5
+	# L1BM -> L2BM の後、その L2BM を読む MV 命令まで 2 ステップ（dev manual 3.6.3.1 と assemble3 は 1 ステップとするが、実機では 1 ステップ後の MV 命令が、書き終わる前の L2BM を読む。2 ステップでは読まない）
+	nop/2
 	mvp/n512 $lc1024@0.0 $p139264@0
 	mvp/n512i3f $lc1024@0.1 $p139776@0
 	nop/3
@@ -216,7 +221,8 @@
 	l2bm@5 $lb192 $lc1856
 	l2bm@6 $lb192 $lc1920
 	l2bm@7 $lb192 $lc1984
-	nop/5
+	# L1BM -> L2BM の後、その L2BM を読む MV 命令まで 2 ステップ（dev manual 3.6.3.1 と assemble3 は 1 ステップとするが、実機では 1 ステップ後の MV 命令が、書き終わる前の L2BM を読む。2 ステップでは読まない）
+	nop/2
 	mvp/n512 $lc1536@0.0 $p143360@0
 	mvp/n512i3f $lc1536@0.1 $p143872@0
 	nop/3
@@ -233,4 +239,3 @@
 	mvp/n512i1e $lc1536@3.1 $p146944@0
 	nop/3
 	nop; wait i1e
-	nop/4

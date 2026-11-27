@@ -17,9 +17,9 @@
 	lpassa $lr0 $lm12
 	nop/24
 	# --- ブロック 0: 粒子 0 からの力 ---
-# broadcast_load.vsm — @broadcast: PDM の区画を L1BM に載せる部分
-# その区画がまだ L1BM に載っていないときだけ展開される
-# HW パス: PDM から mvb で全 8 L2BM、 l2bmb で全 64 L1BM へ (64 u64 の区画ごと)
+# broadcast_load.vsm — @broadcast: PDM の 64 u64 を L1BM に移動する部分
+# その 64 u64 がまだ L1BM に移動していないときだけ展開される
+# HW パス: PDM から mvb で全 8 L2BM、 l2bmb で全 64 L1BM へ (64 u64 ごと)
 
 	nop; wait i10
 	nop/3
@@ -28,17 +28,19 @@
 	mvb/n64i3f $p20480@0 $lc0
 	nop/2
 	nop; wait i3f
-	nop/5
 	l2bmb $lc0 $lb0
-# broadcast_use.vsm — @broadcast: L1BM に載っている値を PE に配る部分
-# 毎回展開される。載っていなかった場合は直前に broadcast_load.vsm が展開されている
-# L1BM の番地は区画の先頭ではなく要求された位置 (ずれは vsmlink が加える)
+# broadcast_use.vsm — @broadcast: L1BM に移動した値を PE に配る部分
+# 毎回展開される。移動していなかった場合は直前に broadcast_load.vsm が展開されている
+# L1BM の番地は移動した 64 u64 の先頭ではなく要求された位置 (ずれは vsmlink が加える)
 
 
-	nop/5
+	# 直前の命令が L1BM に書いた場合の待ち。内部マルチキャスト => L1BM -> PE は 3 ステップ（dev manual 3.6.3.5）、
+	# L2BM -> L1BM（broadcast_load.vsm の l2bmb）=> L1BM -> PE は 2 ステップ（3.6.3.6）、PE -> L1BM => L1BM -> PE は 2 ステップ（3.6.3.8）
+	nop/3
 	l1bmp $lb0 $lr16v
-	nop/24
-	nop/24
+	# 直後の命令が $lr16 を読む場合の待ち（dev manual 3.6.3.9。LM0 / LM1 は 2 ステップ）
+	nop/2
+	nop/2
 	dvadd $lr16 -$lm0 $ln0
 	nop/2
 	dvadd $lr18 -$lm2 $ln2
@@ -144,16 +146,19 @@
 	lpassa $ln12 $lm12
 	nop/24
 	# --- ブロック 1: 粒子 1 からの力 ---
-# broadcast_use.vsm — @broadcast: L1BM に載っている値を PE に配る部分
-# 毎回展開される。載っていなかった場合は直前に broadcast_load.vsm が展開されている
-# L1BM の番地は区画の先頭ではなく要求された位置 (ずれは vsmlink が加える)
+# broadcast_use.vsm — @broadcast: L1BM に移動した値を PE に配る部分
+# 毎回展開される。移動していなかった場合は直前に broadcast_load.vsm が展開されている
+# L1BM の番地は移動した 64 u64 の先頭ではなく要求された位置 (ずれは vsmlink が加える)
 
 # @broadcast _pj from_param 8 size 4 $lr16
 # === @broadcast _pj: PDM $p20484 → 全 4096 PE $lr16 ===
-	nop/5
+	# 直前の命令が L1BM に書いた場合の待ち。内部マルチキャスト => L1BM -> PE は 3 ステップ（dev manual 3.6.3.5）、
+	# L2BM -> L1BM（broadcast_load.vsm の l2bmb）=> L1BM -> PE は 2 ステップ（3.6.3.6）、PE -> L1BM => L1BM -> PE は 2 ステップ（3.6.3.8）
+	nop/3
 	l1bmp $lb4 $lr16v
-	nop/24
-	nop/24
+	# 直後の命令が $lr16 を読む場合の待ち（dev manual 3.6.3.9。LM0 / LM1 は 2 ステップ）
+	nop/2
+	nop/2
 	dvadd $lr16 -$lm0 $ln0
 	nop/2
 	dvadd $lr18 -$lm2 $ln2
@@ -259,16 +264,19 @@
 	lpassa $ln12 $lm12
 	nop/24
 	# --- ブロック 2: 粒子 2 からの力 ---
-# broadcast_use.vsm — @broadcast: L1BM に載っている値を PE に配る部分
-# 毎回展開される。載っていなかった場合は直前に broadcast_load.vsm が展開されている
-# L1BM の番地は区画の先頭ではなく要求された位置 (ずれは vsmlink が加える)
+# broadcast_use.vsm — @broadcast: L1BM に移動した値を PE に配る部分
+# 毎回展開される。移動していなかった場合は直前に broadcast_load.vsm が展開されている
+# L1BM の番地は移動した 64 u64 の先頭ではなく要求された位置 (ずれは vsmlink が加える)
 
 # @broadcast _pj from_param 8 size 4 $lr16
 # === @broadcast _pj: PDM $p20488 → 全 4096 PE $lr16 ===
-	nop/5
+	# 直前の命令が L1BM に書いた場合の待ち。内部マルチキャスト => L1BM -> PE は 3 ステップ（dev manual 3.6.3.5）、
+	# L2BM -> L1BM（broadcast_load.vsm の l2bmb）=> L1BM -> PE は 2 ステップ（3.6.3.6）、PE -> L1BM => L1BM -> PE は 2 ステップ（3.6.3.8）
+	nop/3
 	l1bmp $lb8 $lr16v
-	nop/24
-	nop/24
+	# 直後の命令が $lr16 を読む場合の待ち（dev manual 3.6.3.9。LM0 / LM1 は 2 ステップ）
+	nop/2
+	nop/2
 	dvadd $lr16 -$lm0 $ln0
 	nop/2
 	dvadd $lr18 -$lm2 $ln2
@@ -374,16 +382,19 @@
 	lpassa $ln12 $lm12
 	nop/24
 	# --- ブロック 3: 粒子 3 からの力 ---
-# broadcast_use.vsm — @broadcast: L1BM に載っている値を PE に配る部分
-# 毎回展開される。載っていなかった場合は直前に broadcast_load.vsm が展開されている
-# L1BM の番地は区画の先頭ではなく要求された位置 (ずれは vsmlink が加える)
+# broadcast_use.vsm — @broadcast: L1BM に移動した値を PE に配る部分
+# 毎回展開される。移動していなかった場合は直前に broadcast_load.vsm が展開されている
+# L1BM の番地は移動した 64 u64 の先頭ではなく要求された位置 (ずれは vsmlink が加える)
 
 # @broadcast _pj from_param 8 size 4 $lr16
 # === @broadcast _pj: PDM $p20492 → 全 4096 PE $lr16 ===
-	nop/5
+	# 直前の命令が L1BM に書いた場合の待ち。内部マルチキャスト => L1BM -> PE は 3 ステップ（dev manual 3.6.3.5）、
+	# L2BM -> L1BM（broadcast_load.vsm の l2bmb）=> L1BM -> PE は 2 ステップ（3.6.3.6）、PE -> L1BM => L1BM -> PE は 2 ステップ（3.6.3.8）
+	nop/3
 	l1bmp $lb12 $lr16v
-	nop/24
-	nop/24
+	# 直後の命令が $lr16 を読む場合の待ち（dev manual 3.6.3.9。LM0 / LM1 は 2 ステップ）
+	nop/2
+	nop/2
 	dvadd $lr16 -$lm0 $ln0
 	nop/2
 	dvadd $lr18 -$lm2 $ln2
@@ -489,16 +500,19 @@
 	lpassa $ln12 $lm12
 	nop/24
 	# --- ブロック 4: 粒子 4 からの力 ---
-# broadcast_use.vsm — @broadcast: L1BM に載っている値を PE に配る部分
-# 毎回展開される。載っていなかった場合は直前に broadcast_load.vsm が展開されている
-# L1BM の番地は区画の先頭ではなく要求された位置 (ずれは vsmlink が加える)
+# broadcast_use.vsm — @broadcast: L1BM に移動した値を PE に配る部分
+# 毎回展開される。移動していなかった場合は直前に broadcast_load.vsm が展開されている
+# L1BM の番地は移動した 64 u64 の先頭ではなく要求された位置 (ずれは vsmlink が加える)
 
 # @broadcast _pj from_param 8 size 4 $lr16
 # === @broadcast _pj: PDM $p20496 → 全 4096 PE $lr16 ===
-	nop/5
+	# 直前の命令が L1BM に書いた場合の待ち。内部マルチキャスト => L1BM -> PE は 3 ステップ（dev manual 3.6.3.5）、
+	# L2BM -> L1BM（broadcast_load.vsm の l2bmb）=> L1BM -> PE は 2 ステップ（3.6.3.6）、PE -> L1BM => L1BM -> PE は 2 ステップ（3.6.3.8）
+	nop/3
 	l1bmp $lb16 $lr16v
-	nop/24
-	nop/24
+	# 直後の命令が $lr16 を読む場合の待ち（dev manual 3.6.3.9。LM0 / LM1 は 2 ステップ）
+	nop/2
+	nop/2
 	dvadd $lr16 -$lm0 $ln0
 	nop/2
 	dvadd $lr18 -$lm2 $ln2
@@ -604,16 +618,19 @@
 	lpassa $ln12 $lm12
 	nop/24
 	# --- ブロック 5: 粒子 5 からの力 ---
-# broadcast_use.vsm — @broadcast: L1BM に載っている値を PE に配る部分
-# 毎回展開される。載っていなかった場合は直前に broadcast_load.vsm が展開されている
-# L1BM の番地は区画の先頭ではなく要求された位置 (ずれは vsmlink が加える)
+# broadcast_use.vsm — @broadcast: L1BM に移動した値を PE に配る部分
+# 毎回展開される。移動していなかった場合は直前に broadcast_load.vsm が展開されている
+# L1BM の番地は移動した 64 u64 の先頭ではなく要求された位置 (ずれは vsmlink が加える)
 
 # @broadcast _pj from_param 8 size 4 $lr16
 # === @broadcast _pj: PDM $p20500 → 全 4096 PE $lr16 ===
-	nop/5
+	# 直前の命令が L1BM に書いた場合の待ち。内部マルチキャスト => L1BM -> PE は 3 ステップ（dev manual 3.6.3.5）、
+	# L2BM -> L1BM（broadcast_load.vsm の l2bmb）=> L1BM -> PE は 2 ステップ（3.6.3.6）、PE -> L1BM => L1BM -> PE は 2 ステップ（3.6.3.8）
+	nop/3
 	l1bmp $lb20 $lr16v
-	nop/24
-	nop/24
+	# 直後の命令が $lr16 を読む場合の待ち（dev manual 3.6.3.9。LM0 / LM1 は 2 ステップ）
+	nop/2
+	nop/2
 	dvadd $lr16 -$lm0 $ln0
 	nop/2
 	dvadd $lr18 -$lm2 $ln2
@@ -719,16 +736,19 @@
 	lpassa $ln12 $lm12
 	nop/24
 	# --- ブロック 6: 粒子 6 からの力 ---
-# broadcast_use.vsm — @broadcast: L1BM に載っている値を PE に配る部分
-# 毎回展開される。載っていなかった場合は直前に broadcast_load.vsm が展開されている
-# L1BM の番地は区画の先頭ではなく要求された位置 (ずれは vsmlink が加える)
+# broadcast_use.vsm — @broadcast: L1BM に移動した値を PE に配る部分
+# 毎回展開される。移動していなかった場合は直前に broadcast_load.vsm が展開されている
+# L1BM の番地は移動した 64 u64 の先頭ではなく要求された位置 (ずれは vsmlink が加える)
 
 # @broadcast _pj from_param 8 size 4 $lr16
 # === @broadcast _pj: PDM $p20504 → 全 4096 PE $lr16 ===
-	nop/5
+	# 直前の命令が L1BM に書いた場合の待ち。内部マルチキャスト => L1BM -> PE は 3 ステップ（dev manual 3.6.3.5）、
+	# L2BM -> L1BM（broadcast_load.vsm の l2bmb）=> L1BM -> PE は 2 ステップ（3.6.3.6）、PE -> L1BM => L1BM -> PE は 2 ステップ（3.6.3.8）
+	nop/3
 	l1bmp $lb24 $lr16v
-	nop/24
-	nop/24
+	# 直後の命令が $lr16 を読む場合の待ち（dev manual 3.6.3.9。LM0 / LM1 は 2 ステップ）
+	nop/2
+	nop/2
 	dvadd $lr16 -$lm0 $ln0
 	nop/2
 	dvadd $lr18 -$lm2 $ln2
@@ -834,16 +854,19 @@
 	lpassa $ln12 $lm12
 	nop/24
 	# --- ブロック 7: 粒子 7 からの力 ---
-# broadcast_use.vsm — @broadcast: L1BM に載っている値を PE に配る部分
-# 毎回展開される。載っていなかった場合は直前に broadcast_load.vsm が展開されている
-# L1BM の番地は区画の先頭ではなく要求された位置 (ずれは vsmlink が加える)
+# broadcast_use.vsm — @broadcast: L1BM に移動した値を PE に配る部分
+# 毎回展開される。移動していなかった場合は直前に broadcast_load.vsm が展開されている
+# L1BM の番地は移動した 64 u64 の先頭ではなく要求された位置 (ずれは vsmlink が加える)
 
 # @broadcast _pj from_param 8 size 4 $lr16
 # === @broadcast _pj: PDM $p20508 → 全 4096 PE $lr16 ===
-	nop/5
+	# 直前の命令が L1BM に書いた場合の待ち。内部マルチキャスト => L1BM -> PE は 3 ステップ（dev manual 3.6.3.5）、
+	# L2BM -> L1BM（broadcast_load.vsm の l2bmb）=> L1BM -> PE は 2 ステップ（3.6.3.6）、PE -> L1BM => L1BM -> PE は 2 ステップ（3.6.3.8）
+	nop/3
 	l1bmp $lb28 $lr16v
-	nop/24
-	nop/24
+	# 直後の命令が $lr16 を読む場合の待ち（dev manual 3.6.3.9。LM0 / LM1 は 2 ステップ）
+	nop/2
+	nop/2
 	dvadd $lr16 -$lm0 $ln0
 	nop/2
 	dvadd $lr18 -$lm2 $ln2
@@ -949,16 +972,19 @@
 	lpassa $ln12 $lm12
 	nop/24
 	# --- ブロック 8: 粒子 8 からの力 ---
-# broadcast_use.vsm — @broadcast: L1BM に載っている値を PE に配る部分
-# 毎回展開される。載っていなかった場合は直前に broadcast_load.vsm が展開されている
-# L1BM の番地は区画の先頭ではなく要求された位置 (ずれは vsmlink が加える)
+# broadcast_use.vsm — @broadcast: L1BM に移動した値を PE に配る部分
+# 毎回展開される。移動していなかった場合は直前に broadcast_load.vsm が展開されている
+# L1BM の番地は移動した 64 u64 の先頭ではなく要求された位置 (ずれは vsmlink が加える)
 
 # @broadcast _pj from_param 8 size 4 $lr16
 # === @broadcast _pj: PDM $p20512 → 全 4096 PE $lr16 ===
-	nop/5
+	# 直前の命令が L1BM に書いた場合の待ち。内部マルチキャスト => L1BM -> PE は 3 ステップ（dev manual 3.6.3.5）、
+	# L2BM -> L1BM（broadcast_load.vsm の l2bmb）=> L1BM -> PE は 2 ステップ（3.6.3.6）、PE -> L1BM => L1BM -> PE は 2 ステップ（3.6.3.8）
+	nop/3
 	l1bmp $lb32 $lr16v
-	nop/24
-	nop/24
+	# 直後の命令が $lr16 を読む場合の待ち（dev manual 3.6.3.9。LM0 / LM1 は 2 ステップ）
+	nop/2
+	nop/2
 	dvadd $lr16 -$lm0 $ln0
 	nop/2
 	dvadd $lr18 -$lm2 $ln2
@@ -1064,16 +1090,19 @@
 	lpassa $ln12 $lm12
 	nop/24
 	# --- ブロック 9: 粒子 9 からの力 ---
-# broadcast_use.vsm — @broadcast: L1BM に載っている値を PE に配る部分
-# 毎回展開される。載っていなかった場合は直前に broadcast_load.vsm が展開されている
-# L1BM の番地は区画の先頭ではなく要求された位置 (ずれは vsmlink が加える)
+# broadcast_use.vsm — @broadcast: L1BM に移動した値を PE に配る部分
+# 毎回展開される。移動していなかった場合は直前に broadcast_load.vsm が展開されている
+# L1BM の番地は移動した 64 u64 の先頭ではなく要求された位置 (ずれは vsmlink が加える)
 
 # @broadcast _pj from_param 8 size 4 $lr16
 # === @broadcast _pj: PDM $p20516 → 全 4096 PE $lr16 ===
-	nop/5
+	# 直前の命令が L1BM に書いた場合の待ち。内部マルチキャスト => L1BM -> PE は 3 ステップ（dev manual 3.6.3.5）、
+	# L2BM -> L1BM（broadcast_load.vsm の l2bmb）=> L1BM -> PE は 2 ステップ（3.6.3.6）、PE -> L1BM => L1BM -> PE は 2 ステップ（3.6.3.8）
+	nop/3
 	l1bmp $lb36 $lr16v
-	nop/24
-	nop/24
+	# 直後の命令が $lr16 を読む場合の待ち（dev manual 3.6.3.9。LM0 / LM1 は 2 ステップ）
+	nop/2
+	nop/2
 	dvadd $lr16 -$lm0 $ln0
 	nop/2
 	dvadd $lr18 -$lm2 $ln2
@@ -1179,16 +1208,19 @@
 	lpassa $ln12 $lm12
 	nop/24
 	# --- ブロック 10: 粒子 10 からの力 ---
-# broadcast_use.vsm — @broadcast: L1BM に載っている値を PE に配る部分
-# 毎回展開される。載っていなかった場合は直前に broadcast_load.vsm が展開されている
-# L1BM の番地は区画の先頭ではなく要求された位置 (ずれは vsmlink が加える)
+# broadcast_use.vsm — @broadcast: L1BM に移動した値を PE に配る部分
+# 毎回展開される。移動していなかった場合は直前に broadcast_load.vsm が展開されている
+# L1BM の番地は移動した 64 u64 の先頭ではなく要求された位置 (ずれは vsmlink が加える)
 
 # @broadcast _pj from_param 8 size 4 $lr16
 # === @broadcast _pj: PDM $p20520 → 全 4096 PE $lr16 ===
-	nop/5
+	# 直前の命令が L1BM に書いた場合の待ち。内部マルチキャスト => L1BM -> PE は 3 ステップ（dev manual 3.6.3.5）、
+	# L2BM -> L1BM（broadcast_load.vsm の l2bmb）=> L1BM -> PE は 2 ステップ（3.6.3.6）、PE -> L1BM => L1BM -> PE は 2 ステップ（3.6.3.8）
+	nop/3
 	l1bmp $lb40 $lr16v
-	nop/24
-	nop/24
+	# 直後の命令が $lr16 を読む場合の待ち（dev manual 3.6.3.9。LM0 / LM1 は 2 ステップ）
+	nop/2
+	nop/2
 	dvadd $lr16 -$lm0 $ln0
 	nop/2
 	dvadd $lr18 -$lm2 $ln2
@@ -1294,16 +1326,19 @@
 	lpassa $ln12 $lm12
 	nop/24
 	# --- ブロック 11: 粒子 11 からの力 ---
-# broadcast_use.vsm — @broadcast: L1BM に載っている値を PE に配る部分
-# 毎回展開される。載っていなかった場合は直前に broadcast_load.vsm が展開されている
-# L1BM の番地は区画の先頭ではなく要求された位置 (ずれは vsmlink が加える)
+# broadcast_use.vsm — @broadcast: L1BM に移動した値を PE に配る部分
+# 毎回展開される。移動していなかった場合は直前に broadcast_load.vsm が展開されている
+# L1BM の番地は移動した 64 u64 の先頭ではなく要求された位置 (ずれは vsmlink が加える)
 
 # @broadcast _pj from_param 8 size 4 $lr16
 # === @broadcast _pj: PDM $p20524 → 全 4096 PE $lr16 ===
-	nop/5
+	# 直前の命令が L1BM に書いた場合の待ち。内部マルチキャスト => L1BM -> PE は 3 ステップ（dev manual 3.6.3.5）、
+	# L2BM -> L1BM（broadcast_load.vsm の l2bmb）=> L1BM -> PE は 2 ステップ（3.6.3.6）、PE -> L1BM => L1BM -> PE は 2 ステップ（3.6.3.8）
+	nop/3
 	l1bmp $lb44 $lr16v
-	nop/24
-	nop/24
+	# 直後の命令が $lr16 を読む場合の待ち（dev manual 3.6.3.9。LM0 / LM1 は 2 ステップ）
+	nop/2
+	nop/2
 	dvadd $lr16 -$lm0 $ln0
 	nop/2
 	dvadd $lr18 -$lm2 $ln2
@@ -1409,16 +1444,19 @@
 	lpassa $ln12 $lm12
 	nop/24
 	# --- ブロック 12: 粒子 12 からの力 ---
-# broadcast_use.vsm — @broadcast: L1BM に載っている値を PE に配る部分
-# 毎回展開される。載っていなかった場合は直前に broadcast_load.vsm が展開されている
-# L1BM の番地は区画の先頭ではなく要求された位置 (ずれは vsmlink が加える)
+# broadcast_use.vsm — @broadcast: L1BM に移動した値を PE に配る部分
+# 毎回展開される。移動していなかった場合は直前に broadcast_load.vsm が展開されている
+# L1BM の番地は移動した 64 u64 の先頭ではなく要求された位置 (ずれは vsmlink が加える)
 
 # @broadcast _pj from_param 8 size 4 $lr16
 # === @broadcast _pj: PDM $p20528 → 全 4096 PE $lr16 ===
-	nop/5
+	# 直前の命令が L1BM に書いた場合の待ち。内部マルチキャスト => L1BM -> PE は 3 ステップ（dev manual 3.6.3.5）、
+	# L2BM -> L1BM（broadcast_load.vsm の l2bmb）=> L1BM -> PE は 2 ステップ（3.6.3.6）、PE -> L1BM => L1BM -> PE は 2 ステップ（3.6.3.8）
+	nop/3
 	l1bmp $lb48 $lr16v
-	nop/24
-	nop/24
+	# 直後の命令が $lr16 を読む場合の待ち（dev manual 3.6.3.9。LM0 / LM1 は 2 ステップ）
+	nop/2
+	nop/2
 	dvadd $lr16 -$lm0 $ln0
 	nop/2
 	dvadd $lr18 -$lm2 $ln2
@@ -1524,16 +1562,19 @@
 	lpassa $ln12 $lm12
 	nop/24
 	# --- ブロック 13: 粒子 13 からの力 ---
-# broadcast_use.vsm — @broadcast: L1BM に載っている値を PE に配る部分
-# 毎回展開される。載っていなかった場合は直前に broadcast_load.vsm が展開されている
-# L1BM の番地は区画の先頭ではなく要求された位置 (ずれは vsmlink が加える)
+# broadcast_use.vsm — @broadcast: L1BM に移動した値を PE に配る部分
+# 毎回展開される。移動していなかった場合は直前に broadcast_load.vsm が展開されている
+# L1BM の番地は移動した 64 u64 の先頭ではなく要求された位置 (ずれは vsmlink が加える)
 
 # @broadcast _pj from_param 8 size 4 $lr16
 # === @broadcast _pj: PDM $p20532 → 全 4096 PE $lr16 ===
-	nop/5
+	# 直前の命令が L1BM に書いた場合の待ち。内部マルチキャスト => L1BM -> PE は 3 ステップ（dev manual 3.6.3.5）、
+	# L2BM -> L1BM（broadcast_load.vsm の l2bmb）=> L1BM -> PE は 2 ステップ（3.6.3.6）、PE -> L1BM => L1BM -> PE は 2 ステップ（3.6.3.8）
+	nop/3
 	l1bmp $lb52 $lr16v
-	nop/24
-	nop/24
+	# 直後の命令が $lr16 を読む場合の待ち（dev manual 3.6.3.9。LM0 / LM1 は 2 ステップ）
+	nop/2
+	nop/2
 	dvadd $lr16 -$lm0 $ln0
 	nop/2
 	dvadd $lr18 -$lm2 $ln2
@@ -1639,16 +1680,19 @@
 	lpassa $ln12 $lm12
 	nop/24
 	# --- ブロック 14: 粒子 14 からの力 ---
-# broadcast_use.vsm — @broadcast: L1BM に載っている値を PE に配る部分
-# 毎回展開される。載っていなかった場合は直前に broadcast_load.vsm が展開されている
-# L1BM の番地は区画の先頭ではなく要求された位置 (ずれは vsmlink が加える)
+# broadcast_use.vsm — @broadcast: L1BM に移動した値を PE に配る部分
+# 毎回展開される。移動していなかった場合は直前に broadcast_load.vsm が展開されている
+# L1BM の番地は移動した 64 u64 の先頭ではなく要求された位置 (ずれは vsmlink が加える)
 
 # @broadcast _pj from_param 8 size 4 $lr16
 # === @broadcast _pj: PDM $p20536 → 全 4096 PE $lr16 ===
-	nop/5
+	# 直前の命令が L1BM に書いた場合の待ち。内部マルチキャスト => L1BM -> PE は 3 ステップ（dev manual 3.6.3.5）、
+	# L2BM -> L1BM（broadcast_load.vsm の l2bmb）=> L1BM -> PE は 2 ステップ（3.6.3.6）、PE -> L1BM => L1BM -> PE は 2 ステップ（3.6.3.8）
+	nop/3
 	l1bmp $lb56 $lr16v
-	nop/24
-	nop/24
+	# 直後の命令が $lr16 を読む場合の待ち（dev manual 3.6.3.9。LM0 / LM1 は 2 ステップ）
+	nop/2
+	nop/2
 	dvadd $lr16 -$lm0 $ln0
 	nop/2
 	dvadd $lr18 -$lm2 $ln2
@@ -1754,16 +1798,19 @@
 	lpassa $ln12 $lm12
 	nop/24
 	# --- ブロック 15: 粒子 15 からの力 ---
-# broadcast_use.vsm — @broadcast: L1BM に載っている値を PE に配る部分
-# 毎回展開される。載っていなかった場合は直前に broadcast_load.vsm が展開されている
-# L1BM の番地は区画の先頭ではなく要求された位置 (ずれは vsmlink が加える)
+# broadcast_use.vsm — @broadcast: L1BM に移動した値を PE に配る部分
+# 毎回展開される。移動していなかった場合は直前に broadcast_load.vsm が展開されている
+# L1BM の番地は移動した 64 u64 の先頭ではなく要求された位置 (ずれは vsmlink が加える)
 
 # @broadcast _pj from_param 8 size 4 $lr16
 # === @broadcast _pj: PDM $p20540 → 全 4096 PE $lr16 ===
-	nop/5
+	# 直前の命令が L1BM に書いた場合の待ち。内部マルチキャスト => L1BM -> PE は 3 ステップ（dev manual 3.6.3.5）、
+	# L2BM -> L1BM（broadcast_load.vsm の l2bmb）=> L1BM -> PE は 2 ステップ（3.6.3.6）、PE -> L1BM => L1BM -> PE は 2 ステップ（3.6.3.8）
+	nop/3
 	l1bmp $lb60 $lr16v
-	nop/24
-	nop/24
+	# 直後の命令が $lr16 を読む場合の待ち（dev manual 3.6.3.9。LM0 / LM1 は 2 ステップ）
+	nop/2
+	nop/2
 	dvadd $lr16 -$lm0 $ln0
 	nop/2
 	dvadd $lr18 -$lm2 $ln2
@@ -1869,26 +1916,28 @@
 	lpassa $ln12 $lm12
 	nop/24
 	# --- ブロック 16: 粒子 16 からの力 ---
-# broadcast_load.vsm — @broadcast: PDM の区画を L1BM に載せる部分
-# その区画がまだ L1BM に載っていないときだけ展開される
-# HW パス: PDM から mvb で全 8 L2BM、 l2bmb で全 64 L1BM へ (64 u64 の区画ごと)
+# broadcast_load.vsm — @broadcast: PDM の 64 u64 を L1BM に移動する部分
+# その 64 u64 がまだ L1BM に移動していないときだけ展開される
+# HW パス: PDM から mvb で全 8 L2BM、 l2bmb で全 64 L1BM へ (64 u64 ごと)
 
 # @broadcast _pj from_param 8 size 4 $lr16
 # === @broadcast _pj: PDM $p20544 → 全 4096 PE $lr16 ===
 	mvb/n64i3f $p20544@0 $lc0
 	nop/2
 	nop; wait i3f
-	nop/5
 	l2bmb $lc0 $lb0
-# broadcast_use.vsm — @broadcast: L1BM に載っている値を PE に配る部分
-# 毎回展開される。載っていなかった場合は直前に broadcast_load.vsm が展開されている
-# L1BM の番地は区画の先頭ではなく要求された位置 (ずれは vsmlink が加える)
+# broadcast_use.vsm — @broadcast: L1BM に移動した値を PE に配る部分
+# 毎回展開される。移動していなかった場合は直前に broadcast_load.vsm が展開されている
+# L1BM の番地は移動した 64 u64 の先頭ではなく要求された位置 (ずれは vsmlink が加える)
 
 
-	nop/5
+	# 直前の命令が L1BM に書いた場合の待ち。内部マルチキャスト => L1BM -> PE は 3 ステップ（dev manual 3.6.3.5）、
+	# L2BM -> L1BM（broadcast_load.vsm の l2bmb）=> L1BM -> PE は 2 ステップ（3.6.3.6）、PE -> L1BM => L1BM -> PE は 2 ステップ（3.6.3.8）
+	nop/3
 	l1bmp $lb0 $lr16v
-	nop/24
-	nop/24
+	# 直後の命令が $lr16 を読む場合の待ち（dev manual 3.6.3.9。LM0 / LM1 は 2 ステップ）
+	nop/2
+	nop/2
 	dvadd $lr16 -$lm0 $ln0
 	nop/2
 	dvadd $lr18 -$lm2 $ln2
@@ -1994,16 +2043,19 @@
 	lpassa $ln12 $lm12
 	nop/24
 	# --- ブロック 17: 粒子 17 からの力 ---
-# broadcast_use.vsm — @broadcast: L1BM に載っている値を PE に配る部分
-# 毎回展開される。載っていなかった場合は直前に broadcast_load.vsm が展開されている
-# L1BM の番地は区画の先頭ではなく要求された位置 (ずれは vsmlink が加える)
+# broadcast_use.vsm — @broadcast: L1BM に移動した値を PE に配る部分
+# 毎回展開される。移動していなかった場合は直前に broadcast_load.vsm が展開されている
+# L1BM の番地は移動した 64 u64 の先頭ではなく要求された位置 (ずれは vsmlink が加える)
 
 # @broadcast _pj from_param 8 size 4 $lr16
 # === @broadcast _pj: PDM $p20548 → 全 4096 PE $lr16 ===
-	nop/5
+	# 直前の命令が L1BM に書いた場合の待ち。内部マルチキャスト => L1BM -> PE は 3 ステップ（dev manual 3.6.3.5）、
+	# L2BM -> L1BM（broadcast_load.vsm の l2bmb）=> L1BM -> PE は 2 ステップ（3.6.3.6）、PE -> L1BM => L1BM -> PE は 2 ステップ（3.6.3.8）
+	nop/3
 	l1bmp $lb4 $lr16v
-	nop/24
-	nop/24
+	# 直後の命令が $lr16 を読む場合の待ち（dev manual 3.6.3.9。LM0 / LM1 は 2 ステップ）
+	nop/2
+	nop/2
 	dvadd $lr16 -$lm0 $ln0
 	nop/2
 	dvadd $lr18 -$lm2 $ln2
@@ -2109,16 +2161,19 @@
 	lpassa $ln12 $lm12
 	nop/24
 	# --- ブロック 18: 粒子 18 からの力 ---
-# broadcast_use.vsm — @broadcast: L1BM に載っている値を PE に配る部分
-# 毎回展開される。載っていなかった場合は直前に broadcast_load.vsm が展開されている
-# L1BM の番地は区画の先頭ではなく要求された位置 (ずれは vsmlink が加える)
+# broadcast_use.vsm — @broadcast: L1BM に移動した値を PE に配る部分
+# 毎回展開される。移動していなかった場合は直前に broadcast_load.vsm が展開されている
+# L1BM の番地は移動した 64 u64 の先頭ではなく要求された位置 (ずれは vsmlink が加える)
 
 # @broadcast _pj from_param 8 size 4 $lr16
 # === @broadcast _pj: PDM $p20552 → 全 4096 PE $lr16 ===
-	nop/5
+	# 直前の命令が L1BM に書いた場合の待ち。内部マルチキャスト => L1BM -> PE は 3 ステップ（dev manual 3.6.3.5）、
+	# L2BM -> L1BM（broadcast_load.vsm の l2bmb）=> L1BM -> PE は 2 ステップ（3.6.3.6）、PE -> L1BM => L1BM -> PE は 2 ステップ（3.6.3.8）
+	nop/3
 	l1bmp $lb8 $lr16v
-	nop/24
-	nop/24
+	# 直後の命令が $lr16 を読む場合の待ち（dev manual 3.6.3.9。LM0 / LM1 は 2 ステップ）
+	nop/2
+	nop/2
 	dvadd $lr16 -$lm0 $ln0
 	nop/2
 	dvadd $lr18 -$lm2 $ln2
@@ -2224,16 +2279,19 @@
 	lpassa $ln12 $lm12
 	nop/24
 	# --- ブロック 19: 粒子 19 からの力 ---
-# broadcast_use.vsm — @broadcast: L1BM に載っている値を PE に配る部分
-# 毎回展開される。載っていなかった場合は直前に broadcast_load.vsm が展開されている
-# L1BM の番地は区画の先頭ではなく要求された位置 (ずれは vsmlink が加える)
+# broadcast_use.vsm — @broadcast: L1BM に移動した値を PE に配る部分
+# 毎回展開される。移動していなかった場合は直前に broadcast_load.vsm が展開されている
+# L1BM の番地は移動した 64 u64 の先頭ではなく要求された位置 (ずれは vsmlink が加える)
 
 # @broadcast _pj from_param 8 size 4 $lr16
 # === @broadcast _pj: PDM $p20556 → 全 4096 PE $lr16 ===
-	nop/5
+	# 直前の命令が L1BM に書いた場合の待ち。内部マルチキャスト => L1BM -> PE は 3 ステップ（dev manual 3.6.3.5）、
+	# L2BM -> L1BM（broadcast_load.vsm の l2bmb）=> L1BM -> PE は 2 ステップ（3.6.3.6）、PE -> L1BM => L1BM -> PE は 2 ステップ（3.6.3.8）
+	nop/3
 	l1bmp $lb12 $lr16v
-	nop/24
-	nop/24
+	# 直後の命令が $lr16 を読む場合の待ち（dev manual 3.6.3.9。LM0 / LM1 は 2 ステップ）
+	nop/2
+	nop/2
 	dvadd $lr16 -$lm0 $ln0
 	nop/2
 	dvadd $lr18 -$lm2 $ln2
@@ -2339,16 +2397,19 @@
 	lpassa $ln12 $lm12
 	nop/24
 	# --- ブロック 20: 粒子 20 からの力 ---
-# broadcast_use.vsm — @broadcast: L1BM に載っている値を PE に配る部分
-# 毎回展開される。載っていなかった場合は直前に broadcast_load.vsm が展開されている
-# L1BM の番地は区画の先頭ではなく要求された位置 (ずれは vsmlink が加える)
+# broadcast_use.vsm — @broadcast: L1BM に移動した値を PE に配る部分
+# 毎回展開される。移動していなかった場合は直前に broadcast_load.vsm が展開されている
+# L1BM の番地は移動した 64 u64 の先頭ではなく要求された位置 (ずれは vsmlink が加える)
 
 # @broadcast _pj from_param 8 size 4 $lr16
 # === @broadcast _pj: PDM $p20560 → 全 4096 PE $lr16 ===
-	nop/5
+	# 直前の命令が L1BM に書いた場合の待ち。内部マルチキャスト => L1BM -> PE は 3 ステップ（dev manual 3.6.3.5）、
+	# L2BM -> L1BM（broadcast_load.vsm の l2bmb）=> L1BM -> PE は 2 ステップ（3.6.3.6）、PE -> L1BM => L1BM -> PE は 2 ステップ（3.6.3.8）
+	nop/3
 	l1bmp $lb16 $lr16v
-	nop/24
-	nop/24
+	# 直後の命令が $lr16 を読む場合の待ち（dev manual 3.6.3.9。LM0 / LM1 は 2 ステップ）
+	nop/2
+	nop/2
 	dvadd $lr16 -$lm0 $ln0
 	nop/2
 	dvadd $lr18 -$lm2 $ln2
@@ -2454,16 +2515,19 @@
 	lpassa $ln12 $lm12
 	nop/24
 	# --- ブロック 21: 粒子 21 からの力 ---
-# broadcast_use.vsm — @broadcast: L1BM に載っている値を PE に配る部分
-# 毎回展開される。載っていなかった場合は直前に broadcast_load.vsm が展開されている
-# L1BM の番地は区画の先頭ではなく要求された位置 (ずれは vsmlink が加える)
+# broadcast_use.vsm — @broadcast: L1BM に移動した値を PE に配る部分
+# 毎回展開される。移動していなかった場合は直前に broadcast_load.vsm が展開されている
+# L1BM の番地は移動した 64 u64 の先頭ではなく要求された位置 (ずれは vsmlink が加える)
 
 # @broadcast _pj from_param 8 size 4 $lr16
 # === @broadcast _pj: PDM $p20564 → 全 4096 PE $lr16 ===
-	nop/5
+	# 直前の命令が L1BM に書いた場合の待ち。内部マルチキャスト => L1BM -> PE は 3 ステップ（dev manual 3.6.3.5）、
+	# L2BM -> L1BM（broadcast_load.vsm の l2bmb）=> L1BM -> PE は 2 ステップ（3.6.3.6）、PE -> L1BM => L1BM -> PE は 2 ステップ（3.6.3.8）
+	nop/3
 	l1bmp $lb20 $lr16v
-	nop/24
-	nop/24
+	# 直後の命令が $lr16 を読む場合の待ち（dev manual 3.6.3.9。LM0 / LM1 は 2 ステップ）
+	nop/2
+	nop/2
 	dvadd $lr16 -$lm0 $ln0
 	nop/2
 	dvadd $lr18 -$lm2 $ln2
@@ -2569,16 +2633,19 @@
 	lpassa $ln12 $lm12
 	nop/24
 	# --- ブロック 22: 粒子 22 からの力 ---
-# broadcast_use.vsm — @broadcast: L1BM に載っている値を PE に配る部分
-# 毎回展開される。載っていなかった場合は直前に broadcast_load.vsm が展開されている
-# L1BM の番地は区画の先頭ではなく要求された位置 (ずれは vsmlink が加える)
+# broadcast_use.vsm — @broadcast: L1BM に移動した値を PE に配る部分
+# 毎回展開される。移動していなかった場合は直前に broadcast_load.vsm が展開されている
+# L1BM の番地は移動した 64 u64 の先頭ではなく要求された位置 (ずれは vsmlink が加える)
 
 # @broadcast _pj from_param 8 size 4 $lr16
 # === @broadcast _pj: PDM $p20568 → 全 4096 PE $lr16 ===
-	nop/5
+	# 直前の命令が L1BM に書いた場合の待ち。内部マルチキャスト => L1BM -> PE は 3 ステップ（dev manual 3.6.3.5）、
+	# L2BM -> L1BM（broadcast_load.vsm の l2bmb）=> L1BM -> PE は 2 ステップ（3.6.3.6）、PE -> L1BM => L1BM -> PE は 2 ステップ（3.6.3.8）
+	nop/3
 	l1bmp $lb24 $lr16v
-	nop/24
-	nop/24
+	# 直後の命令が $lr16 を読む場合の待ち（dev manual 3.6.3.9。LM0 / LM1 は 2 ステップ）
+	nop/2
+	nop/2
 	dvadd $lr16 -$lm0 $ln0
 	nop/2
 	dvadd $lr18 -$lm2 $ln2
@@ -2684,16 +2751,19 @@
 	lpassa $ln12 $lm12
 	nop/24
 	# --- ブロック 23: 粒子 23 からの力 ---
-# broadcast_use.vsm — @broadcast: L1BM に載っている値を PE に配る部分
-# 毎回展開される。載っていなかった場合は直前に broadcast_load.vsm が展開されている
-# L1BM の番地は区画の先頭ではなく要求された位置 (ずれは vsmlink が加える)
+# broadcast_use.vsm — @broadcast: L1BM に移動した値を PE に配る部分
+# 毎回展開される。移動していなかった場合は直前に broadcast_load.vsm が展開されている
+# L1BM の番地は移動した 64 u64 の先頭ではなく要求された位置 (ずれは vsmlink が加える)
 
 # @broadcast _pj from_param 8 size 4 $lr16
 # === @broadcast _pj: PDM $p20572 → 全 4096 PE $lr16 ===
-	nop/5
+	# 直前の命令が L1BM に書いた場合の待ち。内部マルチキャスト => L1BM -> PE は 3 ステップ（dev manual 3.6.3.5）、
+	# L2BM -> L1BM（broadcast_load.vsm の l2bmb）=> L1BM -> PE は 2 ステップ（3.6.3.6）、PE -> L1BM => L1BM -> PE は 2 ステップ（3.6.3.8）
+	nop/3
 	l1bmp $lb28 $lr16v
-	nop/24
-	nop/24
+	# 直後の命令が $lr16 を読む場合の待ち（dev manual 3.6.3.9。LM0 / LM1 は 2 ステップ）
+	nop/2
+	nop/2
 	dvadd $lr16 -$lm0 $ln0
 	nop/2
 	dvadd $lr18 -$lm2 $ln2
@@ -2799,16 +2869,19 @@
 	lpassa $ln12 $lm12
 	nop/24
 	# --- ブロック 24: 粒子 24 からの力 ---
-# broadcast_use.vsm — @broadcast: L1BM に載っている値を PE に配る部分
-# 毎回展開される。載っていなかった場合は直前に broadcast_load.vsm が展開されている
-# L1BM の番地は区画の先頭ではなく要求された位置 (ずれは vsmlink が加える)
+# broadcast_use.vsm — @broadcast: L1BM に移動した値を PE に配る部分
+# 毎回展開される。移動していなかった場合は直前に broadcast_load.vsm が展開されている
+# L1BM の番地は移動した 64 u64 の先頭ではなく要求された位置 (ずれは vsmlink が加える)
 
 # @broadcast _pj from_param 8 size 4 $lr16
 # === @broadcast _pj: PDM $p20576 → 全 4096 PE $lr16 ===
-	nop/5
+	# 直前の命令が L1BM に書いた場合の待ち。内部マルチキャスト => L1BM -> PE は 3 ステップ（dev manual 3.6.3.5）、
+	# L2BM -> L1BM（broadcast_load.vsm の l2bmb）=> L1BM -> PE は 2 ステップ（3.6.3.6）、PE -> L1BM => L1BM -> PE は 2 ステップ（3.6.3.8）
+	nop/3
 	l1bmp $lb32 $lr16v
-	nop/24
-	nop/24
+	# 直後の命令が $lr16 を読む場合の待ち（dev manual 3.6.3.9。LM0 / LM1 は 2 ステップ）
+	nop/2
+	nop/2
 	dvadd $lr16 -$lm0 $ln0
 	nop/2
 	dvadd $lr18 -$lm2 $ln2
@@ -2914,16 +2987,19 @@
 	lpassa $ln12 $lm12
 	nop/24
 	# --- ブロック 25: 粒子 25 からの力 ---
-# broadcast_use.vsm — @broadcast: L1BM に載っている値を PE に配る部分
-# 毎回展開される。載っていなかった場合は直前に broadcast_load.vsm が展開されている
-# L1BM の番地は区画の先頭ではなく要求された位置 (ずれは vsmlink が加える)
+# broadcast_use.vsm — @broadcast: L1BM に移動した値を PE に配る部分
+# 毎回展開される。移動していなかった場合は直前に broadcast_load.vsm が展開されている
+# L1BM の番地は移動した 64 u64 の先頭ではなく要求された位置 (ずれは vsmlink が加える)
 
 # @broadcast _pj from_param 8 size 4 $lr16
 # === @broadcast _pj: PDM $p20580 → 全 4096 PE $lr16 ===
-	nop/5
+	# 直前の命令が L1BM に書いた場合の待ち。内部マルチキャスト => L1BM -> PE は 3 ステップ（dev manual 3.6.3.5）、
+	# L2BM -> L1BM（broadcast_load.vsm の l2bmb）=> L1BM -> PE は 2 ステップ（3.6.3.6）、PE -> L1BM => L1BM -> PE は 2 ステップ（3.6.3.8）
+	nop/3
 	l1bmp $lb36 $lr16v
-	nop/24
-	nop/24
+	# 直後の命令が $lr16 を読む場合の待ち（dev manual 3.6.3.9。LM0 / LM1 は 2 ステップ）
+	nop/2
+	nop/2
 	dvadd $lr16 -$lm0 $ln0
 	nop/2
 	dvadd $lr18 -$lm2 $ln2
@@ -3029,16 +3105,19 @@
 	lpassa $ln12 $lm12
 	nop/24
 	# --- ブロック 26: 粒子 26 からの力 ---
-# broadcast_use.vsm — @broadcast: L1BM に載っている値を PE に配る部分
-# 毎回展開される。載っていなかった場合は直前に broadcast_load.vsm が展開されている
-# L1BM の番地は区画の先頭ではなく要求された位置 (ずれは vsmlink が加える)
+# broadcast_use.vsm — @broadcast: L1BM に移動した値を PE に配る部分
+# 毎回展開される。移動していなかった場合は直前に broadcast_load.vsm が展開されている
+# L1BM の番地は移動した 64 u64 の先頭ではなく要求された位置 (ずれは vsmlink が加える)
 
 # @broadcast _pj from_param 8 size 4 $lr16
 # === @broadcast _pj: PDM $p20584 → 全 4096 PE $lr16 ===
-	nop/5
+	# 直前の命令が L1BM に書いた場合の待ち。内部マルチキャスト => L1BM -> PE は 3 ステップ（dev manual 3.6.3.5）、
+	# L2BM -> L1BM（broadcast_load.vsm の l2bmb）=> L1BM -> PE は 2 ステップ（3.6.3.6）、PE -> L1BM => L1BM -> PE は 2 ステップ（3.6.3.8）
+	nop/3
 	l1bmp $lb40 $lr16v
-	nop/24
-	nop/24
+	# 直後の命令が $lr16 を読む場合の待ち（dev manual 3.6.3.9。LM0 / LM1 は 2 ステップ）
+	nop/2
+	nop/2
 	dvadd $lr16 -$lm0 $ln0
 	nop/2
 	dvadd $lr18 -$lm2 $ln2
@@ -3144,16 +3223,19 @@
 	lpassa $ln12 $lm12
 	nop/24
 	# --- ブロック 27: 粒子 27 からの力 ---
-# broadcast_use.vsm — @broadcast: L1BM に載っている値を PE に配る部分
-# 毎回展開される。載っていなかった場合は直前に broadcast_load.vsm が展開されている
-# L1BM の番地は区画の先頭ではなく要求された位置 (ずれは vsmlink が加える)
+# broadcast_use.vsm — @broadcast: L1BM に移動した値を PE に配る部分
+# 毎回展開される。移動していなかった場合は直前に broadcast_load.vsm が展開されている
+# L1BM の番地は移動した 64 u64 の先頭ではなく要求された位置 (ずれは vsmlink が加える)
 
 # @broadcast _pj from_param 8 size 4 $lr16
 # === @broadcast _pj: PDM $p20588 → 全 4096 PE $lr16 ===
-	nop/5
+	# 直前の命令が L1BM に書いた場合の待ち。内部マルチキャスト => L1BM -> PE は 3 ステップ（dev manual 3.6.3.5）、
+	# L2BM -> L1BM（broadcast_load.vsm の l2bmb）=> L1BM -> PE は 2 ステップ（3.6.3.6）、PE -> L1BM => L1BM -> PE は 2 ステップ（3.6.3.8）
+	nop/3
 	l1bmp $lb44 $lr16v
-	nop/24
-	nop/24
+	# 直後の命令が $lr16 を読む場合の待ち（dev manual 3.6.3.9。LM0 / LM1 は 2 ステップ）
+	nop/2
+	nop/2
 	dvadd $lr16 -$lm0 $ln0
 	nop/2
 	dvadd $lr18 -$lm2 $ln2
@@ -3259,16 +3341,19 @@
 	lpassa $ln12 $lm12
 	nop/24
 	# --- ブロック 28: 粒子 28 からの力 ---
-# broadcast_use.vsm — @broadcast: L1BM に載っている値を PE に配る部分
-# 毎回展開される。載っていなかった場合は直前に broadcast_load.vsm が展開されている
-# L1BM の番地は区画の先頭ではなく要求された位置 (ずれは vsmlink が加える)
+# broadcast_use.vsm — @broadcast: L1BM に移動した値を PE に配る部分
+# 毎回展開される。移動していなかった場合は直前に broadcast_load.vsm が展開されている
+# L1BM の番地は移動した 64 u64 の先頭ではなく要求された位置 (ずれは vsmlink が加える)
 
 # @broadcast _pj from_param 8 size 4 $lr16
 # === @broadcast _pj: PDM $p20592 → 全 4096 PE $lr16 ===
-	nop/5
+	# 直前の命令が L1BM に書いた場合の待ち。内部マルチキャスト => L1BM -> PE は 3 ステップ（dev manual 3.6.3.5）、
+	# L2BM -> L1BM（broadcast_load.vsm の l2bmb）=> L1BM -> PE は 2 ステップ（3.6.3.6）、PE -> L1BM => L1BM -> PE は 2 ステップ（3.6.3.8）
+	nop/3
 	l1bmp $lb48 $lr16v
-	nop/24
-	nop/24
+	# 直後の命令が $lr16 を読む場合の待ち（dev manual 3.6.3.9。LM0 / LM1 は 2 ステップ）
+	nop/2
+	nop/2
 	dvadd $lr16 -$lm0 $ln0
 	nop/2
 	dvadd $lr18 -$lm2 $ln2
@@ -3374,16 +3459,19 @@
 	lpassa $ln12 $lm12
 	nop/24
 	# --- ブロック 29: 粒子 29 からの力 ---
-# broadcast_use.vsm — @broadcast: L1BM に載っている値を PE に配る部分
-# 毎回展開される。載っていなかった場合は直前に broadcast_load.vsm が展開されている
-# L1BM の番地は区画の先頭ではなく要求された位置 (ずれは vsmlink が加える)
+# broadcast_use.vsm — @broadcast: L1BM に移動した値を PE に配る部分
+# 毎回展開される。移動していなかった場合は直前に broadcast_load.vsm が展開されている
+# L1BM の番地は移動した 64 u64 の先頭ではなく要求された位置 (ずれは vsmlink が加える)
 
 # @broadcast _pj from_param 8 size 4 $lr16
 # === @broadcast _pj: PDM $p20596 → 全 4096 PE $lr16 ===
-	nop/5
+	# 直前の命令が L1BM に書いた場合の待ち。内部マルチキャスト => L1BM -> PE は 3 ステップ（dev manual 3.6.3.5）、
+	# L2BM -> L1BM（broadcast_load.vsm の l2bmb）=> L1BM -> PE は 2 ステップ（3.6.3.6）、PE -> L1BM => L1BM -> PE は 2 ステップ（3.6.3.8）
+	nop/3
 	l1bmp $lb52 $lr16v
-	nop/24
-	nop/24
+	# 直後の命令が $lr16 を読む場合の待ち（dev manual 3.6.3.9。LM0 / LM1 は 2 ステップ）
+	nop/2
+	nop/2
 	dvadd $lr16 -$lm0 $ln0
 	nop/2
 	dvadd $lr18 -$lm2 $ln2
@@ -3489,16 +3577,19 @@
 	lpassa $ln12 $lm12
 	nop/24
 	# --- ブロック 30: 粒子 30 からの力 ---
-# broadcast_use.vsm — @broadcast: L1BM に載っている値を PE に配る部分
-# 毎回展開される。載っていなかった場合は直前に broadcast_load.vsm が展開されている
-# L1BM の番地は区画の先頭ではなく要求された位置 (ずれは vsmlink が加える)
+# broadcast_use.vsm — @broadcast: L1BM に移動した値を PE に配る部分
+# 毎回展開される。移動していなかった場合は直前に broadcast_load.vsm が展開されている
+# L1BM の番地は移動した 64 u64 の先頭ではなく要求された位置 (ずれは vsmlink が加える)
 
 # @broadcast _pj from_param 8 size 4 $lr16
 # === @broadcast _pj: PDM $p20600 → 全 4096 PE $lr16 ===
-	nop/5
+	# 直前の命令が L1BM に書いた場合の待ち。内部マルチキャスト => L1BM -> PE は 3 ステップ（dev manual 3.6.3.5）、
+	# L2BM -> L1BM（broadcast_load.vsm の l2bmb）=> L1BM -> PE は 2 ステップ（3.6.3.6）、PE -> L1BM => L1BM -> PE は 2 ステップ（3.6.3.8）
+	nop/3
 	l1bmp $lb56 $lr16v
-	nop/24
-	nop/24
+	# 直後の命令が $lr16 を読む場合の待ち（dev manual 3.6.3.9。LM0 / LM1 は 2 ステップ）
+	nop/2
+	nop/2
 	dvadd $lr16 -$lm0 $ln0
 	nop/2
 	dvadd $lr18 -$lm2 $ln2
@@ -3604,16 +3695,19 @@
 	lpassa $ln12 $lm12
 	nop/24
 	# --- ブロック 31: 粒子 31 からの力 ---
-# broadcast_use.vsm — @broadcast: L1BM に載っている値を PE に配る部分
-# 毎回展開される。載っていなかった場合は直前に broadcast_load.vsm が展開されている
-# L1BM の番地は区画の先頭ではなく要求された位置 (ずれは vsmlink が加える)
+# broadcast_use.vsm — @broadcast: L1BM に移動した値を PE に配る部分
+# 毎回展開される。移動していなかった場合は直前に broadcast_load.vsm が展開されている
+# L1BM の番地は移動した 64 u64 の先頭ではなく要求された位置 (ずれは vsmlink が加える)
 
 # @broadcast _pj from_param 8 size 4 $lr16
 # === @broadcast _pj: PDM $p20604 → 全 4096 PE $lr16 ===
-	nop/5
+	# 直前の命令が L1BM に書いた場合の待ち。内部マルチキャスト => L1BM -> PE は 3 ステップ（dev manual 3.6.3.5）、
+	# L2BM -> L1BM（broadcast_load.vsm の l2bmb）=> L1BM -> PE は 2 ステップ（3.6.3.6）、PE -> L1BM => L1BM -> PE は 2 ステップ（3.6.3.8）
+	nop/3
 	l1bmp $lb60 $lr16v
-	nop/24
-	nop/24
+	# 直後の命令が $lr16 を読む場合の待ち（dev manual 3.6.3.9。LM0 / LM1 は 2 ステップ）
+	nop/2
+	nop/2
 	dvadd $lr16 -$lm0 $ln0
 	nop/2
 	dvadd $lr18 -$lm2 $ln2

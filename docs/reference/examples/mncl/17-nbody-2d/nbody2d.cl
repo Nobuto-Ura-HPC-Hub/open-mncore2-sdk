@@ -13,9 +13,6 @@
 // 積算値はカーネルをまたいで PDM に常駐する（10-odd-even-sort と同じ「collect した値を次の
 // distribute で読み直す」パターン）。
 //   r2 = |d|^2 + eps^2、 1/r = rsqrt(r2) を Newton-Raphson で精緻化、 f += m_k * d / r^3
-//
-// **スカラ × ベクタ（splat）を使う。** m_k * ir3 はスカラで、それをベクタ d に掛ける。
-// HW が splat を直接持つので（v 無しレジスタ）、余計なコピーは出ない。
 #define EPS2 0.0625   /* 2^-4 softening^2 */
 
 __kernel void nbody2d(__global const double* _pos,

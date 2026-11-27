@@ -12,10 +12,11 @@
 # === @reduce _swap: $lr48 → L1BM → L2BM → PDM $p32768 (liadd) ===
 # (:pdm :directive "@reduce" :id "_swap" :slot 28 :place :pdm0 :addr 32768 :size 64 :access :write)
 	l1bmrliadd $lr48 $lb0
-	nop/24
+	# PE -> L1BM の後、同じ L1BM を読む L1BM -> L2BM まで 3 ステップ（dev manual 3.6.3.7）
+	nop/3
 	l2bmrliadd $lb0 $lc0
-	nop/24
+	# L1BM -> L2BM の後、その L2BM を読む MV 命令まで 2 ステップ（dev manual 3.6.3.1 と assemble3 は 1 ステップとするが、実機では 1 ステップ後の MV 命令が、書き終わる前の L2BM を読む。2 ステップでは読まない）
+	nop/2
 	mvrliadd/n64i06 $lc0 $p32768@0
 	nop/2
 	nop; wait i06
-	nop/5

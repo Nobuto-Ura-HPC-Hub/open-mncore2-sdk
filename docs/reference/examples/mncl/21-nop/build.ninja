@@ -1,0 +1,37 @@
+# 21-nop: c[i] = a[i] + b[i]。加算の前に nop(8) を置く（デバッグ用の待ち。4096 PE）
+#
+# ninja              -> .cl -> ._vsm -> .vsm
+# ninja build-e2e    -> + vsmlink + assemble3 + host C
+# ninja test         -> usage 表示
+# ninja test-emu-lib -> emu:lib backend で実行・検証
+# ninja test-device  -> 実機 backend で実行・検証
+
+include ../scripts/mncl.ninja
+include ../../scripts/sdk.ninja
+builddir = _build
+
+# --- kernel ---
+build $builddir/nop._vsm: emit-vsm nop.cl
+
+build $builddir/nop.vsm: vsmlink $builddir/nop._vsm nop.param
+  vsm = $builddir/nop._vsm
+  param = nop.param
+
+build $builddir/nop.asm: asm3 $builddir/nop.vsm
+build $builddir/nop.idma.dat | $builddir/nop.idma.inst $builddir/nop.idma.inst.txt $builddir/nop.ddma.dat $builddir/nop.ddma.inst $builddir/nop.ddma.inst.txt: asm3_loader $builddir/nop.vsm
+  stem = $builddir/nop
+
+# --- host driver ---
+build $builddir/test_nop.o: cc test_nop.c
+build $builddir/test_nop: link $builddir/test_nop.o
+
+# --- ビルド段階 phony ---
+build build-e2e: phony $builddir/nop.asm $builddir/nop.idma.dat $builddir/test_nop
+
+# --- test 3 種 ---
+build test-emu-lib: test_emu_lib $builddir/test_nop | $builddir/nop.asm $builddir/nop.idma.dat
+build test-device:  test_device  $builddir/test_nop | $builddir/nop.asm $builddir/nop.idma.dat
+build test:         test_usage
+
+
+default $builddir/nop.asm $builddir/nop.idma.dat

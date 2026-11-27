@@ -1,6 +1,6 @@
 # 05-stencil1d: 1D 3-point stencil (identity kernel with stencil exchange)
 #
-# ninja              → vsmlink: _vsm + .param + .stparam → .vsm
+# ninja              → vsmlink: _vsm + .param → .vsm
 # ninja verify       → expected.vsm との diff 検証
 # ninja build-e2e    → + assemble3 + host C ビルド (emu:lib)
 # ninja test         → + emu:lib で実行・検証
@@ -12,10 +12,9 @@ include ../scripts/vsmlink.ninja
 builddir = _build
 
 # --- default: vsmlink only ---
-build $builddir/stencil1d.vsm: vsmlink stencil1d._vsm stencil1d.param stencil1d.stparam
+build $builddir/stencil1d.vsm: vsmlink stencil1d._vsm stencil1d.param
   vsm = stencil1d._vsm
   param = stencil1d.param
-  stparam = stencil1d.stparam
 
 # --- verify: golden data ---
 build verify: verify_cmd $builddir/stencil1d.vsm

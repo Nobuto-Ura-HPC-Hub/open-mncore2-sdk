@@ -3,7 +3,7 @@
 # size 2 / 3 / 4 を回す。size 4 は l1bmd のマスクが無い経路、size 2 / 3 は
 # マスク (/1100 /1110) が効く経路なので、両方を実データで通す。
 #
-# ninja              → vsmlink: _vsm + .param + .stparam → .vsm
+# ninja              → vsmlink: _vsm + .param → .vsm
 # ninja build-e2e    → + assemble3 + host C ビルド
 # ninja test-emu-lib → + emu:lib で実行・検証
 # ninja test-device  → + 実機で実行・検証
@@ -21,10 +21,9 @@ pool device_serial
   depth = 1
 
 # --- default: vsmlink only ---
-build $builddir/roundtrip4.vsm: vsmlink roundtrip4._vsm roundtrip4.param roundtrip4.stparam
+build $builddir/roundtrip4.vsm: vsmlink roundtrip4._vsm roundtrip4.param
   vsm = roundtrip4._vsm
   param = roundtrip4.param
-  stparam = roundtrip4.stparam
 
 # --- build-e2e: assemble + host C ---
 build $builddir/roundtrip4.asm: asm3 $builddir/roundtrip4.vsm
@@ -35,10 +34,9 @@ build $builddir/test_roundtrip4.o: cc test_roundtrip4.c
 build $builddir/test_roundtrip4: link_exe $builddir/test_roundtrip4.o
 
 
-build $builddir/roundtrip2.vsm: vsmlink roundtrip2._vsm roundtrip2.param roundtrip2.stparam
+build $builddir/roundtrip2.vsm: vsmlink roundtrip2._vsm roundtrip2.param
   vsm = roundtrip2._vsm
   param = roundtrip2.param
-  stparam = roundtrip2.stparam
 build $builddir/roundtrip2.asm: asm3 $builddir/roundtrip2.vsm
 build $builddir/roundtrip2.idma.dat: asm3_loader $builddir/roundtrip2.vsm
   stem = $builddir/roundtrip2
@@ -48,10 +46,9 @@ build test-device-size2:  test_device  $builddir/test_roundtrip4 | $builddir/rou
   args = 2 $builddir/roundtrip2.idma.dat
   pool = device_serial
 
-build $builddir/roundtrip3.vsm: vsmlink roundtrip3._vsm roundtrip3.param roundtrip3.stparam
+build $builddir/roundtrip3.vsm: vsmlink roundtrip3._vsm roundtrip3.param
   vsm = roundtrip3._vsm
   param = roundtrip3.param
-  stparam = roundtrip3.stparam
 build $builddir/roundtrip3.asm: asm3 $builddir/roundtrip3.vsm
 build $builddir/roundtrip3.idma.dat: asm3_loader $builddir/roundtrip3.vsm
   stem = $builddir/roundtrip3

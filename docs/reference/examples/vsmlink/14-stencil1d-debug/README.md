@@ -132,7 +132,7 @@ PDM を一時バッファとして、隣接セクションのデータを取得�
 | PE 0（MAB 0, L1B 0, Sec 1-7）| 隣接 Section | PDM 経由 | `mvp` |
 | PE 0（MAB 0, L1B 0, Sec 0）| なし | 境界条件 | 値 = 0 |
 
-実際の `@stencil` ディレクティブでは、これら 5 種の結果を `maskr`/`ipassa`（条件付き代入）でマージして、各 PE に正しい左隣の値を配置する。マージの詳細は `05-stencil1d/README.md` を参照。
+実際の `@get_neighbor` ディレクティブでは、これら 5 種の結果を `maskr`/`ipassa`（条件付き代入）でマージして、各 PE に正しい左隣の値を配置する。マージの詳細は `05-stencil1d/README.md` を参照。
 
 ## ファイル構成
 

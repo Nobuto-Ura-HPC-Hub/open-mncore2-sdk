@@ -1,0 +1,10 @@
+;; 20-persistent: 1 つの .param を 2 つの kernel（init、accum）で共有する
+;; slot 番号は kernel をまたいで重ならないように、kernel の宣言順に振られる
+;; slot 8  = init の引数 seed
+;; slot 16 = accum の引数 in（実行のたびに別の値を送る）
+;; slot 24 = accum の引数 out（実行のたびに受け取る）
+((:version :0.1)
+ (:reserved_wait_tag #x3f)
+ (:slot 8  :place :pdm0 :addr 0    :send_wait_tag #x10)
+ (:slot 16 :place :pdm0 :addr 4096 :send_wait_tag #x10)
+ (:slot 24 :place :pdm0 :addr 8192 :recv_wait_tag #x1e))

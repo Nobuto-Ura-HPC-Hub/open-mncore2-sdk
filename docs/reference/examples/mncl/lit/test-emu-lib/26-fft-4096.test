@@ -1,0 +1,2 @@
+# RUN: ninja -C %examples/26-fft-4096 build-e2e
+# RUN: ninja -C %examples/26-fft-4096 test-emu-lib

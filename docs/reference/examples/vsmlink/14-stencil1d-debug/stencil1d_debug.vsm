@@ -51,7 +51,7 @@
 # ホストが PDM に書き込んだ入力データ（input[i] = i+1）を全 4096 PE に配布する。
 # 経路: PDM → (mvp) → L2BM → (l2bmb) → L1BM → (l1bmd) → PE の LM0
 #
-# mvp: PDM から L2BM への DMA 転送（512 長語単位 × 8 セクション）
+# mvp: PDM から L2BM への DMA 転送（512 u64 × 8 セクション）
 # L2BM はチップ上の中間バッファで、4 グループ × 2 L2B = 8 セクション分のスロットを持つ。
 # 各 mvp は lc<offset>@<group>.<l2b> で L2BM 上のアドレスを指定する。
 	nop; wait i10
@@ -68,7 +68,7 @@
 	nop; wait i23
 	nop/5
 # l2bmb: L2BM → L1BM への broadcast（8 L1B に同時配信）
-# l2bmb@N は L2BM の N 番目のスロット（64 長語間隔）を L1B N の L1BM に転送する。
+# l2bmb@N は L2BM の N 番目のスロット（64 u64 間隔）を L1B N の L1BM に転送する。
 	l2bmb@0 $lc0 $lb0
 	l2bmb@1 $lc64 $lb0
 	l2bmb@2 $lc128 $lb0

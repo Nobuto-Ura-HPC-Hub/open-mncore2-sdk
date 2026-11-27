@@ -3,7 +3,7 @@
 # sdk.ninja の include より後に記述すること (${sdk_root} を参照するため)
 
 rule vsmlink
-  command = vsmlink $vsm $param $stparam $out
+  command = vsmlink $vsm $param $out
   description = VSMLINK $out
 
 rule verify_cmd
@@ -38,10 +38,17 @@ rule test_usage
   command = echo "使い方: ninja test-emu-lib / ninja test-device"
   description = INFO
 
+# fetch_data は examples/data の ninja を内側で起動する。同じ build.ninja の中で複数の fetch_data が並列に走ると、
+# 内側の ninja が同時に同じ生成手順を走らせ、出力と .ninja_log を取り合って失敗する。深さ 1 の pool で 1 本ずつにする。
+pool fetch_data_serial
+  depth = 1
+
 rule fetch_data
-  # ../data/created/<bin> が未生成なら自動で ninja -C ../data を呼ぶ。
-  command = ninja -C ../data created/$bin >/dev/null && cp ../data/created/$bin $out
+  # ../data/created/<bin> が未生成のときだけ ninja -C ../data を呼ぶ。生成済みなら写すだけで、ninja を起動しない
+  # (lit は最初に examples/data を作るので、lit を並列に流しても、ここで examples/data の ninja が同時に動かない)。
+  command = { test -f ../data/created/$bin || ninja -C ../data created/$bin >/dev/null; } && cp ../data/created/$bin $out
   description = FETCH $out
+  pool = fetch_data_serial
 
 rule clean
   command = rm -rf _build

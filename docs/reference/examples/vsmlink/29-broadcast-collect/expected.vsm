@@ -10,28 +10,29 @@
 # distribute は LM0 に着地: $lm0 = per-PE id
 # collect 源は LM1 の $ln4088 から 4 サイクル (+2 刻み): x,y,z,id を並べる
 #
-# broadcast_load.vsm — @broadcast: PDM の区画を L1BM に載せる部分
-# その区画がまだ L1BM に載っていないときだけ展開される
-# HW パス: PDM から mvb で全 8 L2BM、 l2bmb で全 64 L1BM へ (64 u64 の区画ごと)
+# broadcast_load.vsm — @broadcast: PDM の 64 u64 を L1BM に移動する部分
+# その 64 u64 がまだ L1BM に移動していないときだけ展開される
+# HW パス: PDM から mvb で全 8 L2BM、 l2bmb で全 64 L1BM へ (64 u64 ごと)
 
 # @broadcast  _s  from_param 8  size 4 $lr16    # 全 PE 同値の x,y,z,m
 # === @broadcast _s: PDM $p0 → 全 4096 PE $lr16 ===
 	mvb/n64i3f $p0@0 $lc0
 	nop/2
 	nop; wait i3f
-	nop/5
 	l2bmb $lc0 $lb0
-# broadcast_use.vsm — @broadcast: L1BM に載っている値を PE に配る部分
-# 毎回展開される。載っていなかった場合は直前に broadcast_load.vsm が展開されている
-# L1BM の番地は区画の先頭ではなく要求された位置 (ずれは vsmlink が加える)
+# broadcast_use.vsm — @broadcast: L1BM に移動した値を PE に配る部分
+# 毎回展開される。移動していなかった場合は直前に broadcast_load.vsm が展開されている
+# L1BM の番地は移動した 64 u64 の先頭ではなく要求された位置 (ずれは vsmlink が加える)
 
 
-	nop/5
+	# 直前の命令が L1BM に書いた場合の待ち。内部マルチキャスト => L1BM -> PE は 3 ステップ（dev manual 3.6.3.5）、
+	# L2BM -> L1BM（broadcast_load.vsm の l2bmb）=> L1BM -> PE は 2 ステップ（3.6.3.6）、PE -> L1BM => L1BM -> PE は 2 ステップ（3.6.3.8）
+	nop/3
 	l1bmp $lb0 $lr16v
-	nop/24
+	# 直後の命令が $lr16 を読む場合の待ち（dev manual 3.6.3.9。LM0 / LM1 は 2 ステップ）
+	nop/2
 # distribute.vsm — @distribute テンプレート
 
-	nop/4
 	nop; wait i10
 	nop/3
 # @distribute _id from_param 16 size 1 $lm0     # per-PE の id
@@ -47,7 +48,6 @@
 	mvp/n512i3f $p7680@0 $lc0@3.1
 	nop/2
 	nop; wait i3f
-	nop/5
 	l2bmb@0 $lc0 $lb64
 	l2bmb@1 $lc64 $lb64
 	l2bmb@2 $lc128 $lb64
@@ -56,9 +56,10 @@
 	l2bmb@5 $lc320 $lb64
 	l2bmb@6 $lc384 $lb64
 	l2bmb@7 $lc448 $lb64
-	nop/5
+	# L2BM -> L1BM の後、同じ番地を読む L1BM -> PE（distribute_tail.vsm の l1bmd）まで 2 ステップ（dev manual 3.6.3.6）
+	nop/2
 	l1bmd $lb64 $lm0v/1000
-	nop/24
+	nop/2
 	lpassa $lr16 $ln4088    # x  -> collect 成分 0
 	nop/2
 	lpassa $lr18 $ln4090    # y  -> collect 成分 1
@@ -72,9 +73,11 @@
 # @collect _out to_param 24 size 4 $ln4088
 # === @collect _out: $ln4088 → L1BM → L2BM → PDM $p8192 ===
 # (:pdm :directive "@collect" :id "_out" :slot 24 :place :pdm0 :addr 8192 :size 16384 :access :write)
-	nop/24
+	# 直前の命令が $ln4088 に書いた場合の待ち（dev manual 3.6.3.9。LM0 / LM1 は 2 ステップ）
+	nop/2
 	l1bmd $ln4088v $lb64
-	nop/24
+	# PE -> L1BM の後、同じ L1BM を読む L1BM -> L2BM（collect_stage.vsm の l2bm@）まで 3 ステップ（dev manual 3.6.3.7）
+	nop/3
 	l2bm@0 $lb64 $lc0
 	l2bm@1 $lb64 $lc64
 	l2bm@2 $lb64 $lc128
@@ -83,7 +86,8 @@
 	l2bm@5 $lb64 $lc320
 	l2bm@6 $lb64 $lc384
 	l2bm@7 $lb64 $lc448
-	nop/5
+	# L1BM -> L2BM の後、その L2BM を読む MV 命令まで 2 ステップ（dev manual 3.6.3.1 と assemble3 は 1 ステップとするが、実機では 1 ステップ後の MV 命令が、書き終わる前の L2BM を読む。2 ステップでは読まない）
+	nop/2
 	mvp/n512 $lc0@0.0 $p8192@0
 	mvp/n512i3f $lc0@0.1 $p8704@0
 	nop/3
@@ -108,7 +112,8 @@
 	l2bm@5 $lb128 $lc832
 	l2bm@6 $lb128 $lc896
 	l2bm@7 $lb128 $lc960
-	nop/5
+	# L1BM -> L2BM の後、その L2BM を読む MV 命令まで 2 ステップ（dev manual 3.6.3.1 と assemble3 は 1 ステップとするが、実機では 1 ステップ後の MV 命令が、書き終わる前の L2BM を読む。2 ステップでは読まない）
+	nop/2
 	mvp/n512 $lc512@0.0 $p12288@0
 	mvp/n512i3f $lc512@0.1 $p12800@0
 	nop/3
@@ -133,7 +138,8 @@
 	l2bm@5 $lb192 $lc1344
 	l2bm@6 $lb192 $lc1408
 	l2bm@7 $lb192 $lc1472
-	nop/5
+	# L1BM -> L2BM の後、その L2BM を読む MV 命令まで 2 ステップ（dev manual 3.6.3.1 と assemble3 は 1 ステップとするが、実機では 1 ステップ後の MV 命令が、書き終わる前の L2BM を読む。2 ステップでは読まない）
+	nop/2
 	mvp/n512 $lc1024@0.0 $p16384@0
 	mvp/n512i3f $lc1024@0.1 $p16896@0
 	nop/3
@@ -158,7 +164,8 @@
 	l2bm@5 $lb256 $lc1856
 	l2bm@6 $lb256 $lc1920
 	l2bm@7 $lb256 $lc1984
-	nop/5
+	# L1BM -> L2BM の後、その L2BM を読む MV 命令まで 2 ステップ（dev manual 3.6.3.1 と assemble3 は 1 ステップとするが、実機では 1 ステップ後の MV 命令が、書き終わる前の L2BM を読む。2 ステップでは読まない）
+	nop/2
 	mvp/n512 $lc1536@0.0 $p20480@0
 	mvp/n512i3f $lc1536@0.1 $p20992@0
 	nop/3
@@ -175,5 +182,4 @@
 	mvp/n512i1e $lc1536@3.1 $p24064@0
 	nop/3
 	nop; wait i1e
-	nop/4
 # (:pdm :directive "@broadcast" :id "_s" :slot 8 :place :pdm0 :addr 0 :size 4 :access :read)

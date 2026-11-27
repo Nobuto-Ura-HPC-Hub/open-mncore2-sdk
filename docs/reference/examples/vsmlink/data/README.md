@@ -23,9 +23,9 @@ examples/data/
 ## 使い方
 
 ```bash
-ninja           # default = all、14 個の bin を created/ に生成
+ninja           # default = all、15 個の bin を created/ に生成
 ninja all       # 同上
-ninja verify    # 全 14 bin の sha256 検証
+ninja verify    # 全 15 bin の sha256 検証
 ```
 
 各 example の `build.ninja` は `fetch_data` ルールで `../data/created/<sha>.bin` を `_build/` にコピーする。
@@ -38,6 +38,7 @@ ninja verify    # 全 14 bin の sha256 検証
 |---------|------|
 | `57b42dea.bin` | 10bit, data_edge なし |
 | `75c77b0f.bin` | 10bit, data_edge あり (4096 PE, offset=0) |
+| `6e52a1be.bin` | 10bit, データが 100 個（PE 0 に data_edge_left、PE 99 に data_edge_right。`--data-len 100`）|
 
 ### identify golden (gen_identify_golden)
 
@@ -78,7 +79,7 @@ ninja verify    # 全 14 bin の sha256 検証
 
 ## 検証
 
-`ninja verify` で全 14 bin の sha256 が `expected` と一致することを確認する。
+`ninja verify` で全 15 bin の sha256 が `expected` と一致することを確認する。
 sha256 値は `build.ninja` 内の各 `verify-<sha>` edge の `expected = ...` に記載。
 
 ## 新しい入力データを追加するときは

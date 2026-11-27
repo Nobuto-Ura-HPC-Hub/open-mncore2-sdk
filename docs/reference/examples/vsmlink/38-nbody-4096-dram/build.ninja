@@ -1,0 +1,118 @@
+# 38-nbody-4096-dram: 他粒子を各グループの DRAM から @broadcast で受ける 3D N 体
+#
+# examples/28-nbody-3d と同じ物理で、@broadcast の読み元だけが違う。粒子ごと並びを、ホストが PDM0 に送り、
+# stage kernel (gen_stage.py) が全グループの DRAM へ mvp で置き、accumulate の分割 kernel (gen_accumulate.py) が
+# DRAM の slot (:place :group-dram) から読む。データの移動の担当と置き場所は README.md の「データの移動」にある。
+#
+# ninja               vsmlink (.vsm 生成)
+# ninja verify        accumulate 分割 0 (N=32) の出力と expected.vsm の diff
+# ninja build-e2e     + assemble3 + host C ビルド
+# ninja test-emu-lib  + emu:lib で実行・検証 (N=32)
+# ninja test-device   + 実機で実行・検証 (N=4096)
+# ninja test-device-dev1  実機の 2 枚目 (デバイス 1) で N=4096 (手動。lit には入れない)
+# ninja compare-28    N=32 の結果が examples/28-nbody-3d の結果とビット単位で一致すること (emu:lib)
+
+include ../../scripts/sdk.ninja
+include ../scripts/vsmlink.ninja
+builddir = _build
+
+# rsqrt のニュートン補正の反復数。0 で補正なし。
+newton = 3
+# 時間積分のステップ数。
+nstep = 3
+# 分割単位 (粒子数)。gen_chunks_ninja.py の CHUNK と一致させること。
+chunk = 128
+
+rule gen_acc
+  command = python3 gen_accumulate.py $start $count $newton $first $out_vsm $out_param
+  description = GEN accumulate 分割 (start=$start count=$count newton=$newton first=$first)
+
+rule gen_stage
+  command = python3 gen_stage.py $n $out_vsm $out_param
+  description = GEN stage (n=$n)
+
+# 入力 (束縛系) を struct 形バイナリで生成。
+rule gen_ic
+  command = python3 gen_ic.py $unroll $out
+  description = GEN ic (N=$unroll)
+
+# accumulate 分割カーネルと stage kernel の edge (生成物)。N ごとに phony accum-n{N} を提供する。
+include accumulate-chunks.ninja
+
+# --- 入力 IC (N 別) ---
+build $builddir/ic_n32.bin: gen_ic gen_ic.py
+  unroll = 32
+build $builddir/ic_n4096.bin: gen_ic gen_ic.py
+  unroll = 4096
+
+# --- 共有カーネル (N 非依存: init / kick / drift / collect) ---
+build $builddir/init.vsm: vsmlink init._vsm init.param
+  vsm = init._vsm
+  param = init.param
+build $builddir/init.idma.dat: asm3_loader $builddir/init.vsm
+  stem = $builddir/init
+build $builddir/kick.vsm: vsmlink kick._vsm kick.param
+  vsm = kick._vsm
+  param = kick.param
+build $builddir/kick.idma.dat: asm3_loader $builddir/kick.vsm
+  stem = $builddir/kick
+build $builddir/drift.vsm: vsmlink drift._vsm drift.param
+  vsm = drift._vsm
+  param = drift.param
+build $builddir/drift.idma.dat: asm3_loader $builddir/drift.vsm
+  stem = $builddir/drift
+build $builddir/collect_pos.vsm: vsmlink collect_pos._vsm collect_pos.param
+  vsm = collect_pos._vsm
+  param = collect_pos.param
+build $builddir/collect_pos.idma.dat: asm3_loader $builddir/collect_pos.vsm
+  stem = $builddir/collect_pos
+build $builddir/collect_vel.vsm: vsmlink collect_vel._vsm collect_vel.param
+  vsm = collect_vel._vsm
+  param = collect_vel.param
+build $builddir/collect_vel.idma.dat: asm3_loader $builddir/collect_vel.vsm
+  stem = $builddir/collect_vel
+
+# 共有 5 カーネルを 1 つの phony に束ねる (test 依存に使う)
+build shared-kernels: phony $builddir/init.idma.dat $builddir/kick.idma.dat $builddir/drift.idma.dat $builddir/collect_pos.idma.dat $builddir/collect_vel.idma.dat
+
+# --- host C (N 別) ---
+# 各 N: -DUNROLL=N -DCHUNK -DACC_FMT (分割ファイル名の printf 書式) -DSTAGE_PATH (stage kernel) を渡す。
+# host は NCHUNK=ceil(N/CHUNK) 個の分割を順にロード・exec する。
+build $builddir/test_nbody_dram_n32.o: cc test_nbody_dram.c
+  cflags = -DUNROLL=32 -DCHUNK=$chunk -DNEWTON=$newton -DNSTEP=$nstep -DACC_FMT=\"_build/accumulate_n32_g%d.idma.dat\" -DSTAGE_PATH=\"_build/stage_n32.idma.dat\" -DIC_DEFAULT=\"_build/ic_n32.bin\" -DRESULT_DIR=\"_result_n32\"
+build $builddir/test_nbody_dram_n32: link_exe $builddir/test_nbody_dram_n32.o
+build $builddir/test_nbody_dram_n4096.o: cc test_nbody_dram.c
+  cflags = -DUNROLL=4096 -DCHUNK=$chunk -DNEWTON=$newton -DNSTEP=$nstep -DACC_FMT=\"_build/accumulate_n4096_g%d.idma.dat\" -DSTAGE_PATH=\"_build/stage_n4096.idma.dat\" -DIC_DEFAULT=\"_build/ic_n4096.bin\" -DRESULT_DIR=\"_result_n4096\"
+build $builddir/test_nbody_dram_n4096: link_exe $builddir/test_nbody_dram_n4096.o
+
+# --- build-e2e (emu:lib = N=32、実機 = N=4096) ---
+build build-e2e: phony shared-kernels accum-n32 $builddir/test_nbody_dram_n32 $builddir/ic_n32.bin
+
+# --- test targets ---
+build test: test_usage
+build test-emu-lib: test_emu_lib $builddir/test_nbody_dram_n32 | shared-kernels accum-n32 $builddir/ic_n32.bin
+build test-device: test_device $builddir/test_nbody_dram_n4096 | shared-kernels accum-n4096 $builddir/ic_n4096.bin
+
+# 実機の 2 枚目 (デバイス 1) で N=4096 (手動。lit には入れない。名指ししたときだけ build される)
+build test-device-dev1: test_device $builddir/test_nbody_dram_n4096 | shared-kernels accum-n4096 $builddir/ic_n4096.bin
+  args = --dev=1
+
+# examples/28-nbody-3d (他粒子を PDM から読む) と同じ N=32・同じ IC・同じ刻みで emu:lib を回し、
+# 位置と速度のスナップショットがビット単位で一致することを確かめる。
+rule compare_28
+  command = ninja -C ../28-nbody-3d test-emu-lib > /dev/null && LD_LIBRARY_PATH=${sdk_root}/lib/emu-lib ./$in && sh compare_with_28.sh ../28-nbody-3d/_result_n32 _result_n32
+  description = COMPARE with 28-nbody-3d (emu:lib, N=32)
+build compare-28: compare_28 $builddir/test_nbody_dram_n32 | shared-kernels accum-n32 $builddir/ic_n32.bin
+
+build clean: clean
+
+default $builddir/accumulate_n32_g0.vsm
+
+# --- verify: golden data ---
+build verify-accumulate: verify_cmd $builddir/accumulate_n32_g0.vsm
+  expected = expected.vsm
+  actual = $builddir/accumulate_n32_g0.vsm
+build verify-stage: verify_cmd $builddir/stage_n32.vsm
+  expected = expected_stage.vsm
+  actual = $builddir/stage_n32.vsm
+build verify: phony verify-accumulate verify-stage

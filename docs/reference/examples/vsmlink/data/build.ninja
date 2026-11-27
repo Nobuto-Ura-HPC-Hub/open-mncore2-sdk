@@ -50,6 +50,13 @@ build created/75c77b0f.bin: gen $builddir/gen_bf_golden
 build verify-75c77b0f: sha256_check created/75c77b0f.bin
   expected = 75c77b0f06bb635fb67d50f8b0ee5cf035723d9429a231a5409d6a587c0fe5ac
 
+# データが 100 個（PE 0〜99）: PE 0 に data_edge_left、PE 99 に data_edge_right。ほかの PE はチップの中の位置のまま（PE 0 と 4095 以外の端を表す）
+build created/6e52a1be.bin: gen $builddir/gen_bf_golden
+  exe = gen_bf_golden
+  args = --data-len 100
+build verify-6e52a1be: sha256_check created/6e52a1be.bin
+  expected = 6e52a1be0f51a51d0a445f89d7b7fd803dabdc3d14e7c571c45adbd1e5e310ac
+
 # --- identify golden (gen_identify_golden) ---
 build $builddir/gen_identify_golden.o: cc_host gen_identify_golden.c
 build $builddir/gen_identify_golden: link_host $builddir/gen_identify_golden.o
@@ -109,7 +116,7 @@ build verify-08063881: sha256_check created/08063881.bin
 
 # --- aggregate ---
 build all: phony $
-    created/57b42dea.bin created/75c77b0f.bin $
+    created/57b42dea.bin created/75c77b0f.bin created/6e52a1be.bin $
     created/ab1449ae.bin created/d202bcfb.bin created/8f8ea7e3.bin $
     created/01becdee.bin created/e4d40321.bin $
     created/d5575075.bin created/75c24047.bin created/7353c2c6.bin $
@@ -117,7 +124,7 @@ build all: phony $
     created/08063881.bin
 
 build verify: phony $
-    verify-57b42dea verify-75c77b0f $
+    verify-57b42dea verify-75c77b0f verify-6e52a1be $
     verify-ab1449ae verify-d202bcfb verify-8f8ea7e3 $
     verify-01becdee verify-e4d40321 $
     verify-d5575075 verify-75c24047 verify-7353c2c6 $

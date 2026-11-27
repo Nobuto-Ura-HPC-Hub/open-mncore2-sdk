@@ -1,0 +1,2 @@
+# RUN: ninja -C %examples/29-float2-float8 build-e2e
+# RUN: ninja -C %examples/29-float2-float8 test-device

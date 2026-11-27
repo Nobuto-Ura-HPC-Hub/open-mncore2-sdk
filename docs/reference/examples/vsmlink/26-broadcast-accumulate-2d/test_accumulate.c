@@ -82,6 +82,9 @@ int main(void) {
     if (mnc2_send(dev, yi_b, OFF_YI, ELEM_BYTES, 0) != MNC2_SUCCESS) { rc = 1; goto done; }
     if (mnc2_send(dev, xi_b, OFF_XI, ELEM_BYTES, DMAID_TRIGGER) != MNC2_SUCCESS) { rc = 1; goto done; }
     if (mnc2_exec_kernel(k_init) != MNC2_SUCCESS) { fprintf(stderr, "FAIL: init\n"); rc = 1; goto done; }
+    /* mnc2_exec_kernel は実行の完了を待たない。init がタグ 0x10 を使い終える前に、ループの最初の送信が
+       同じタグを立てないよう、実行の完了を待つ */
+    if (mnc2_wait_idma_idle(dev) != MNC2_SUCCESS) { fprintf(stderr, "FAIL: idma idle (init)\n"); rc = 1; goto done; }
 
     /* --- ループ: 先頭 NJ 個の星を他粒子として順に配る ---
        @broadcast は 1 粒子の成分が連続した並びを要求するので、distribute とは別の
@@ -94,6 +97,9 @@ int main(void) {
         if (mnc2_send(dev, bm_b, OFF_MJ, BCAST_BYTES, 0) != MNC2_SUCCESS) { rc = 1; goto done; }
         if (mnc2_send(dev, bc_b, OFF_PJ, BCAST_BYTES, DMAID_TRIGGER) != MNC2_SUCCESS) { rc = 1; goto done; }
         if (mnc2_exec_kernel(k_acc) != MNC2_SUCCESS) { fprintf(stderr, "FAIL: acc j=%d\n", j); rc = 1; goto done; }
+        /* 次の j の送信は同じ PDM の番地（OFF_PJ、OFF_MJ）を上書きする。accumulate が @broadcast で読み終える前に
+           上書きしないよう、実行の完了を待つ（mnc2_exec_kernel は実行の完了を待たない） */
+        if (mnc2_wait_idma_idle(dev) != MNC2_SUCCESS) { fprintf(stderr, "FAIL: idma idle (acc j=%d)\n", j); rc = 1; goto done; }
     }
 
     /* --- collect: ax,ay を回収 --- */

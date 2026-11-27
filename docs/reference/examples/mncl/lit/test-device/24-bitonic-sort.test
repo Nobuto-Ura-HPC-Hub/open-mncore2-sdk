@@ -1,0 +1,2 @@
+# RUN: ninja -C %examples/24-bitonic-sort build-e2e
+# RUN: ninja -C %examples/24-bitonic-sort test-device

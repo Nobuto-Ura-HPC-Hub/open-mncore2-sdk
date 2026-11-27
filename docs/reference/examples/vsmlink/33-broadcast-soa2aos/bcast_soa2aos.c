@@ -22,7 +22,7 @@
 
 #define PE      4096
 #define N       64                       /* 実際に使う粒子数 (gen_chunks_ninja.py の N) */
-#define CHUNK   16                       /* 1 区画 = 64 u64 = 16 粒子 */
+#define CHUNK   16                       /* 1 回の移動 = 64 u64 = 16 粒子 */
 #define NSPLIT  ((N + CHUNK - 1) / CHUNK)
 #define NSTEP   2                        /* ダブルバッファを 1 往復 */
 

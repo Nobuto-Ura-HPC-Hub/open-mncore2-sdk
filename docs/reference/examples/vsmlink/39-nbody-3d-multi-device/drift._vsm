@@ -1,0 +1,22 @@
+# ABI PFN3_SBY64
+#
+# drift: leapfrog のドリフト x += v*dt。ホストが 1 ステップにつき 1 回実行する。
+# LM0 常駐: x=$lm0 y=$lm2 z=$lm4 m=$lm6 dt=$lm20 vx=$lm22 vy=$lm24 vz=$lm26
+# バンク: LM0=$lm LM1=$ln GRF0=$lr GRF1=$ls
+#
+# x,v,dt はすべて LM0 なので、dt を GRF0 に写して LM0*LM0 のバンク衝突を避ける。
+#
+# v 修飾子で x,y,z の 3 成分を 1 命令にまとめる (kick._vsm と同じ理屈。dev manual 3.6.1.6)。
+#   $lm22v = vx,vy,vz,dthalf ($lm22,24,26,28)
+#   $lm0v  = x,y,z,m         ($lm0,2,4,6)
+# 4 サイクル目は書き込みマスク /1110 で止める。**$lm6 は質量なので、壊してはいけない。**
+#
+	lpassa $lm20 $lr0                # dt を GRF0 へ
+	nop/2
+	dvmulu $lm22v $lr0 $nowrite      # (vx,vy,vz,dthalf) * dt  PE0,PE1 ぶん
+	dvfmad $lm22v $lr0 $mauf $ls0v   # PE2,PE3 ぶん + $mauf
+	nop/2
+	dvadd $lm0v $ls0v $ln0v          # (x,y,z,m) + v*dt -> $ln0,2,4,6
+	nop/2
+	lpassa $ln0v $lm0v/1110          # x,y,z だけ書き戻す ($lm6 m は書かない)
+	nop/2

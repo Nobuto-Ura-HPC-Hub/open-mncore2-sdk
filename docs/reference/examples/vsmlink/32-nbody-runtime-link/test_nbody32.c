@@ -15,7 +15,7 @@
  * 出力: _result/<tag>_<ts>_<NNNN>.bin (tag=pos のみ) と run のマニフェスト JSON。
  *
  * N / newton / NSTEP / CHUNK は build.ninja から -DUNROLL / -DNEWTON / -DNSTEP / -DCHUNK
- * で渡る。ACC_TEMPLATE / SHARED_PARAM / SHARED_STPARAM / LIVE_STEM も build.ninja から渡る
+ * で渡る。ACC_TEMPLATE / SHARED_PARAM / LIVE_STEM も build.ninja から渡る
  * (README.md の「host が実行時に行うこと」参照)。
  */
 #include <stdio.h>
@@ -92,13 +92,10 @@
 #define RESULT_DIR "_result"
 #endif
 #ifndef ACC_TEMPLATE
-#define ACC_TEMPLATE "_build/k/stripped/nbody32_n32-accumulate_PH._vsm"
+#define ACC_TEMPLATE "_build/k/nbody32_n32-accumulate_PH._vsm"
 #endif
 #ifndef SHARED_PARAM
 #define SHARED_PARAM "_build/nbody32_n32.param"
-#endif
-#ifndef SHARED_STPARAM
-#define SHARED_STPARAM "nbody32.stparam"
 #endif
 #ifndef LIVE_STEM
 #define LIVE_STEM "_build/k/nbody32_n32-accumulate-live"
@@ -186,7 +183,7 @@ static int exec_chunk(mnc2_device_t dev, const char *tmpl, int base_idx,
     if (rc != 0) { fprintf(stderr, "FAIL: write %s\n", live_vsm); return 1; }
 
     char *argv_link[] = { (char *)"vsmlink", (char *)live_vsm, (char *)SHARED_PARAM,
-                          (char *)SHARED_STPARAM, (char *)live_linked, NULL };
+                          (char *)live_linked, NULL };
     if (run_cmd(argv_link) != 0) { fprintf(stderr, "FAIL: vsmlink (base_idx=%d)\n", base_idx); return 1; }
 
     char *argv_asm[] = { (char *)"assemble3", (char *)live_linked, (char *)"--output-file",

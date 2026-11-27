@@ -2,8 +2,6 @@
 #
 # PE の LM まで到達してそのまま戻す。計算なし。
 # 入力 = 出力になることが検証条件。
-#
-# 参考: study-mncore2/src/debug-step3-l1bmd-roundtrip.vsm
 
 # distribute: PDM -> L2BM -> L1BM -> LM (vsmlink が mvp + l2bmb + l1bmd に展開)
 	@distribute _arg_a from_param 8 size 1 $lm0

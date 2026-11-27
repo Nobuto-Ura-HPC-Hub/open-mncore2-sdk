@@ -75,10 +75,9 @@ def main():
                         "  param_b = {bb}.param".format(bb=bb),
                     ]
                 out += [
-                    "build {b}.vsm: vsmlink {b}._vsm {b}.param step.stparam".format(b=b),
+                    "build {b}.vsm: vsmlink {b}._vsm {b}.param".format(b=b),
                     "  vsm = {b}._vsm".format(b=b),
                     "  param = {b}.param".format(b=b),
-                    "  stparam = step.stparam",
                     "build {b}.idma.dat: asm3_loader {b}.vsm".format(b=b),
                     "  stem = {b}".format(b=b),
                 ]

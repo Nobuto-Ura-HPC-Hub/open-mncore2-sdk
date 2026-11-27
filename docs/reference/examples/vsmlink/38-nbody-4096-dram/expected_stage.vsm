@@ -1,0 +1,21 @@
+# ABI PFN3_SBY64
+#
+# stage: PDM0 の粒子ごと並び 128 u64 (PDM0 の 20480 番地から) を、全グループ (0..3) の DRAM の 0 番地から置く。
+# ** 自動生成: gen_stage.py。手で編集しない **
+#
+	mvp/n128i3e $p20480@0 $d0@0
+	nop/3
+	nop; wait i3e
+	nop/5
+	mvp/n128i3e $p20480@0 $d0@1
+	nop/3
+	nop; wait i3e
+	nop/5
+	mvp/n128i3e $p20480@0 $d0@2
+	nop/3
+	nop; wait i3e
+	nop/5
+	mvp/n128i3e $p20480@0 $d0@3
+	nop/3
+	nop; wait i3e
+	nop/5

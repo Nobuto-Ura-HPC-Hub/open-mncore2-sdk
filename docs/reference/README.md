@@ -7,8 +7,8 @@ SDK にインストールされたドキュメントの自動生成インデッ�
 | mnc2-inspect-kit | 0.1.6 |
 | sdk-base-kit | 0.1.13 |
 | libmnc2-kit | 0.4.3 |
-| vsmlink-kit | 0.10.2 |
-| mncl-kit | 0.3.4 |
+| vsmlink-kit | 0.10.3 |
+| mncl-kit | 0.3.5 |
 
 ## mnc2-inspect (0.1.6)
 
@@ -20,16 +20,19 @@ SDK にインストールされたドキュメントの自動生成インデッ�
 - [bin-tools.md](mnc2/bin-tools.md)
 - [usage.md](mnc2/usage.md)
 
-## mncl (0.3.4)
+## mncl (0.3.5)
 
 - [api-reference.md](mncl/api-reference.md)
+- [mad.md](mncl/mad.md)
+- [standard-functions.md](mncl/standard-functions.md)
 
-## vsmlink (0.10.2)
+## vsmlink (0.10.3)
 
 - [api-reference.md](vsmlink/api-reference.md)
+- [data-to-pe-mapping.md](vsmlink/data-to-pe-mapping.md)
 - [directives-spec.md](vsmlink/directives-spec.md)
+- [hw-pe-id.md](vsmlink/hw-pe-id.md)
 - [param-spec.md](vsmlink/param-spec.md)
-- [stparam-spec.md](vsmlink/stparam-spec.md)
 - [test-guide.md](vsmlink/test-guide.md)
 
 ## examples
@@ -38,7 +41,7 @@ SDK にインストールされたドキュメントの自動生成インデッ�
 
 - libmnc2/ (0.4.3)
 - mnc2-inspect/ (0.1.6)
-- mncl/ (0.3.4)
+- mncl/ (0.3.5)
 - scripts/
-- vsmlink/ (0.10.2)
+- vsmlink/ (0.10.3)
 

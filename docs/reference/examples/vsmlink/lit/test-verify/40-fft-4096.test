@@ -1,0 +1,5 @@
+# examples の 3 段階検証の 1 段目: vsmlink が正しい VSM を生成すること
+#
+# 短い版（8 点、3 段）の出力と expected.vsm の diff。 golden が古くなると FAIL する。
+#
+# RUN: ninja -C %examples/40-fft-4096 verify

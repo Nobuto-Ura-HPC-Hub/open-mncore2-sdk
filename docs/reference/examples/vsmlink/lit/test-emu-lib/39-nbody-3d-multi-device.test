@@ -1,0 +1,6 @@
+# 39-nbody-3d-multi-device の emu:lib での値照合 (N=32、デバイス 1 枚、4 タイムステップ)。
+# emu:lib ではデバイスを 1 枚しか使えない (デバイス 1 は開けず、デバイス 0 を 2 回開くと異常終了する)ので、
+# 2 枚の動作は実機で手動で確かめる (README の「実機での確認」)。
+# 長いテスト: N 体（アプリ系）。時間は粒子の全対全の大きさで決まる。普段は流さず、--param long=1 のときだけ流す。
+# REQUIRES: long
+# RUN: ninja -C %examples/39-nbody-3d-multi-device test-emu-lib

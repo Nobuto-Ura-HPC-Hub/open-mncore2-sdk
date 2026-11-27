@@ -7,10 +7,9 @@ builddir = _build
 # --- kernel ---
 build $builddir/vecdiv-with-newton-raphson._vsm: emit-vsm vecdiv-with-newton-raphson.cl
 
-build $builddir/vecdiv-with-newton-raphson.vsm: vsmlink $builddir/vecdiv-with-newton-raphson._vsm vecdiv-with-newton-raphson.param vecdiv-with-newton-raphson.stparam
+build $builddir/vecdiv-with-newton-raphson.vsm: vsmlink $builddir/vecdiv-with-newton-raphson._vsm vecdiv-with-newton-raphson.param
   vsm = $builddir/vecdiv-with-newton-raphson._vsm
   param = vecdiv-with-newton-raphson.param
-  stparam = vecdiv-with-newton-raphson.stparam
 
 build $builddir/vecdiv-with-newton-raphson.asm: asm3 $builddir/vecdiv-with-newton-raphson.vsm
 build $builddir/vecdiv-with-newton-raphson.idma.dat | $builddir/vecdiv-with-newton-raphson.idma.inst $builddir/vecdiv-with-newton-raphson.idma.inst.txt $builddir/vecdiv-with-newton-raphson.ddma.dat $builddir/vecdiv-with-newton-raphson.ddma.inst $builddir/vecdiv-with-newton-raphson.ddma.inst.txt: asm3_loader $builddir/vecdiv-with-newton-raphson.vsm

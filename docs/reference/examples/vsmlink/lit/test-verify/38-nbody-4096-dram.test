@@ -1,0 +1,6 @@
+# examples の 3 段階検証の 1 段目: vsmlink が正しい VSM を生成すること
+#
+# accumulate 分割 0 (N=32、@broadcast の slot が :place :group-dram) と stage kernel の出力を、
+# expected.vsm / expected_stage.vsm と diff する。 golden が古くなると FAIL する。
+#
+# RUN: ninja -C %examples/38-nbody-4096-dram verify

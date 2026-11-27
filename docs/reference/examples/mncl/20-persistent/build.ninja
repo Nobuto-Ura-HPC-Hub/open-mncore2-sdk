@@ -1,0 +1,45 @@
+# 20-persistent: persistent の変数 acc を 2 つの kernel（init、accum）で共有する
+#
+# ninja              -> .cl -> ._vsm -> kernel ごとの .vsm
+# ninja build-e2e    -> + vsmlink + assemble3 + host C
+# ninja test         -> usage 表示
+# ninja test-emu-lib -> emu:lib backend で実行・検証
+# ninja test-device  -> 実機 backend で実行・検証
+#
+# 1 つの _vsm に kernel が 2 つあるので、vsmlink の出力先はディレクトリになり、
+# kernel ごとに persistent-init.vsm と persistent-accum.vsm が出る。
+
+include ../scripts/mncl.ninja
+include ../../scripts/sdk.ninja
+builddir = _build
+
+# --- kernel ---
+build $builddir/persistent._vsm: emit-vsm persistent.cl
+
+build $builddir/multikernel/persistent-init.vsm $builddir/multikernel/persistent-accum.vsm: vsmlink-multikernel $builddir/persistent._vsm persistent.param
+  vsm = $builddir/persistent._vsm
+  param = persistent.param
+  outdir = $builddir/multikernel
+
+build $builddir/init.asm: asm3 $builddir/multikernel/persistent-init.vsm
+build $builddir/init.idma.dat | $builddir/init.idma.inst $builddir/init.idma.inst.txt $builddir/init.ddma.dat $builddir/init.ddma.inst $builddir/init.ddma.inst.txt: asm3_loader $builddir/multikernel/persistent-init.vsm
+  stem = $builddir/init
+
+build $builddir/accum.asm: asm3 $builddir/multikernel/persistent-accum.vsm
+build $builddir/accum.idma.dat | $builddir/accum.idma.inst $builddir/accum.idma.inst.txt $builddir/accum.ddma.dat $builddir/accum.ddma.inst $builddir/accum.ddma.inst.txt: asm3_loader $builddir/multikernel/persistent-accum.vsm
+  stem = $builddir/accum
+
+# --- host driver ---
+build $builddir/test_persistent.o: cc test_persistent.c
+build $builddir/test_persistent: link $builddir/test_persistent.o
+
+# --- ビルド段階 phony ---
+build build-e2e: phony $builddir/init.asm $builddir/init.idma.dat $builddir/accum.asm $builddir/accum.idma.dat $builddir/test_persistent
+
+# --- test 3 種 ---
+build test-emu-lib: test_emu_lib $builddir/test_persistent | $builddir/init.idma.dat $builddir/accum.idma.dat
+build test-device:  test_device  $builddir/test_persistent | $builddir/init.idma.dat $builddir/accum.idma.dat
+build test:         test_usage
+
+
+default $builddir/init.asm $builddir/init.idma.dat $builddir/accum.asm $builddir/accum.idma.dat

@@ -1,75 +1,65 @@
-# vsmlink examples: .stparam チュートリアル
+# vsmlink examples
 
-`.stparam` は構造パラメタ（structural parameters）を S 式で記述するファイル。
-vsmlink コマンドに対してステンシルの形状・PE 配置・境界条件を伝える。
+vsmlink コマンドの使い方の例。各 example は `_vsm` と配置パラメタ（`.param`）から `.vsm` を作り、
+多くは emu:lib（と実機）で結果を確かめる。
 
-フィールド一覧・境界条件・変更履歴は [`stparam-spec.md`](../../vsmlink/stparam-spec.md) を参照。
+## 動かし方
 
-## pe_shape
+SDK を有効にし、`sdk-examples` で examples を作業ディレクトリにコピーして、各 example のディレクトリで `ninja` を実行する。
 
-4096 PE をどういう形状で使うかの指定。積は 4096。
-
-```lisp
-(:pe_shape (4096))        ; 1D
-(:pe_shape (64 64))       ; 2D
-(:pe_shape (16 16 16))    ; 3D
+```bash
+source <SDK>/bin/activate
+sdk-examples vsmlink                 # vsmlink-<版>/ にコピーする
+cd vsmlink-<版>/02-vecadd
+ninja                                # vsmlink コマンドで .vsm を生成
+ninja build-e2e                      # assemble3 とホスト側のビルド
+ninja test-emu-lib                   # emu:lib で実行
 ```
 
-独立計算（vecadd 等）では pe_shape を変えても計算結果は同じ。
-アプリケーションの配列次元に合わせて設定する。
+lit で全体を流すときは、`vsmlink-<版>/` で `lit -j1 --order=lexical lit/test-emu-lib/`（実機では `lit/test-device/`）。
+時間のかかるテストは `--param long=1` を付けたときだけ流れる。
 
 ## examples
 
 ### 01-roundtrip — DMA いってかえって
 
-最小構成。将来 E2E (host-dma 連携) の起点。
+最小構成。
 
 ### 02-vecadd — 1D ベクトル加算
 
-pe_shape (4096) の 1D 独立計算。golden data による検証あり。
+4096 PE の 1D 独立計算。golden data による検証あり。
 
 ```bash
-vsmlink vecadd._vsm vecadd.param vecadd.stparam out.vsm
+vsmlink vecadd._vsm vecadd.param out.vsm
 diff out.vsm expected.vsm   # 一致すれば OK
 ```
 
 ### 03-vecadd-2d — 2D ベクトル加算
 
-同一カーネルを pe_shape (64 64) で実行。data_layout は影響しない。
+02-vecadd と同じカーネルを、ホストの側で 64 x 64 の 2 次元の配列として扱う。
 
 ### 04-vecadd-3d — 3D ベクトル加算
 
-同一カーネルを pe_shape (16 16 16) で実行。data_layout は影響しない。
+02-vecadd と同じカーネルを、ホストの側で 16 x 16 x 16 の 3 次元の配列として扱う。
 
 ### 05-stencil1d — 1D 3 点ステンシル
 
-全フィールド使用。boundary, variables を指定。golden data による検証あり。
+`@get_neighbor` で左右の隣の値を受け取る。端の PE には自分の値を入れる（`:reg <src>`）。golden data による検証あり。
 
-### 06-jacobi2d — 2D 5 点（十字型）
-
-パース確認用。2D のオフセット配置の例。
-
-### 07-box2d — 2D 9 点（箱型）
-
-パース確認用。対角を含む 8 方向オフセット。
-
-### 08-himeno3d — 3D 7 点
-
-パース確認用。姫野ベンチマーク相当。変数 7 つ。
+06〜08 は欠番である（番号は詰めない）。
 
 ### 09-dmaid-conflict — DMA タグ衝突の検証
 
-dmaid=0x23 のタグ衝突が仕様であることの検証。
+ホストが vsmlink の予約タグ（この example では `#x3f`）と同じ dmaid で送ると、タグが衝突して失敗することの検証。
 
-### 10-mem-default — :mem 省略（デフォルト :pdm0）
+### 10-mem-default — :place 省略（デフォルト :pdm0）
 
-01-roundtrip と同一カーネルだが、.param で `:mem` を省略。
-`:mem` なしでも `:pdm0` として動作することの検証。
+01-roundtrip と同一カーネルだが、.param で `:place` を省略。
+`:place` なしでも `:pdm0` として動作することの検証。
 
 ### 11-odd-even-sort — Odd-Even Transposition Sort
 
 各 PE が左右の隣接 PE とデータを比較し、奇数/偶数フェーズを交互に実行してソートする。
-cross MAB・cross L1B を段階的に構築する step0〜step7 を含む。
 
 ### 12-l1b-crossing — cross L1B テスト
 
@@ -89,12 +79,12 @@ maskr を使ったネスト分岐のテスト。フラグ組み合わせで異�
 
 ### 16-mask-safety-T4-debug — 15 のデバッグ版
 
-debug_read で GRF0 を直接読む。emu:process または実機が必要（emu:lib は 0 を返す）。
+debug_read で GRF0 を直接読む。emu:lib または emu:process で動かす。実機は `mnc2_debug_read` が未サポートなので対象外（libmnc2 の `api-reference.md`「対応メモリ領域 (バックエンド別)」）。
 
 ### 17-boundary-collect — @boundary_flags collect
 
-`@boundary_flags`（distribute 版）で各 PE の HW レジスタから計算した 8bit 境界フラグを
-@collect で PDM に回収し、ホスト側で期待値と照合する。
+各 PE の HW レジスタ（`$subpeid`、`$mabid`、`$l1bid` など）から計算した 10bit の境界フラグを
+@collect で PDM に回収し、ホスト側で期待値と照合する。`@boundary_flags` で配るデータを作るためのもの。
 
 ### 18-bf-verify — @boundary_flags 検証（golden override → stencil）
 
@@ -106,9 +96,10 @@ golden が正しければ PASS、全ゼロなら境界 PE で結果がずれて 
 output[i] = left[i] + center[i] + right[i] の 1D 3 点ステンシル。
 @boundary_flags でホストから配布した境界フラグを使用。
 
-### 20-stencil1d-distribute — 1D ステンシル（distribute 版）
+### 20-stencil1d-distribute — 1D ステンシル（境界フラグを PE の上で計算）
 
-19 と同等だが、ホスト事前計算の境界フラグを配布するベースライン構成。
+05 と同じ 1D 3 点ステンシル。境界フラグは各 PE が自分の位置のレジスタから計算し、ホストからは送らない
+（計算の命令列は `_vsm` に直接書いてある）。
 
 ### 21-get-neighbor — @get_neighbor テスト
 
@@ -137,7 +128,7 @@ odd-even sort と @reduce を組み合わせたパイプライン。
 
 ### 27-roundtrip-size4 — @distribute / @collect 往復（成分数可変）
 
-`@distribute`と`@collect`の往復を、成分数（size）を引数で変えながら検証する。他の example と異なりこのディレクトリに専用README.mdは無い。詳細は`test_roundtrip4.c`のコメントを参照。
+`@distribute`と`@collect`の往復を、成分数（size）を引数で変えながら検証する。
 
 ### 28-nbody-3d — 3D N 体（distribute / broadcast / collect + rsqrt 重力）
 
@@ -153,7 +144,7 @@ odd-even sort と @reduce を組み合わせたパイプライン。
 
 ### 31-nbody-host-mediated-loop — kernel 数の N 非依存と host 不介在ループは両立しない
 
-`@kernel_begin`/`@kernel_end` による kernel 分割を、単体テストの外で実アプリケーション規模の入力に対して（将来 MNCL が複数 kernel 入りの `_vsm` を出すことを見据えて）検証する目的で作った example。28-nbody-3d を基礎に、accumulate（全対全の力計算）を「CHUNK 粒子ずつ固定 PDM 領域を読む 1 個の kernel」にし、host が「送信 -> exec」を繰り返す形に書き換えた。手書き kernel 6 個は本来 1 個ずつ別々に vsmlink へかければ済むが、あえて 1 本の `_vsm` に合成してから分割し直している（詳細は本 example の README.md）。28 は分割ごとに別々の kernel を生成していた（kernel 数が N に依存するが host 不介在）のに対し、31 は kernel 数が N に依存しない代わりに host が毎回データを詰め替える。この trade-off が MN-Core2 の本質的な制約（`@broadcast` の PDM 番地が link 時固定、ループを持たない静的スケジュール）に由来することを、作業を進める中で発見した。速度はホストへ回収しない。
+`@kernel_begin`/`@kernel_end` によるマルチカーネル `_vsm` を、単体テストの外で実アプリケーション規模の入力に対して検証する example。28-nbody-3d を基礎に、accumulate（全対全の力計算）を「CHUNK 粒子ずつ固定 PDM 領域を読む 1 個の kernel」にし、host が「送信 -> exec」を繰り返す形に書き換えた。手書き kernel 6 個は本来 1 個ずつ別々に vsmlink へかければ済むが、あえて 1 本の `_vsm` に合成してから kernel ごとに変換している（詳細は本 example の README.md）。28 は分割ごとに別々の kernel を生成していた（kernel 数が N に依存するが host 不介在）のに対し、31 は kernel 数が N に依存しない代わりに host が毎回データを詰め替える。この trade-off が MN-Core2 の本質的な制約（`@broadcast` の PDM 番地が link 時固定、ループを持たない静的スケジュール）に由来する。速度はホストへ回収しない。
 
 ### 32-nbody-runtime-link — host が実行時に vsmlink を呼び直す 3D N 体
 
@@ -164,20 +155,30 @@ odd-even sort と @reduce を組み合わせたパイプライン。
 実行時に呼び直す構成を実装した。emu:lib での実行・値照合まで確認済み（N=32）。
 詳細は本 example の README.md。
 
+### 35-emit-from-debug — @emit_from でデバッグ用に PE の値を書き出す
+
+全 PE に初期値を @distribute で配り、@broadcast の値（1〜4197）を 1 回ごとに足し、足した後の値を @emit_from で書き出す（2048 回目までは HW PE ID 817、以降は 529）。最後に @reduce で全 PE の合計を取り、その受信で kernel の終わりを待って、ホストが書き出しと合計を f64 の完全一致で照合する。演算は dvadd（f64）。
+
+### 36-bitonic-sort — バイトニックソート（4096 個、f64、@get_hypercube_neighbor）
+
+比較・交換の相手（PE の番号の 1 つのビットを反転した PE）の値を @get_hypercube_neighbor で受け取る、4096 個のバイトニックソート。全 78 ステップを 1 つの kernel に並べる。ホストは、kernel と同じ規則で計算した配列と、4096 個すべてを比べる。emu:lib も実機も、78 ステップを実行して、全体が昇順になることを確かめる。比較は dmin / dmax（fp64）。
+
+### 37-bitonic-sort-8192 — バイトニックソート（8192 個、f64、各 PE が 2 つの値を持つ）
+
+36 の続きで、4096 個を超える個数でも @get_hypercube_neighbor が使えることを見せる。各 PE が 2 つの値（A と B）を持ち、deep 0〜11 の段は A と B のそれぞれに @get_hypercube_neighbor を呼び、deep 12 にあたる段は同じ PE の中で dmin / dmax で入れ替える。全 91 ステップを 1 つの kernel に並べ、emu:lib も実機も、全体が昇順になることを確かめる。
+
+### 38-nbody-4096-dram — 3D N 体（他粒子を各グループの DRAM から @broadcast で受ける）
+
+28-nbody-3d と同じ物理で、他粒子を @broadcast が読む場所だけを PDM から DRAM（`.param` の `:place :group-dram`）に変えた example。ホストが PDM0 に送った粒子ごと並びを、stage kernel（`_vsm` に `mvp` を直接書いた kernel）が全グループの DRAM へ置く。emu:lib は N=32、実機は N=4096。ホストの引数 `--dev=<n>` で実機のデバイス番号を選べる。ホスト・`_vsm` に直接書いた `mvp`・directive のどれがどのデータを動かすかと、PDM0 と DRAM の配置は、本 example の README.md の「データの移動」に書いてある。
+
+### 39-nbody-3d-multi-device — 3D N 体（MN-Core2 を複数枚使う。他粒子は各デバイスの DRAM から @broadcast で受ける）
+
+38 の方式に、複数のデバイスへの分割を足した example。粒子を 1 枚あたり N / (デバイス数) 個に分けて各デバイスに割り当て、毎タイムステップ、ホストが全デバイスの結果を集めて全粒子の並びにし、全デバイスの DRAM へ入れ直す（デバイス同士は直接つながらない）。実機は 2 枚で N=8192、4 枚で N=16384（星団 2 個の衝突を 2000 タイムステップ流し、`make_mp4.py` で mp4 にできる）。ホストの引数 `--devs=<番号>,<番号>` で使うデバイスを選ぶ。emu:lib は、デバイス 1 枚、N=32 だけである。ホスト・`_vsm` に直接書いた `mvp`・directive のどれがどのデータを動かすかと、PDM0 と DRAM の配置は、本 example の README.md の「データの移動」に書いてある。
+
+### 40-fft-4096 — FFT（4096 点、複素 f64、@get_hypercube_neighbor）
+
+周波数間引き型、基数 2 の 4096 点の FFT。各 PE が 1 点（実部と虚部）を持ち、12 段それぞれで、相手（PE の番号の 1 つのビットを反転した PE）の値を @get_hypercube_neighbor で受け取る。下側の PE は x + y、上側の PE は (y − x) · w を計算し、w の表はホストが @distribute で配る。出力はビット反転順。入力は引数のファイル（実際の波形も使える）で渡し、期待値は Python（numpy の FFT）で作って、ノルム誤差で比べる（基準は README.md の「許容誤差」）。8 点の試作が `proto-8pt/` にある。
+
 ## .param 形式
 
 `.param` の仕様は [`param-spec.md`](../../vsmlink/param-spec.md) を参照。
-
-## API での使い方
-
-```c
-#include "vsmlink.h"
-
-vsmlink_structure_t st = {0};
-int rc = vsmlink_parse_stparam_file("kernel.stparam", &st);
-if (rc != VSMLINK_SUCCESS) { /* error */ }
-
-// st.ndim, st.pe_shape, st.pe_local 等が使える
-
-vsmlink_free_structure(&st);
-```

@@ -1,21 +1,21 @@
-# 31-nbody-host-mediated-loop: kernel 分割機能を使った 3D N 体
+# 31-nbody-host-mediated-loop: マルチカーネル `_vsm` を使った 3D N 体
 
 `examples/28-nbody-3d` (3D N 体、全対全の力計算) を基礎に、vsmlink コマンドに入った
-kernel 分割機能 (`@kernel_begin`/`@kernel_end`) を、vsmlink コマンドの単体テスト
+マルチカーネル `_vsm` (`@kernel_begin`/`@kernel_end`) を、vsmlink コマンドの単体テスト
 の外で、実際のアプリケーションに対して使ってみる example として作った。
 
 ## 一見遠回りに見える構成 (意図的)
 
 **この 6 個の kernel はどれも機能的には独立しており、本来なら 28-nbody-3d の
 `init._vsm`/`kick._vsm`/`drift._vsm`/`collect_pos._vsm` のように、1 個ずつ別々に
-`vsmlink` へかければ済む（`*._vsm` → `*.vsm` の 1 対 1）。kernel 分割は無くても
+`vsmlink` へかければ済む（`*._vsm` → `*.vsm` の 1 対 1）。マルチカーネル `_vsm` は無くても
 このアプリケーションは成立する。**
 
-それをあえて「1 本にまとめてから分割する」形にしているのは、**MNCL を見据えてのこと**
+それをあえて「1 本にまとめてから kernel ごとに変換する」形にしているのは、**MNCL を見据えてのこと**
 である。実際の MNCL は複数 kernel を最初から 1 本の `_vsm` として出力する
 (単体テストの入力は実物の MNCL 生成物の例で、1 本のファイルに
 `@kernel_begin writer` / `@kernel_begin reader` が両方入っている)。将来 MNCL が
-このような複数 kernel 入りの `_vsm` を実際に出すようになったとき、vsmlink の kernel 分割が
+このような複数 kernel 入りの `_vsm` を実際に出すようになったとき、vsmlink のマルチカーネル `_vsm` の処理が
 小さな検証用の入力だけでなく、**実アプリケーション規模の
 入力に対しても正しく動くこと**を、この example で先に確認しておく。
 
@@ -23,17 +23,17 @@ kernel 分割機能 (`@kernel_begin`/`@kernel_end`) を、vsmlink コマンド�
 
 - `init._vsm` / `reset_acc._vsm` / `kick._vsm` / `drift._vsm` / `collect_pos._vsm` は
   最初から別ファイルとして手書きしている (28-nbody-3d が kernel ごとに別ファイルで書く
-  慣習をそのまま踏襲した)。**kernel 分割が実際に起きるのはビルド時**で、これらのファイルを
+  慣習をそのまま踏襲した)。**kernel ごとに分かれるのはビルド時**で、これらのファイルを
   見ているだけでは分からない
 1. `gen_nbody31.py` がこの 5 個の手書きファイルと、生成した `accumulate` の中身を
    `@kernel_begin`/`@kernel_end` で包み、**1 本の `_build/nbody31._vsm` に合成する**
    (init / reset_acc / accumulate / kick / drift / collect_pos の 6 kernel が並ぶ。
    `ninja` でビルドした後に `grep kernel _build/nbody31._vsm` で実際に確認できる)
-2. `vsmlink` がその 1 本を **6 個の `.vsm` に分割し直す** (`_build/k/nbody31-*.vsm`)
+2. `vsmlink` がその 1 本を **6 個の `.vsm` に変換する** (`_build/k/nbody31-*.vsm`)
 
 ## この example が示すこと (作業を進める中で分かったこと)
 
-もともとの目的は「kernel 分割機能を使う example を作る」ことであり、以下の結論はそれを
+もともとの目的は「マルチカーネル `_vsm` を使う example を作る」ことであり、以下の結論はそれを
 目指して見つけたものではなく、作業を進める過程で偶然見つかったものである。
 
 **kernel 数を N に依存させないことと、host が介在しない device 側だけのループは、
@@ -49,7 +49,7 @@ kernel 分割機能 (`@kernel_begin`/`@kernel_end`) を、vsmlink コマンド�
 この 2 点により、1 個の kernel では足りない大きさのデータを device 側だけで処理するには、
 必要な数だけ番地の異なる kernel を並べる (28 の方式。kernel 数が N に依存するが host は
 介在しない) か、1 個の kernel を使い回してそのたびに host がデータを詰め替える (31 の方式。
-kernel 数は N に依存しないが host が介在する) かの二択しかない。kernel 分割は
+kernel 数は N に依存しないが host が介在する) かの二択しかない。マルチカーネル `_vsm` は
 「1 つの `_vsm` に含まれる別々の名前を持つ kernel を切り出す」機能であり、この二択
 そのものを解消する機能ではない。
 
@@ -70,7 +70,7 @@ kernel 数が N に依存する。
 「次の区間をその領域へ送信 -> 同じ kernel を exec」を繰り返す。ループが host 側に移るので、
 kernel 数は N に依存しない (6 個で固定)。手書き kernel 5 個 + 生成 accumulate kernel を
 `@kernel_begin`/`@kernel_end` で 1 本の `_vsm` にまとめ、vsmlink 1 回の呼び出しで
-kernel ごとの `.vsm` に分割させる。
+kernel ごとの `.vsm` に変換させる。
 
 同じ kernel を繰り返し exec して都度 PDM から読み直す形自体は 31 が最初ではない。
 `examples/26-broadcast-accumulate-2d` に前例があり (送信 -> exec -> 次の送信、を繰り返す)、
@@ -176,34 +176,35 @@ slot 8 を使い回せた)。
 |---------|------|
 | `init._vsm` `reset_acc._vsm` `kick._vsm` `drift._vsm` `collect_pos._vsm` | 手書き kernel の本体 (28 からの複製 + slot 番号の付け替え) |
 | `gen_nbody31.py` | 手書き kernel 5 個 + 生成 accumulate kernel を `@kernel_begin`/`@kernel_end` で束ね、1 本の `_vsm` と `.param` を出力する |
-| `nbody31.stparam` | 28 の `nbody3d.stparam` と同一内容 |
 | `gen_ic.py` | CI 用の束縛系を struct 形バイナリで生成 (28 と同一) |
 | `test_nbody31.c` | 入力を mmap で読み、init + 初回力評価 + (kick+drift+collect_pos+書き戻し+力評価+kick) x NSTEP、`_result/` へ位置スナップショット出力、host 倍精度の leapfrog と位置を照合し、束縛 (最大半径) を見る |
-| `build.ninja` | 生成・vsmlink 分割・assemble3・host C ビルド・test target |
+| `build.ninja` | 生成・vsmlink（マルチカーネル `_vsm` の変換）・assemble3・host C ビルド・test target |
 | `expected-init.vsm` | `verify` 用の golden (init kernel の展開結果) |
 
 ## ビルド・実行
 
 ```
-source scripts/overlay
-ninja -C examples/31-nbody-host-mediated-loop              # 生成 + vsmlink (kernel 分割)
-ninja -C examples/31-nbody-host-mediated-loop verify        # expected-init.vsm と diff
-ninja -C examples/31-nbody-host-mediated-loop build-e2e     # + assemble3 + C ビルド
-ninja -C examples/31-nbody-host-mediated-loop test-emu-lib  # emu:lib で実行・照合 (CI は N=32)
+# SDK を有効にし、この example のディレクトリで実行する（examples の README.md の「動かし方」）
+ninja              # 生成 + vsmlink (マルチカーネル `_vsm` の変換)
+ninja verify        # expected-init.vsm と diff
+ninja build-e2e     # + assemble3 + C ビルド
+ninja test-emu-lib  # emu:lib で実行・照合 (CI は N=32)
 ```
 
 ### device で大きい N
 
 ```
-../../libmnc2-0.4.1-rc2/u02-run-idma/_build/reset
-ninja -C examples/31-nbody-host-mediated-loop test-device-n4096   # または -n128 / -n1024
+ninja test-device-n4096   # または -n128 / -n1024
 ```
+
+実機に前回の実行の状態が残っている場合は、リセットしてから実行する（libmnc2 の `mnc2_reset`、
+`share/mnc2/api-reference.md`）。
 
 N=128/1024/4096 の実機実行、および 28 との実機照合は未実行 (別途判断)。
 
 ## 検証状況
 
-- **vsmlink の kernel 分割**: `ninja` で 6 個の `.vsm` を生成、`ninja verify` で init kernel の
+- **vsmlink のマルチカーネル `_vsm`**: `ninja` で 6 個の `.vsm` を生成、`ninja verify` で init kernel の
   golden 一致を確認済み。`accumulate` kernel は CHUNK=16 で、PDM 転送 (`mvb`) と
   送信完了待ち (`wait i10`) がそれぞれ 1 回だけ生成されることを確認済み
 - **assemble3 以降 (build-e2e / test-emu-lib、N=32)**: `ninja build-e2e` で 6 kernel の

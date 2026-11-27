@@ -1,6 +1,8 @@
 /* gen_bf_golden.c — @boundary_flags 検証用 golden バイナリ生成
  *
- * Usage: ./gen_bf_golden ok   <output_file> [--edge-left] [--edge-right]
+ * Usage: ./gen_bf_golden ok   <output_file> [--edge-left] [--edge-right] [--data-len <n>]
+ *   --data-len <n>: データが PE 0 から n-1 にあるとして、PE 0 に data_edge_left、PE n-1 に data_edge_right を立てる
+ *                   （フラグはワンホットなので、その PE のもとのビットと置き換える）
  *        ./gen_bf_golden zero <output_file>
  *
  * 出力: 4096 要素 × 8 バイト (uint64_t) のバイナリ
@@ -54,7 +56,7 @@ static uint64_t expected_flags(int pe_id, int edge_left, int edge_right)
 int main(int argc, char *argv[])
 {
     if (argc < 3) {
-        fprintf(stderr, "usage: %s <ok|zero> <output_file> [--edge-left] [--edge-right]\n", argv[0]);
+        fprintf(stderr, "usage: %s <ok|zero> <output_file> [--edge-left] [--edge-right] [--data-len <n>]\n", argv[0]);
         return 1;
     }
 
@@ -68,16 +70,25 @@ int main(int argc, char *argv[])
         return 1;
     }
 
-    int edge_left = 0, edge_right = 0;
+    int edge_left = 0, edge_right = 0, data_len = 0;
     for (int i = 3; i < argc; i++) {
         if (strcmp(argv[i], "--edge-left") == 0) edge_left = 1;
         if (strcmp(argv[i], "--edge-right") == 0) edge_right = 1;
+        if (strcmp(argv[i], "--data-len") == 0 && i + 1 < argc) data_len = atoi(argv[++i]);
+    }
+    if (data_len < 0 || data_len > ELEM_COUNT) {
+        fprintf(stderr, "error: --data-len must be 1..%d\n", ELEM_COUNT);
+        return 1;
     }
 
     uint64_t buf[ELEM_COUNT];
     if (ok_mode) {
         for (int i = 0; i < ELEM_COUNT; i++)
             buf[i] = expected_flags(i, edge_left, edge_right);
+        if (data_len > 0) {
+            buf[0] = 1 << 9;              /* data_edge_left */
+            buf[data_len - 1] = 1 << 8;   /* data_edge_right */
+        }
     } else {
         memset(buf, 0, sizeof(buf));
     }

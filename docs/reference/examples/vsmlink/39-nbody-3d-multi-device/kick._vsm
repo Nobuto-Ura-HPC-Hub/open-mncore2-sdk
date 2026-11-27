@@ -1,0 +1,25 @@
+# ABI PFN3_SBY64
+#
+# kick: leapfrog の半キック v += a*(dt/2)。ホストが 1 ステップにつき 2 回実行する。
+# LM0 常駐: ax=$lm8 ay=$lm10 az=$lm12 dthalf=$lm28 vx=$lm22 vy=$lm24 vz=$lm26
+# バンク: LM0=$lm LM1=$ln GRF0=$lr GRF1=$ls
+#
+# a,dthalf,v はすべて LM0 なので、dthalf を GRF0 に写して LM0*LM0 のバンク衝突を避ける。
+#
+# v 修飾子 (Auto Stride モード、dev manual 3.6.1.6) で x,y,z の 3 成分を 1 命令にまとめる。
+# fp64 命令のアクセス語長は u64 なので、v は 1 サイクルごとに u32 単位で +2 する。
+#   $lm8v  = ax,ay,az,eps2   ($lm8,10,12,14)
+#   $lm22v = vx,vy,vz,dthalf ($lm22,24,26,28)
+# 4 サイクル目は eps2・dthalf に当たる。読むだけなら無害だが、書き戻しは
+# 書き込みマスク /1110 (第 1..3 サイクルだけ書く。dev manual 3.6.2.1) で止める。
+# dthalf を渡す $lr0 は v を付けない (4 サイクルとも同じ値を読む = スカラーの放送)。
+#
+	lpassa $lm28 $lr0                # dthalf を GRF0 へ
+	nop/2
+	dvmulu $lm8v $lr0 $nowrite       # (ax,ay,az,eps2) * dthalf  PE0,PE1 ぶん
+	dvfmad $lm8v $lr0 $mauf $ls0v    # PE2,PE3 ぶん + $mauf で PE0,PE1 の積を素通し
+	nop/2
+	dvadd $lm22v $ls0v $ln0v         # (vx,vy,vz,dthalf) + a*dthalf -> $ln0,2,4,6
+	nop/2
+	lpassa $ln0v $lm22v/1110         # vx,vy,vz だけ書き戻す ($lm28 dthalf は書かない)
+	nop/2

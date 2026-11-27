@@ -26,10 +26,9 @@ rule gen_step
 include steps.ninja
 
 # --- init (distribute で PE ID を配る。1 回だけ) ---
-build $builddir/init.vsm: vsmlink init._vsm init.param step.stparam
+build $builddir/init.vsm: vsmlink init._vsm init.param
   vsm = init._vsm
   param = init.param
-  stparam = step.stparam
 build $builddir/init.idma.dat: asm3_loader $builddir/init.vsm
   stem = $builddir/init
 
@@ -66,10 +65,9 @@ build $builddir/m4096_a._vsm $builddir/m4096_a.param $builddir/m4096_b._vsm $bui
   param_a = $builddir/m4096_a.param
   out_b = $builddir/m4096_b._vsm
   param_b = $builddir/m4096_b.param
-build $builddir/m4096_a.vsm: vsmlink $builddir/m4096_a._vsm $builddir/m4096_a.param step.stparam
+build $builddir/m4096_a.vsm: vsmlink $builddir/m4096_a._vsm $builddir/m4096_a.param
   vsm = $builddir/m4096_a._vsm
   param = $builddir/m4096_a.param
-  stparam = step.stparam
 
 rule count_transfers
   command = printf '  %-28s mvb=%s l1bmp=%s\n' "$desc" "$$(grep -c 'mvb/n64' $in)" "$$(grep -c 'l1bmp' $in)"

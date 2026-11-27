@@ -1,0 +1,5 @@
+# examples の 3 段階検証の 1 段目: vsmlink が正しい VSM を生成すること
+#
+# 短い版（8 回、切り替えは 4 回目）の出力と expected.vsm の diff。 golden が古くなると FAIL する。
+#
+# RUN: ninja -C %examples/35-emit-from-debug verify

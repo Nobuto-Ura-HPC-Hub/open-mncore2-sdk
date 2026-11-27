@@ -41,6 +41,10 @@ if shutil.which('assemble3'):
     config.available_features.add('assemble3')
 if shutil.which('gpfn3-smi'):
     config.available_features.add('device')
+# long: 時間のかかるテスト（回数や大きさそのものが確かめている内容で、減らせないもの）を流すとき。`lit ... --param long=1` で立てる。
+# 指定しなければ、`REQUIRES: long` のテストは UNSUPPORTED になる。
+if lit_config.params.get('long', '0') not in ('', '0'):
+    config.available_features.add('long')
 
 # FileCheck
 filecheck = '/usr/lib/llvm-18/bin/FileCheck'
@@ -55,3 +59,13 @@ config.environment['PATH'] = os.pathsep.join([
     os.path.join(root, 'bin'),
     os.environ.get('PATH', '')
 ])
+
+# 並列（-j N）に流すための決まり（scripts/lit_groups.py）: examples/data を最初に 1 回だけ作り、同じディレクトリを使うテストを
+# 並列度 1 のグループにまとめる。scripts/lit_groups.py が無いところ（SDK に入る examples の kit）では使わず、-j 1 で流す
+_lit_groups_dir = os.path.join(root, 'scripts')
+if os.path.isfile(os.path.join(_lit_groups_dir, 'lit_groups.py')):
+    import sys
+    sys.path.insert(0, _lit_groups_dir)
+    import lit_groups
+    lit_groups.prebuild_examples_data(root)
+    lit_groups.setup(config, lit_config, root)

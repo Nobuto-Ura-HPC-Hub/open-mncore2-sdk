@@ -65,18 +65,17 @@ host は C=100 を送る。 期待値は次のとおりで、 emu:lib で全 4 �
 |---------|------|
 | `broadcast_reduce._vsm` | カーネル本体 |
 | `broadcast_reduce.param` | 配置パラメタ |
-| `broadcast_reduce.stparam` | 構造パラメタ (1D, 4096 PE) |
 | `test_broadcast_reduce.c` | host driver |
 | `build.ninja` | ビルド定義 |
 
 ## ビルド・実行
 
 ```bash
-source scripts/overlay
-ninja -C examples/25-broadcast-reduce-add              # vsmlink のみ
-ninja -C examples/25-broadcast-reduce-add build-e2e    # + assemble3 + C ビルド
-ninja -C examples/25-broadcast-reduce-add test-emu-lib # + emu:lib で実行・検証
-ninja -C examples/25-broadcast-reduce-add test-device  # + 実機で実行
+# SDK を有効にし、この example のディレクトリで実行する（examples の README.md の「動かし方」）
+ninja              # vsmlink のみ
+ninja build-e2e    # + assemble3 + C ビルド
+ninja test-emu-lib # + emu:lib で実行・検証
+ninja test-device  # + 実機で実行
 ```
 
 ## 関連

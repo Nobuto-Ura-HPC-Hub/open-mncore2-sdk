@@ -1,6 +1,6 @@
-# 01-roundtrip: PDM -> PE(LM) -> PDM 完全往復
+# 10-mem-default: .param の :place を省略した PDM -> PE(LM) -> PDM 完全往復
 #
-# ninja              → vsmlink: _vsm + .param + .stparam → .vsm
+# ninja              → vsmlink: _vsm + .param → .vsm
 # ninja build-e2e    → + assemble3 + host C ビルド (emu:lib)
 # ninja test         → + 実行・検証
 #
@@ -11,10 +11,9 @@ include ../scripts/vsmlink.ninja
 builddir = _build
 
 # --- default: vsmlink only ---
-build $builddir/roundtrip.vsm: vsmlink roundtrip._vsm roundtrip.param roundtrip.stparam
+build $builddir/roundtrip.vsm: vsmlink roundtrip._vsm roundtrip.param
   vsm = roundtrip._vsm
   param = roundtrip.param
-  stparam = roundtrip.stparam
 
 # --- build-e2e: assemble + host C ---
 build $builddir/roundtrip.asm: asm3 $builddir/roundtrip.vsm

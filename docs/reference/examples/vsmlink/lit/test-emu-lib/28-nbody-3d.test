@@ -1,1 +1,3 @@
+# 長いテスト: N 体（アプリ系）。時間は 4096 粒子の全対全の大きさで決まり、ステップはすでに 3 に絞ってある。普段は流さず、--param long=1 のときだけ流す。
+# REQUIRES: long
 # RUN: ninja -C %examples/28-nbody-3d test-emu-lib

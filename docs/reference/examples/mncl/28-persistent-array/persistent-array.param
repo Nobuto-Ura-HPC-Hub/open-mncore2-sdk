@@ -1,0 +1,9 @@
+;; 28-persistent-array: init(a, b) と step(out) で 1 つの .param を共有する
+;; slot 8  = init の a（distribute4。4 u64 x 4096 PE）
+;; slot 16 = init の b（同上）
+;; slot 24 = step の out（実行のたびに受け取る）
+((:version :0.1)
+ (:reserved_wait_tag #x3f)
+ (:slot 8  :place :pdm0 :addr 0)
+ (:slot 16 :place :pdm0 :addr 16384)
+ (:slot 24 :place :pdm0 :addr 32768 :recv_wait_tag #x1e))

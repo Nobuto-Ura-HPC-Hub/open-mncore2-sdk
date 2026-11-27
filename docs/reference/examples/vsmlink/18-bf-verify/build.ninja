@@ -1,10 +1,10 @@
 # 18-bf-verify: @boundary_flags 検証（golden data で上書き → stencil）
 #
-# ninja              → vsmlink: _vsm + .param + .stparam → .vsm
+# ninja              → vsmlink: _vsm + .param → .vsm
 # ninja build-e2e    → + assemble3 + host C ビルド + golden/zero 生成
 # ninja test-emu-lib → + emu:lib で golden.bin 検証（PASS 期待）
 # ninja test-ng      → zero.bin (全ゼロ) で検証（FAIL 期待）
-# ninja test-from-17 → example 17 が収集した golden_data/collected_flags.bin で検証
+# ninja test-from-17 → examples/data で作った境界フラグのデータ（57b42dea.bin、data_edge なし）で検証
 # ninja test-device  → + 実機で golden.bin 検証
 #
 # 前提: SDK activate 済み (vsmlink, assemble3, mnc2.h が利用可能)
@@ -27,10 +27,9 @@ rule gen_bf_golden
   description = GEN_GOLDEN [$mode] $out
 
 # --- default: vsmlink only ---
-build $builddir/bf-verify.vsm: vsmlink bf-verify._vsm bf-verify.param bf-verify.stparam
+build $builddir/bf-verify.vsm: vsmlink bf-verify._vsm bf-verify.param
   vsm = bf-verify._vsm
   param = bf-verify.param
-  stparam = bf-verify.stparam
 
 # --- assemble ---
 build $builddir/bf-verify.idma.dat: asm3_loader $builddir/bf-verify.vsm
@@ -73,7 +72,7 @@ build test-ng: test_emu_lib $builddir/test_bf_override | $builddir/bf-verify.idm
 build $builddir/57b42dea.bin: fetch_data
   bin = 57b42dea.bin
 
-# example 17 が収集した静的 golden data で検証
+# examples/data で作った境界フラグのデータ（gen_bf_golden、data_edge なし）で検証
 build test-from-17: test_emu_lib $builddir/test_bf_override | $builddir/bf-verify.idma.dat $builddir/57b42dea.bin
   args = _build/bf-verify.idma.dat _build/57b42dea.bin
 

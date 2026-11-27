@@ -1,0 +1,45 @@
+# 28-persistent-array: persistent の配列 tab を 2 つの kernel（init、step）で共有する
+#
+# ninja              -> .cl -> ._vsm -> kernel ごとの .vsm
+# ninja build-e2e    -> + vsmlink + assemble3 + host C
+# ninja test         -> usage 表示
+# ninja test-emu-lib -> emu:lib backend で実行・検証
+# ninja test-device  -> 実機 backend で実行・検証
+#
+# 1 つの _vsm に kernel が 2 つあるので、vsmlink の出力先はディレクトリになり、
+# kernel ごとに persistent-array-init.vsm と persistent-array-step.vsm が出る。
+
+include ../scripts/mncl.ninja
+include ../../scripts/sdk.ninja
+builddir = _build
+
+# --- kernel ---
+build $builddir/persistent-array._vsm: emit-vsm persistent-array.cl
+
+build $builddir/multikernel/persistent-array-init.vsm $builddir/multikernel/persistent-array-step.vsm: vsmlink-multikernel $builddir/persistent-array._vsm persistent-array.param
+  vsm = $builddir/persistent-array._vsm
+  param = persistent-array.param
+  outdir = $builddir/multikernel
+
+build $builddir/init.asm: asm3 $builddir/multikernel/persistent-array-init.vsm
+build $builddir/init.idma.dat | $builddir/init.idma.inst $builddir/init.idma.inst.txt $builddir/init.ddma.dat $builddir/init.ddma.inst $builddir/init.ddma.inst.txt: asm3_loader $builddir/multikernel/persistent-array-init.vsm
+  stem = $builddir/init
+
+build $builddir/step.asm: asm3 $builddir/multikernel/persistent-array-step.vsm
+build $builddir/step.idma.dat | $builddir/step.idma.inst $builddir/step.idma.inst.txt $builddir/step.ddma.dat $builddir/step.ddma.inst $builddir/step.ddma.inst.txt: asm3_loader $builddir/multikernel/persistent-array-step.vsm
+  stem = $builddir/step
+
+# --- host driver ---
+build $builddir/test_persistent_array.o: cc test_persistent_array.c
+build $builddir/test_persistent_array: link $builddir/test_persistent_array.o
+
+# --- ビルド段階 phony ---
+build build-e2e: phony $builddir/init.asm $builddir/init.idma.dat $builddir/step.asm $builddir/step.idma.dat $builddir/test_persistent_array
+
+# --- test 3 種 ---
+build test-emu-lib: test_emu_lib $builddir/test_persistent_array | $builddir/init.idma.dat $builddir/step.idma.dat
+build test-device:  test_device  $builddir/test_persistent_array | $builddir/init.idma.dat $builddir/step.idma.dat
+build test:         test_usage
+
+
+default $builddir/init.asm $builddir/init.idma.dat $builddir/step.asm $builddir/step.idma.dat

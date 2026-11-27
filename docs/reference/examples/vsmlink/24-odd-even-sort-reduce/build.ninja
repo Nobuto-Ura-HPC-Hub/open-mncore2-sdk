@@ -16,19 +16,17 @@ build $builddir/exec_even.idma.dat: asm3_loader exec_even.vsm
   stem = $builddir/exec_even
 
 # --- exec_odd: vsmlink (.param の boundary_flags 必要) ---
-build $builddir/exec_odd.vsm: vsmlink exec_odd._vsm exec_odd.param sort.stparam
+build $builddir/exec_odd.vsm: vsmlink exec_odd._vsm exec_odd.param
   vsm = exec_odd._vsm
   param = exec_odd.param
-  stparam = sort.stparam
 
 build $builddir/exec_odd.idma.dat: asm3_loader $builddir/exec_odd.vsm
   stem = $builddir/exec_odd
 
 # --- reduce: vsmlink (@reduce directive 使用) ---
-build $builddir/reduce.vsm: vsmlink reduce._vsm reduce.param sort.stparam
+build $builddir/reduce.vsm: vsmlink reduce._vsm reduce.param
   vsm = reduce._vsm
   param = reduce.param
-  stparam = sort.stparam
 
 build $builddir/reduce.idma.dat: asm3_loader $builddir/reduce.vsm
   stem = $builddir/reduce

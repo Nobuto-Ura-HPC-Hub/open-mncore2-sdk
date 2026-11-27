@@ -1,11 +1,11 @@
-# 31-nbody-host-mediated-loop: kernel 分割機能を使った 3D N 体
+# 31-nbody-host-mediated-loop: マルチカーネル `_vsm` を使った 3D N 体
 #
 # accumulate は CHUNK 粒子ずつ固定 PDM 領域を読む 1 個の kernel にし、host が
 # 「次の区間を送信 -> 同じ kernel を exec」を繰り返す (ループが host 側)。28-nbody-3d は
 # 分割ごとに別々の kernel を生成し、host が全分割をロードして順に exec していた
 # (kernel 数が N に依存)。31 は kernel が 6 個で N に依存しない。
 #
-# ninja              vsmlink (kernel 分割による .vsm 生成)
+# ninja              vsmlink (マルチカーネル `_vsm` から kernel ごとの .vsm を生成)
 # ninja build-e2e    + assemble3 + host C ビルド
 # ninja test-emu-lib + emu:lib で実行・検証 (CI は N=32)
 # ninja test-device  + 実機で実行 (N=32)
@@ -28,10 +28,10 @@ rule gen_nbody31
   command = python3 gen_nbody31.py $chunk $newton $out_vsm $out_param
   description = GEN nbody31 (chunk=$chunk newton=$newton)
 
-# vsmlink.ninja の vsmlink rule は $out (単一ファイル) 前提なので、kernel 分割
+# vsmlink.ninja の vsmlink rule は $out (単一ファイル) 前提なので、マルチカーネル `_vsm`
 # (第 4 引数がディレクトリ、出力が複数ファイル) 用にここでローカルに定義する。
-rule vsmlink_split
-  command = vsmlink $vsm $param $stparam $outdir
+rule vsmlink_multi_kernel
+  command = vsmlink $vsm $param $outdir
   description = VSMLINK [split] $outdir
 
 # CI 用の入力 (束縛系) を struct 形バイナリで生成。
@@ -44,13 +44,12 @@ build $builddir/nbody31._vsm $builddir/nbody31.param: gen_nbody31 gen_nbody31.py
   out_vsm = $builddir/nbody31._vsm
   out_param = $builddir/nbody31.param
 
-# --- kernel 分割 (vsmlink 1 回の呼び出しで 6 個の .vsm を出力) ---
+# --- マルチカーネル `_vsm` (vsmlink 1 回の呼び出しで 6 個の .vsm を出力) ---
 # 出力ディレクトリ自体を ninja の output にはしない (ディレクトリを output に
 # すると依存追跡から外れ ninja -t clean が壊れるため)。6 個のファイルを個別に列挙する。
-build $builddir/k/nbody31-init.vsm $builddir/k/nbody31-reset_acc.vsm $builddir/k/nbody31-accumulate.vsm $builddir/k/nbody31-kick.vsm $builddir/k/nbody31-drift.vsm $builddir/k/nbody31-collect_pos.vsm: vsmlink_split $builddir/nbody31._vsm $builddir/nbody31.param nbody31.stparam
+build $builddir/k/nbody31-init.vsm $builddir/k/nbody31-reset_acc.vsm $builddir/k/nbody31-accumulate.vsm $builddir/k/nbody31-kick.vsm $builddir/k/nbody31-drift.vsm $builddir/k/nbody31-collect_pos.vsm: vsmlink_multi_kernel $builddir/nbody31._vsm $builddir/nbody31.param
   vsm = $builddir/nbody31._vsm
   param = $builddir/nbody31.param
-  stparam = nbody31.stparam
   outdir = $builddir/k
 
 # --- assemble3 (kernel ごと) ---

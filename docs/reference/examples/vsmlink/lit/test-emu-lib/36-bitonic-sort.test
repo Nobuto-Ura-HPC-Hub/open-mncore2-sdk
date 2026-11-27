@@ -1,0 +1,2 @@
+# バイトニックソートの全 78 ステップ（f64。全体が昇順になること）
+# RUN: ninja -C %examples/36-bitonic-sort test-emu-lib

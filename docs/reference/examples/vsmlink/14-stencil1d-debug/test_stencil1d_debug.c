@@ -365,7 +365,7 @@ int main(void)
     printf("  L1B 0:    cross L2B（PDM 経由: mvp で受け渡し）\n");
     printf("  Sec 0 端: 境界条件（左隣なし = 0）\n");
     printf("\n");
-    printf("  実際の @stencil ディレクティブでは、これらを maskr/ipassa でマージして\n");
+    printf("  実際の @get_neighbor ディレクティブでは、これらを maskr/ipassa でマージして\n");
     printf("  各 PE に正しい左隣の値を配置します（05-stencil1d を参照）。\n");
     printf("\n");
 

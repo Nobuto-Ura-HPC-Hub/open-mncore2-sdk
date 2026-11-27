@@ -6,7 +6,7 @@ MN-Core 2 の実機で動かせます。インストールは要りません。
 イメージは AWS の ECR に置いてあり、PFCP から取得できます。
 
 ```
-333975443171.dkr.ecr.ap-northeast-1.amazonaws.com/open-mncore2-sdk:v0.6
+333975443171.dkr.ecr.ap-northeast-1.amazonaws.com/open-mncore2-sdk:v0.7
 ```
 
 ## Kubernetes と pod（Docker を使ったことがある人へ）
@@ -36,9 +36,9 @@ PFCP の実行環境は Kubernetes（k8s）です。Docker と同じ形式のコ
 | もの | 場所・版 |
 |------|----------|
 | OS | Ubuntu 24.04 |
-| Open MN-Core 2 SDK v0.6 | `/opt/_mncore2-sdk-v0.6`（`/opt/mncore2-sdk` から参照） |
-| PFN の `mncore-sdk` | 0.8（`assemble3`、`gpfn3_package_main` を含む） |
-| PFN の `libgpfn3-0` / `libgpfn3-dev` / `gpfn3-smi` | 1.0-1 / 1.0-1 / 1.1-1 |
+| Open MN-Core 2 SDK v0.7 | `/opt/_mncore2-sdk-v0.7`（`/opt/mncore2-sdk` から参照） |
+| PFN の `mncore-sdk` | 0.9（`assemble3`、`gpfn3_package_main` を含む） |
+| PFN の `libgpfn3-0` / `libgpfn3-dev` / `gpfn3-smi` | 1.2-1 / 1.2-1 / 1.2-1 |
 | ビルドの道具 | `build-essential`、`ninja-build`、`xxd`、`gawk`、`pkgconf`、lit 23.1.5 |
 
 ## 1. ServiceAccount を作る
@@ -85,7 +85,7 @@ spec:
       serviceAccountName: open-mncore2-sdk
       containers:
       - name: app
-        image: 333975443171.dkr.ecr.ap-northeast-1.amazonaws.com/open-mncore2-sdk:v0.6
+        image: 333975443171.dkr.ecr.ap-northeast-1.amazonaws.com/open-mncore2-sdk:v0.7
         workingDir: /root
         command: ["sleep", "infinity"]
         resources:

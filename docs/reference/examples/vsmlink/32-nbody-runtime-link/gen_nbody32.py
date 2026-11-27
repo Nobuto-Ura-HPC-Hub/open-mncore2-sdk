@@ -6,7 +6,7 @@
 スロット番号を、生成時に確定させず `PH` という目印のまま残すこと。accumulate の CHUNK 個の
 `@broadcast` はすべて同じスロット（`from_param PH`）を使い、そのスロットの続きを読む。
 この目印は `from_param` の引数として整数ではないため、directive の文法に通らない
-（`vsmlink --split-only` はこの行を解釈しないので分割はできるが、通常の `vsmlink`
+（`vsmlink --no-link` はこの行を解釈しないので kernel ごとに書き出せるが、通常の `vsmlink`
 呼び出しはこの行の展開に失敗する）。host が chunk ごとに `from_param PH` を、その chunk の
 スロット番号へ書き換えてから `vsmlink` を呼ぶ（詳細は README.md）。
 

@@ -1,0 +1,248 @@
+# ABI PFN3_SBY64
+#
+# バイトニックソート（4096 個）の先頭 3 ステップ（全体は 78 ステップ）
+#
+# distribute.vsm — @distribute テンプレート
+
+	nop; wait i10
+	nop/3
+# @identify 0 $lr8 4096                    # PE の番号 j
+# === @identify 0: PDM $p0 → L2BM → L1BM → $lr8 ===
+	mvp/n512 $p0@0 $lc0@0.0
+	mvp/n512 $p512@0 $lc0@0.1
+	mvp/n512 $p1024@0 $lc0@1.0
+	mvp/n512 $p1536@0 $lc0@1.1
+	mvp/n512 $p2048@0 $lc0@2.0
+	mvp/n512 $p2560@0 $lc0@2.1
+	mvp/n512 $p3072@0 $lc0@3.0
+	mvp/n512i3f $p3584@0 $lc0@3.1
+	nop/2
+	nop; wait i3f
+	l2bmb@0 $lc0 $lb0
+	l2bmb@1 $lc64 $lb0
+	l2bmb@2 $lc128 $lb0
+	l2bmb@3 $lc192 $lb0
+	l2bmb@4 $lc256 $lb0
+	l2bmb@5 $lc320 $lb0
+	l2bmb@6 $lc384 $lb0
+	l2bmb@7 $lc448 $lb0
+	# L2BM -> L1BM の後、同じ番地を読む L1BM -> PE（distribute_tail.vsm の l1bmd）まで 2 ステップ（dev manual 3.6.3.6）
+	nop/2
+	l1bmd $lb0 $lr8v/1000
+# distribute.vsm — @distribute テンプレート
+
+	nop; wait i11
+	nop/3
+# @distribute _src from_param 16 size 1 $lm0
+# === @distribute _src: PDM $p4096 → L2BM → L1BM → $lm0 ===
+# (:pdm :directive "@distribute" :id "_src" :slot 16 :place :pdm0 :addr 4096 :size 4096 :access :read)
+	mvp/n512 $p4096@0 $lc0@0.0
+	mvp/n512 $p4608@0 $lc0@0.1
+	mvp/n512 $p5120@0 $lc0@1.0
+	mvp/n512 $p5632@0 $lc0@1.1
+	mvp/n512 $p6144@0 $lc0@2.0
+	mvp/n512 $p6656@0 $lc0@2.1
+	mvp/n512 $p7168@0 $lc0@3.0
+	mvp/n512i3f $p7680@0 $lc0@3.1
+	nop/2
+	nop; wait i3f
+	l2bmb@0 $lc0 $lb0
+	l2bmb@1 $lc64 $lb0
+	l2bmb@2 $lc128 $lb0
+	l2bmb@3 $lc192 $lb0
+	l2bmb@4 $lc256 $lb0
+	l2bmb@5 $lc320 $lb0
+	l2bmb@6 $lc384 $lb0
+	l2bmb@7 $lc448 $lb0
+	# L2BM -> L1BM の後、同じ番地を読む L1BM -> PE（distribute_tail.vsm の l1bmd）まで 2 ステップ（dev manual 3.6.3.6）
+	nop/2
+	l1bmd $lb0 $lm0v/1000
+	nop/2
+	imm i"0" $r96
+	imm i"0" $r97
+	nop/2
+	lpassa $lr96 $ln10
+# ステップ 1: s=1, j=0（相手は PE の番号 XOR 1、M=3）
+#@ @alloc hc :omr 9 :grf0 200 202 204 206 208 :n 0
+#@ @get_hypercube_neighbor $ls16 0 $lm0 $lr8 nbuf0 hc
+# get_hypercube_neighbor_d0.vsm — @get_hypercube_neighbor deep 0（相手は j XOR 1）
+#
+# MAB 内の 4 PE の循環シフト msr / msl を使う（dev manual 3.6.12.4）。msr は j+1、msl は j-1 の値を受け取る。
+# j の bit 0 が 0 なら相手は j+1（msr）、1 なら j-1（msl）。bit 0 は $lr8（PE の番号が入っているレジスタ）から取る。
+# iand の出力が全部 0 のときマスクフラグが 1 になる（dev manual 3.6.12.1 の表 3.11）ので、bit 0 が 0 の PE で omr が 1 になる。
+# 既定を msl の結果にし、omr が 1 の PE だけ msr の結果で上書きする。
+#
+# $lr8 を LM1（n0）に写してから iand に渡す。1 つの演算の 2 つの入力を、同じメモリ要素（GRF0）の
+# 異なる番地から取ることはできないため（dev manual 3.6.4 の並列実行条件）。
+#
+# 先頭の nop/2: 直前の命令が $lm0 / $lr8 に書いた場合の待ち（dev manual 3.6.3.9。LM0 / LM1 は 2 ステップ）。
+# 末尾の nop/2: 直後の命令が $ls16 を読む場合の待ち（同上）。
+#
+# レジスタ使用 (grf0: r0-r3, n: n0, omr: omr0)
+#   r0: msr の結果  r1: msl の結果  r2: id & 1  r3: 定数 1 (_hi / _lo)  n0: id の写し
+
+nop/2
+imm i"0" $r206
+imm i"1" $r207
+lpassa $lr8 $ln0
+msr $lm0 $lr200
+msl $lm0 $lr202
+iand $ln0 $lr206 $lr204
+# r2 への書き込みから読み出しまでの待ち。1 ステップでは assemble3 のハザード検査が止めるので 2 ステップにする
+nop/2
+lpassa $lr204 $omr9
+lpassa $lr202 $ls16
+  masks 9
+ipassa $lr200 $ls16
+  mask 0
+nop/2
+#@ @free hc
+	dmin $lm0 $ls16 $lr24
+	dmax $lm0 $ls16 $lr32
+	imm i"0" $r64
+	imm i"3" $r65
+	nop/2
+	lpassa $lr64 $ln8
+	nop/2
+	iand $ln8 $lr8 $lr72
+	nop/2
+	lxor $lr72 $ln10 $omr4
+	lxor $lr72 $ln8 $omr5
+	ipassa $lr32 $lr40
+	  maskr 4
+	ipassa $lr24 $lr40
+	  maskr 5
+	ipassa $lr24 $lr40
+	  mask 0
+	nop/2
+	lpassa $lr40 $lm0
+# ステップ 2: s=2, j=1（相手は PE の番号 XOR 2、M=6）
+#@ @alloc hc :omr 9 :grf0 200 202 204 206 208 :n 0
+#@ @get_hypercube_neighbor $ls16 1 $lm0 $lr8 nbuf0 hc
+# get_hypercube_neighbor_d1.vsm — @get_hypercube_neighbor deep 1（相手は j XOR 2）
+#
+# MAB 内の 4 PE の循環シフト msr を 2 回行うと、j+2（4 を法とする）の値を受け取る（dev manual 3.6.12.4）。
+# 4 PE の中で j+2 と j XOR 2 は同じ PE である。選択は要らない。
+#
+# 先頭の nop/2: 直前の命令が $lm0 に書いた場合の待ち（dev manual 3.6.3.9。LM0 / LM1 は 2 ステップ）。
+# 末尾の nop/2: 直後の命令が $ls16 を読む場合の待ち（同上）。
+#
+# レジスタ使用 (grf0: r0)
+#   r0: 1 回目の msr の結果
+
+nop/2
+msr $lm0 $lr200
+# r0 への書き込みから読み出しまでの待ち。1 ステップでは assemble3 のハザード検査が止めるので 2 ステップにする
+nop/2
+msr $lr200 $ls16
+nop/2
+#@ @free hc
+	dmin $lm0 $ls16 $lr24
+	dmax $lm0 $ls16 $lr32
+	imm i"0" $r64
+	imm i"6" $r65
+	nop/2
+	lpassa $lr64 $ln8
+	nop/2
+	iand $ln8 $lr8 $lr72
+	nop/2
+	lxor $lr72 $ln10 $omr4
+	lxor $lr72 $ln8 $omr5
+	ipassa $lr32 $lr40
+	  maskr 4
+	ipassa $lr24 $lr40
+	  maskr 5
+	ipassa $lr24 $lr40
+	  mask 0
+	nop/2
+	lpassa $lr40 $lm0
+# ステップ 3: s=2, j=0（相手は PE の番号 XOR 1、M=5）
+#@ @alloc hc :omr 9 :grf0 200 202 204 206 208 :n 0
+#@ @get_hypercube_neighbor $ls16 0 $lm0 $lr8 nbuf0 hc
+# get_hypercube_neighbor_d0.vsm — @get_hypercube_neighbor deep 0（相手は j XOR 1）
+#
+# MAB 内の 4 PE の循環シフト msr / msl を使う（dev manual 3.6.12.4）。msr は j+1、msl は j-1 の値を受け取る。
+# j の bit 0 が 0 なら相手は j+1（msr）、1 なら j-1（msl）。bit 0 は $lr8（PE の番号が入っているレジスタ）から取る。
+# iand の出力が全部 0 のときマスクフラグが 1 になる（dev manual 3.6.12.1 の表 3.11）ので、bit 0 が 0 の PE で omr が 1 になる。
+# 既定を msl の結果にし、omr が 1 の PE だけ msr の結果で上書きする。
+#
+# $lr8 を LM1（n0）に写してから iand に渡す。1 つの演算の 2 つの入力を、同じメモリ要素（GRF0）の
+# 異なる番地から取ることはできないため（dev manual 3.6.4 の並列実行条件）。
+#
+# 先頭の nop/2: 直前の命令が $lm0 / $lr8 に書いた場合の待ち（dev manual 3.6.3.9。LM0 / LM1 は 2 ステップ）。
+# 末尾の nop/2: 直後の命令が $ls16 を読む場合の待ち（同上）。
+#
+# レジスタ使用 (grf0: r0-r3, n: n0, omr: omr0)
+#   r0: msr の結果  r1: msl の結果  r2: id & 1  r3: 定数 1 (_hi / _lo)  n0: id の写し
+
+nop/2
+imm i"0" $r206
+imm i"1" $r207
+lpassa $lr8 $ln0
+msr $lm0 $lr200
+msl $lm0 $lr202
+iand $ln0 $lr206 $lr204
+# r2 への書き込みから読み出しまでの待ち。1 ステップでは assemble3 のハザード検査が止めるので 2 ステップにする
+nop/2
+lpassa $lr204 $omr9
+lpassa $lr202 $ls16
+  masks 9
+ipassa $lr200 $ls16
+  mask 0
+nop/2
+#@ @free hc
+	dmin $lm0 $ls16 $lr24
+	dmax $lm0 $ls16 $lr32
+	imm i"0" $r64
+	imm i"5" $r65
+	nop/2
+	lpassa $lr64 $ln8
+	nop/2
+	iand $ln8 $lr8 $lr72
+	nop/2
+	lxor $lr72 $ln10 $omr4
+	lxor $lr72 $ln8 $omr5
+	ipassa $lr32 $lr40
+	  maskr 4
+	ipassa $lr24 $lr40
+	  maskr 5
+	ipassa $lr24 $lr40
+	  mask 0
+	nop/2
+	lpassa $lr40 $lm0
+# collect.vsm — @collect テンプレート
+
+# @collect _out to_param 24 size 1 $lm0
+# === @collect _out: $lm0 → L1BM → L2BM → PDM $p8192 ===
+# (:pdm :directive "@collect" :id "_out" :slot 24 :place :pdm0 :addr 8192 :size 4096 :access :write)
+	# 直前の命令が $lm0 に書いた場合の待ち（dev manual 3.6.3.9。LM0 / LM1 は 2 ステップ）
+	nop/2
+	l1bmd $lm0v $lb0
+	# PE -> L1BM の後、同じ L1BM を読む L1BM -> L2BM（collect_stage.vsm の l2bm@）まで 3 ステップ（dev manual 3.6.3.7）
+	nop/3
+	l2bm@0 $lb0 $lc0
+	l2bm@1 $lb0 $lc64
+	l2bm@2 $lb0 $lc128
+	l2bm@3 $lb0 $lc192
+	l2bm@4 $lb0 $lc256
+	l2bm@5 $lb0 $lc320
+	l2bm@6 $lb0 $lc384
+	l2bm@7 $lb0 $lc448
+	# L1BM -> L2BM の後、その L2BM を読む MV 命令まで 2 ステップ（dev manual 3.6.3.1 と assemble3 は 1 ステップとするが、実機では 1 ステップ後の MV 命令が、書き終わる前の L2BM を読む。2 ステップでは読まない）
+	nop/2
+	mvp/n512 $lc0@0.0 $p8192@0
+	mvp/n512i3f $lc0@0.1 $p8704@0
+	nop/3
+	nop; wait i3f
+	mvp/n512 $lc0@1.0 $p9216@0
+	mvp/n512i3f $lc0@1.1 $p9728@0
+	nop/3
+	nop; wait i3f
+	mvp/n512 $lc0@2.0 $p10240@0
+	mvp/n512i3f $lc0@2.1 $p10752@0
+	nop/3
+	nop; wait i3f
+	mvp/n512 $lc0@3.0 $p11264@0
+	mvp/n512i1e $lc0@3.1 $p11776@0
+	nop/3
+	nop; wait i1e

@@ -5,20 +5,13 @@
 // **質量 m_i で割らないので、積算値は加速度そのもの**（重力加速度は m_i に依らない）。
 //
 // **PDM 上の並びは「成分が外側、PE が内側」である。** x が先頭 4096 個、その後ろに y が 4096 個、
-// さらに z が 4096 個。OpenCL の double3 配列（PE ごとに x,y,z が隣接）とは違う。l1bmd が
-// addr_b + cycle*64 でアクセスするため HW で決まっており選べない。並べるのはホストの責務であり、
-// 引数が double* なのはそのため（値のほうは double3 でよい）。
+// さらに z が 4096 個。OpenCL の double3 配列（PE ごとに x,y,z が隣接）とは違う。並べるのはホストの
+// 責務であり、引数が double* なのはそのため（値のほうは double3 でよい）。
 //
 // ホスト loop で k=0..N-1 の粒子を broadcast してカーネルを起動し、各 PE が寄与を積算する。
 // 積算値はカーネルをまたいで PDM に常駐する（17-nbody-2d と同じ「collect した値を次の
 // distribute で読み直す」パターン）。1 タイムステップの力フェーズの頭で host が _acc を 0 埋めする。
 //   r2 = |d|^2 + eps^2、 1/r = rsqrt(r2) を Newton-Raphson で精緻化、 a += m_k * d / r^3
-//
-// **スカラ × ベクタ（splat）を使う。** m_k * ir3 はスカラで、それをベクタ d に掛ける。
-// HW が splat を直接持つので（v 無しレジスタ）、余計なコピーは出ない。
-//
-// **double3 の 4 レーン目（padding）は計算されるが読まれない。** r2 は x,y,z の 3 レーンだけを
-// 取り出して足し、collect3 も 3 成分だけ書き戻す。4 レーン目の空振りは無害である。
 #define EPS2 0.0625   /* 2^-4 softening^2 */
 
 __kernel void nbody3d_force(__global const double* _pos,

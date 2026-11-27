@@ -1,0 +1,2 @@
+# RUN: ninja -C %examples/23-emit-from-debug build-e2e
+# RUN: ninja -C %examples/23-emit-from-debug test-device

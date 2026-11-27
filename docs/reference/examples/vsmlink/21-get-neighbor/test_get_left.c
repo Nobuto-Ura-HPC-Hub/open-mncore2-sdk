@@ -12,8 +12,7 @@
  *   addr 12288..16383: boundary_flags（bf1, addr 12288）
  *
  * clamp 処理:
- *   data_edge_left の PE（PE 0）は自分自身の値を返す。
- *   boundary_flags の data_edge_left ビット (0x800) で判定。
+ *   端の PE（PE の番号 0）は、端の指定 :reg $lm0 により自分自身の値を返す。
  */
 
 #include <stdio.h>
@@ -25,7 +24,7 @@
 #define ELEM_COUNT  4096
 #define ELEM_BYTES  (ELEM_COUNT * sizeof(double))
 #define BF_BYTES    (ELEM_COUNT * sizeof(uint64_t))
-/* PDM アドレスを 4096 LW ずらして、slot の前に edge 値を配置する余白を確保 */
+/* PDM アドレスを 4096 u64 ずらして、slot の前に edge 値を配置する余白を確保 */
 #define EDGE_MARGIN 4096
 #define OFFSET_EDGE_L ((EDGE_MARGIN - 1ULL) * 8)     /* addr 4095: left edge */
 #define OFFSET_IN   ((EDGE_MARGIN) * 8ULL)            /* slot 8:  addr 4096 */
@@ -87,16 +86,16 @@ int main(void)
     }
 
     /* edge 値の PDM 配置
-     * addr 0〜4095 に 4096 LW の edge データを書く。
+     * addr 0〜4095 に 4096 u64 の edge データを書く。
      * PE 0 の get(-1) は addr 4096 - 1 = 4095 を読む。
      * input[i] = i+1 の連続として、addr 4095 に 0.0 を配置。
-     * 他の addr は使われないが、4096 LW 単位で送る。 */
+     * 他の addr は使われないが、4096 u64 単位で送る。 */
     {
         double *edge_buf = (double *)calloc(ELEM_COUNT, sizeof(double));
         edge_buf[ELEM_COUNT - 1] = 0.0;  /* addr 4095 = input[-1] 相当 */
         memcpy(sendbuf, edge_buf, ELEM_BYTES);
         free(edge_buf);
-        printf("[send] left edge region (4096 LW) -> PDM offset 0 (dmaid=0)\n");
+        printf("[send] left edge region (4096 u64) -> PDM offset 0 (dmaid=0)\n");
         rc = mnc2_send(dev, sendbuf, 0, ELEM_BYTES, 0);
         if (rc != MNC2_SUCCESS) {
             fprintf(stderr, "FAIL: mnc2_send left edge: %d\n", rc);

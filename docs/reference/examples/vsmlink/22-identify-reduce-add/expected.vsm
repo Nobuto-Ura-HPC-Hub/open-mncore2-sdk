@@ -19,7 +19,6 @@
 	mvp/n512i3f $p3584@0 $lc0@3.1
 	nop/2
 	nop; wait i3f
-	nop/5
 	l2bmb@0 $lc0 $lb0
 	l2bmb@1 $lc64 $lb0
 	l2bmb@2 $lc128 $lb0
@@ -28,9 +27,10 @@
 	l2bmb@5 $lc320 $lb0
 	l2bmb@6 $lc384 $lb0
 	l2bmb@7 $lc448 $lb0
-	nop/5
+	# L2BM -> L1BM の後、同じ番地を読む L1BM -> PE（distribute_tail.vsm の l1bmd）まで 2 ステップ（dev manual 3.6.3.6）
+	nop/2
 	l1bmd $lb0 $lr8v/1000
-	nop/24
+	nop/2
 	nop
 # reduce.vsm — @reduce テンプレート
 
@@ -38,10 +38,11 @@
 # === @reduce _sum: $lr8 → L1BM → L2BM → PDM $p4096 (liadd) ===
 # (:pdm :directive "@reduce" :id "_sum" :slot 8 :place :pdm0 :addr 4096 :size 64 :access :write)
 	l1bmrliadd $lr8 $lb0
-	nop/24
+	# PE -> L1BM の後、同じ L1BM を読む L1BM -> L2BM まで 3 ステップ（dev manual 3.6.3.7）
+	nop/3
 	l2bmrliadd $lb0 $lc0
-	nop/24
+	# L1BM -> L2BM の後、その L2BM を読む MV 命令まで 2 ステップ（dev manual 3.6.3.1 と assemble3 は 1 ステップとするが、実機では 1 ステップ後の MV 命令が、書き終わる前の L2BM を読む。2 ステップでは読まない）
+	nop/2
 	mvrliadd/n64i06 $lc0 $p4096@0
 	nop/2
 	nop; wait i06
-	nop/5

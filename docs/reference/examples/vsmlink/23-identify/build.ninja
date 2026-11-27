@@ -19,10 +19,9 @@ rule test_device_k
   description = TEST [device] $exe $kernel
 
 # --- vsmlink ---
-build $builddir/test1_identify.vsm: vsmlink test1_identify._vsm | identify.param identify.stparam
+build $builddir/test1_identify.vsm: vsmlink test1_identify._vsm | identify.param
   vsm     = test1_identify._vsm
   param   = identify.param
-  stparam = identify.stparam
 
 # --- assemble ---
 build $builddir/test1_identify.asm:      asm3 $builddir/test1_identify.vsm

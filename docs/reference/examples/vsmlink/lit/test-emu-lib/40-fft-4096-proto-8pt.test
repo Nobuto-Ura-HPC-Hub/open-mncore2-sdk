@@ -1,0 +1,2 @@
+# FFT の 8 点の試作（3 段）。numpy の FFT とノルム誤差で比べる
+# RUN: ninja -C %examples/40-fft-4096/proto-8pt test-emu-lib

@@ -7,6 +7,7 @@
 # その chunk のスロット番号に書き換えてから vsmlink を呼ぶ (README.md 参照)。
 # ** 自動生成: gen_nbody32.py。手で編集しない **
 #
+#@ @kernel_begin init
 # ABI PFN3_SBY64
 #
 # init: 自粒子 (x,y,z,m) と速度 (vx,vy,vz) を distribute で LM 常駐、定数 (eps2,0.5,1.5,dt)
@@ -38,7 +39,6 @@
 	mvp/n512i3f $p3584@0 $lc0@3.1
 	nop/2
 	nop; wait i3f
-	nop/5
 	l2bmb@0 $lc0 $lb0
 	l2bmb@1 $lc64 $lb0
 	l2bmb@2 $lc128 $lb0
@@ -47,7 +47,8 @@
 	l2bmb@5 $lc320 $lb0
 	l2bmb@6 $lc384 $lb0
 	l2bmb@7 $lc448 $lb0
-	nop/5
+	# L2BM -> L1BM の後、同じ番地を読む L1BM -> PE（distribute_tail.vsm の l1bmd）まで 2 ステップ（dev manual 3.6.3.6）
+	nop/2
 	mvp/n512 $p4096@0 $lc512@0.0
 	mvp/n512 $p4608@0 $lc512@0.1
 	mvp/n512 $p5120@0 $lc512@1.0
@@ -58,7 +59,6 @@
 	mvp/n512i3f $p7680@0 $lc512@3.1
 	nop/2
 	nop; wait i3f
-	nop/5
 	l2bmb@0 $lc512 $lb64
 	l2bmb@1 $lc576 $lb64
 	l2bmb@2 $lc640 $lb64
@@ -67,7 +67,8 @@
 	l2bmb@5 $lc832 $lb64
 	l2bmb@6 $lc896 $lb64
 	l2bmb@7 $lc960 $lb64
-	nop/5
+	# L2BM -> L1BM の後、同じ番地を読む L1BM -> PE（distribute_tail.vsm の l1bmd）まで 2 ステップ（dev manual 3.6.3.6）
+	nop/2
 	mvp/n512 $p8192@0 $lc1024@0.0
 	mvp/n512 $p8704@0 $lc1024@0.1
 	mvp/n512 $p9216@0 $lc1024@1.0
@@ -78,7 +79,6 @@
 	mvp/n512i3f $p11776@0 $lc1024@3.1
 	nop/2
 	nop; wait i3f
-	nop/5
 	l2bmb@0 $lc1024 $lb128
 	l2bmb@1 $lc1088 $lb128
 	l2bmb@2 $lc1152 $lb128
@@ -87,7 +87,8 @@
 	l2bmb@5 $lc1344 $lb128
 	l2bmb@6 $lc1408 $lb128
 	l2bmb@7 $lc1472 $lb128
-	nop/5
+	# L2BM -> L1BM の後、同じ番地を読む L1BM -> PE（distribute_tail.vsm の l1bmd）まで 2 ステップ（dev manual 3.6.3.6）
+	nop/2
 	mvp/n512 $p12288@0 $lc1536@0.0
 	mvp/n512 $p12800@0 $lc1536@0.1
 	mvp/n512 $p13312@0 $lc1536@1.0
@@ -98,7 +99,6 @@
 	mvp/n512i3f $p15872@0 $lc1536@3.1
 	nop/2
 	nop; wait i3f
-	nop/5
 	l2bmb@0 $lc1536 $lb192
 	l2bmb@1 $lc1600 $lb192
 	l2bmb@2 $lc1664 $lb192
@@ -107,11 +107,11 @@
 	l2bmb@5 $lc1856 $lb192
 	l2bmb@6 $lc1920 $lb192
 	l2bmb@7 $lc1984 $lb192
-	nop/5
+	# L2BM -> L1BM の後、同じ番地を読む L1BM -> PE（distribute_tail.vsm の l1bmd）まで 2 ステップ（dev manual 3.6.3.6）
+	nop/2
 	l1bmd $lb0 $lm0v
 # distribute.vsm — @distribute テンプレート
 
-	nop/4
 # @distribute _v     from_param 24 size 3 $lm22    # vx,vy,vz -> $lm22,24,26
 # === @distribute _v: PDM $p40960 → L2BM → L1BM → $lm22 ===
 # (:pdm :directive "@distribute" :id "_v" :slot 24 :place :pdm0 :addr 40960 :size 12288 :access :read)
@@ -125,7 +125,6 @@
 	mvp/n512i3f $p44544@0 $lc0@3.1
 	nop/2
 	nop; wait i3f
-	nop/5
 	l2bmb@0 $lc0 $lb0
 	l2bmb@1 $lc64 $lb0
 	l2bmb@2 $lc128 $lb0
@@ -134,7 +133,8 @@
 	l2bmb@5 $lc320 $lb0
 	l2bmb@6 $lc384 $lb0
 	l2bmb@7 $lc448 $lb0
-	nop/5
+	# L2BM -> L1BM の後、同じ番地を読む L1BM -> PE（distribute_tail.vsm の l1bmd）まで 2 ステップ（dev manual 3.6.3.6）
+	nop/2
 	mvp/n512 $p45056@0 $lc512@0.0
 	mvp/n512 $p45568@0 $lc512@0.1
 	mvp/n512 $p46080@0 $lc512@1.0
@@ -145,7 +145,6 @@
 	mvp/n512i3f $p48640@0 $lc512@3.1
 	nop/2
 	nop; wait i3f
-	nop/5
 	l2bmb@0 $lc512 $lb64
 	l2bmb@1 $lc576 $lb64
 	l2bmb@2 $lc640 $lb64
@@ -154,7 +153,8 @@
 	l2bmb@5 $lc832 $lb64
 	l2bmb@6 $lc896 $lb64
 	l2bmb@7 $lc960 $lb64
-	nop/5
+	# L2BM -> L1BM の後、同じ番地を読む L1BM -> PE（distribute_tail.vsm の l1bmd）まで 2 ステップ（dev manual 3.6.3.6）
+	nop/2
 	mvp/n512 $p49152@0 $lc1024@0.0
 	mvp/n512 $p49664@0 $lc1024@0.1
 	mvp/n512 $p50176@0 $lc1024@1.0
@@ -165,7 +165,6 @@
 	mvp/n512i3f $p52736@0 $lc1024@3.1
 	nop/2
 	nop; wait i3f
-	nop/5
 	l2bmb@0 $lc1024 $lb128
 	l2bmb@1 $lc1088 $lb128
 	l2bmb@2 $lc1152 $lb128
@@ -174,29 +173,31 @@
 	l2bmb@5 $lc1344 $lb128
 	l2bmb@6 $lc1408 $lb128
 	l2bmb@7 $lc1472 $lb128
-	nop/5
+	# L2BM -> L1BM の後、同じ番地を読む L1BM -> PE（distribute_tail.vsm の l1bmd）まで 2 ステップ（dev manual 3.6.3.6）
+	nop/2
 	l1bmd $lb0 $lm22v/1110
-# broadcast_load.vsm — @broadcast: PDM の区画を L1BM に載せる部分
-# その区画がまだ L1BM に載っていないときだけ展開される
-# HW パス: PDM から mvb で全 8 L2BM、 l2bmb で全 64 L1BM へ (64 u64 の区画ごと)
+# broadcast_load.vsm — @broadcast: PDM の 64 u64 を L1BM に移動する部分
+# その 64 u64 がまだ L1BM に移動していないときだけ展開される
+# HW パス: PDM から mvb で全 8 L2BM、 l2bmb で全 64 L1BM へ (64 u64 ごと)
 
-	nop/4
 # @broadcast  _const from_param 16 size 4 $lr16    # eps2=$lr16 0.5=$lr18 1.5=$lr20 dt=$lr22
 # === @broadcast _const: PDM $p16384 → 全 4096 PE $lr16 ===
 	mvb/n64i3f $p16384@0 $lc0
 	nop/2
 	nop; wait i3f
-	nop/5
 	l2bmb $lc0 $lb0
-# broadcast_use.vsm — @broadcast: L1BM に載っている値を PE に配る部分
-# 毎回展開される。載っていなかった場合は直前に broadcast_load.vsm が展開されている
-# L1BM の番地は区画の先頭ではなく要求された位置 (ずれは vsmlink が加える)
+# broadcast_use.vsm — @broadcast: L1BM に移動した値を PE に配る部分
+# 毎回展開される。移動していなかった場合は直前に broadcast_load.vsm が展開されている
+# L1BM の番地は移動した 64 u64 の先頭ではなく要求された位置 (ずれは vsmlink が加える)
 
 
-	nop/5
+	# 直前の命令が L1BM に書いた場合の待ち。内部マルチキャスト => L1BM -> PE は 3 ステップ（dev manual 3.6.3.5）、
+	# L2BM -> L1BM（broadcast_load.vsm の l2bmb）=> L1BM -> PE は 2 ステップ（3.6.3.6）、PE -> L1BM => L1BM -> PE は 2 ステップ（3.6.3.8）
+	nop/3
 	l1bmp $lb0 $lr16v
-	nop/24
-	nop/24
+	# 直後の命令が $lr16 を読む場合の待ち（dev manual 3.6.3.9。LM0 / LM1 は 2 ステップ）
+	nop/2
+	nop/2
 	lpassa $lr16 $lm14       # eps2 -> LM0[7]
 	nop/24
 	lpassa $lr18 $lm16       # 0.5  -> LM0[8]
@@ -222,4 +223,5 @@
 	nop/24
 	lpassa $lr0 $lm12        # az = 0 -> LM0[6]
 	nop/24
+#@ @kernel_end init
 # (:pdm :directive "@broadcast" :id "_const" :slot 16 :place :pdm0 :addr 16384 :size 4 :access :read)

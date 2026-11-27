@@ -3,10 +3,9 @@ include ../scripts/vsmlink.ninja
 builddir = _build
 
 # --- vsmlink ---
-build $builddir/get_left.vsm: vsmlink data/get_left._vsm | data/get_left.param data/get_left.stparam
+build $builddir/get_left.vsm: vsmlink data/get_left._vsm | data/get_left.param
   vsm = data/get_left._vsm
   param = data/get_left.param
-  stparam = data/get_left.stparam
 
 # --- assemble ---
 build $builddir/get_left.asm: asm3 $builddir/get_left.vsm
@@ -18,10 +17,9 @@ build $builddir/test_get_left.o: cc test_get_left.c
 build $builddir/test_get_left: link_exe $builddir/test_get_left.o
 
 # --- right: vsmlink ---
-build $builddir/get_right.vsm: vsmlink data/get_right._vsm | data/get_left.param data/get_left.stparam
+build $builddir/get_right.vsm: vsmlink data/get_right._vsm | data/get_left.param
   vsm = data/get_right._vsm
   param = data/get_left.param
-  stparam = data/get_left.stparam
 
 # --- right: assemble ---
 build $builddir/get_right.asm: asm3 $builddir/get_right.vsm

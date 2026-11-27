@@ -5,34 +5,29 @@ include ../scripts/mncl.ninja
 include ../../scripts/sdk.ninja
 builddir = _build
 
-# stparam は 3 kernel 共通 (4096 PE 1D, layout :any)
-
 # --- even kernel ---
 build $builddir/odd-even-sort-even._vsm: emit-vsm odd-even-sort-even.cl
-build $builddir/odd-even-sort-even.vsm: vsmlink $builddir/odd-even-sort-even._vsm odd-even-sort-even.param odd-even-sort.stparam
+build $builddir/odd-even-sort-even.vsm: vsmlink $builddir/odd-even-sort-even._vsm odd-even-sort-even.param
   vsm = $builddir/odd-even-sort-even._vsm
   param = odd-even-sort-even.param
-  stparam = odd-even-sort.stparam
 build $builddir/odd-even-sort-even.asm: asm3 $builddir/odd-even-sort-even.vsm
 build $builddir/odd-even-sort-even.idma.dat | $builddir/odd-even-sort-even.idma.inst $builddir/odd-even-sort-even.idma.inst.txt $builddir/odd-even-sort-even.ddma.dat $builddir/odd-even-sort-even.ddma.inst $builddir/odd-even-sort-even.ddma.inst.txt: asm3_loader $builddir/odd-even-sort-even.vsm
   stem = $builddir/odd-even-sort-even
 
 # --- odd kernel ---
 build $builddir/odd-even-sort-odd._vsm: emit-vsm odd-even-sort-odd.cl
-build $builddir/odd-even-sort-odd.vsm: vsmlink $builddir/odd-even-sort-odd._vsm odd-even-sort-odd.param odd-even-sort.stparam
+build $builddir/odd-even-sort-odd.vsm: vsmlink $builddir/odd-even-sort-odd._vsm odd-even-sort-odd.param
   vsm = $builddir/odd-even-sort-odd._vsm
   param = odd-even-sort-odd.param
-  stparam = odd-even-sort.stparam
 build $builddir/odd-even-sort-odd.asm: asm3 $builddir/odd-even-sort-odd.vsm
 build $builddir/odd-even-sort-odd.idma.dat | $builddir/odd-even-sort-odd.idma.inst $builddir/odd-even-sort-odd.idma.inst.txt $builddir/odd-even-sort-odd.ddma.dat $builddir/odd-even-sort-odd.ddma.inst $builddir/odd-even-sort-odd.ddma.inst.txt: asm3_loader $builddir/odd-even-sort-odd.vsm
   stem = $builddir/odd-even-sort-odd
 
 # --- reduce kernel ---
 build $builddir/odd-even-sort-reduce._vsm: emit-vsm odd-even-sort-reduce.cl
-build $builddir/odd-even-sort-reduce.vsm: vsmlink $builddir/odd-even-sort-reduce._vsm odd-even-sort-reduce.param odd-even-sort.stparam
+build $builddir/odd-even-sort-reduce.vsm: vsmlink $builddir/odd-even-sort-reduce._vsm odd-even-sort-reduce.param
   vsm = $builddir/odd-even-sort-reduce._vsm
   param = odd-even-sort-reduce.param
-  stparam = odd-even-sort.stparam
 build $builddir/odd-even-sort-reduce.asm: asm3 $builddir/odd-even-sort-reduce.vsm
 build $builddir/odd-even-sort-reduce.idma.dat | $builddir/odd-even-sort-reduce.idma.inst $builddir/odd-even-sort-reduce.idma.inst.txt $builddir/odd-even-sort-reduce.ddma.dat $builddir/odd-even-sort-reduce.ddma.inst $builddir/odd-even-sort-reduce.ddma.inst.txt: asm3_loader $builddir/odd-even-sort-reduce.vsm
   stem = $builddir/odd-even-sort-reduce

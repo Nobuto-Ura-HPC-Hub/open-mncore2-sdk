@@ -1,0 +1,15 @@
+# ABI PFN3_SBY64
+#
+# collect_pos: LM 常駐の更新後の位置 (x,y,z) を PDM へ回収する。ホストが実行する。
+# LM0 常駐: x=$lm0 y=$lm2 z=$lm4
+#
+# size 3 の 1 回で回収する。l1bmd 結合は size によらず $ln4088 から 4 サイクル読むので、
+# 基点は $ln4088 とし、成分は $ln4088 (x) $ln4090 (y) $ln4092 (z) に置く。
+#
+	lpassa $lm0 $ln4088     # x -> collect reg 成分 0
+	nop/2
+	lpassa $lm2 $ln4090     # y -> collect reg 成分 1
+	nop/2
+	lpassa $lm4 $ln4092     # z -> collect reg 成分 2
+	nop/2
+	@collect _pos to_param 8 size 3 $ln4088

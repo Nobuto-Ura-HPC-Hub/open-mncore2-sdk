@@ -1,0 +1,7 @@
+;; send_wait_tag は、ホストが 0 以外のタグで送るエントリにだけ付ける。vsmlink の param-spec.md「待ちのタグの規則」
+;; :buffer は get_eoshift 系の M が 10 以上の組（ここでは y の ±1）が使う（576 u64 以上。ほかの example に合わせて 4160）
+((:version :0.1)
+ (:reserved_wait_tag #x3f)
+ (:slot 8 :place :pdm0 :addr 0 :send_wait_tag #x10)          ; u（初期値）
+ (:slot 16 :place :pdm0 :addr 4096 :recv_wait_tag #x1e)      ; 結果
+ (:buffer nbuf0 :place :pdm0 :addr 8192 :buf_size 4160))

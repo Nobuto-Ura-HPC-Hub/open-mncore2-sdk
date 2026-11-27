@@ -25,7 +25,7 @@ MN-Core2 の OpenCL では**カーネルをまたいで PE の状態（レジス
 ## 積分カーネルは triggerless（起動トリガの送信が不要）
 
 積分カーネルは pos/vel/acc/dt をすべて PDM 常駐で読むだけで、host から送る新しいデータが無い。
-**`.param` に `send_wait_tag` を付けなければ、vsm-linker は先頭の起動待ちの wait を出さず、
+**`.param` に `send_wait_tag` を付けなければ、vsmlink は先頭の起動待ちの wait を出さず、
 `mnc2_exec_kernel` 単独でカーネルが走る**（10-odd-even-sort の reduce カーネルと同型）。順序（力フェーズ
 → 積分）は host の sync `mnc2_recv`（力フェーズの acc drain）で担保する。**値として不要なダミー送信は
 要らない。** dt は init で 1 回だけ送って常駐させる。
@@ -94,5 +94,14 @@ splat のコンパイラ機能の実機検証）とは別。**MNCL の課題で�
 ## 性能について（先送りにした最適化）
 
 いまは 1 粒子ずつ broadcast する構成（1 タイムステップ = N + 1 カーネル起動）で、host loop の DMA が
-律速になりやすい。1 カーネルに複数粒子ブロックを畳んで内側を unroll すればカーネル起動回数を
-減らせる（1 カーネルの命令数上限の確定待ち）。
+律速になりやすい。
+
+**1 つの kernel の中で複数の粒子を読める。** 同じ引数の `broadcast` を繰り返し呼ぶと、呼ぶたびに続きのデータを読む（mncl-kit 0.3.4 から。
+`15-broadcast` などの書き方）。`#pragma unroll` のループで粒子を順に読めば、起動の回数を減らせる。この example 自身は、1 粒子ずつの
+構成のままにしてある。
+
+**kernel の大きさの扱いは libmnc2 が決める。** libmnc2-kit 0.4.3 から、大きな kernel は、連続した領域（1 つが既定 4 MiB。以下、分割領域。libmnc2 の `piece`）に分けて load され、IDMA の
+キューに積める分割領域の数は `idma_queue_limit`（既定 16、1〜31 で設定できる）で決まる。待たない版の `mnc2_exec_kernel` は、分割領域の数がこの値を
+超える kernel（既定の値では 64 MiB を超えるもの）に `MNC2_ERROR_QUEUE_LIMIT` を返す。そのような kernel は、待つ版の
+`mnc2_exec_kernel_blocking` で積む。数字は libmnc2 の既定値で、変わりうる。詳しくは libmnc2 の `share/mnc2/api-reference.md`
+（「カーネル実行」「IDMA キューの上限」）。

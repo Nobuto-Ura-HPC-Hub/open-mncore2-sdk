@@ -1,25 +1,14 @@
-/* test_stencil1d_distribute.c — @boundary_flags distribute の E2E 検証
+/* test_stencil1d_distribute.c — 境界フラグを PE の上で計算する stencil1d の E2E 検証
  *
- * example 05 と同じ 1D 3-point stencil だが、境界フラグをホスト側で計算し
- * PDM に send してからカーネルを実行する。
+ * example 05 と同じ 1D 3-point stencil だが、境界フラグを @boundary_flags_compute で
+ * 各 PE が自分の位置のレジスタから計算する。ホストは境界フラグを送らない。
  *
- * ビットレイアウト (LOW 32bit):
- *   bit[0] = PE_right_edge   ($subpeid == 3)
- *   bit[1] = PE_left_edge    ($subpeid == 0)
- *   bit[2] = MAB_right_edge  ($mabid == 15)
- *   bit[3] = MAB_left_edge   ($mabid == 0)
- *   bit[4] = L1B_right_edge  ($l1bid == 7)
- *   bit[5] = L1B_left_edge   ($l1bid == 0)
- *   bit[6] = L2B_right_edge  (将来: 常に 0)
- *   bit[7] = L2B_left_edge   (将来: 常に 0)
- *   bit[8] = CHIP_right_edge (将来: 常に 0)
- *   bit[9] = CHIP_left_edge  (将来: 常に 0)
- *
- * flat PE ID = subpeid + (mabid << 2) + (l1bid << 6) + (l2bid << 9)
+ * 境界フラグのビットの割り当ては share/vsmlink/directives-spec.md の @boundary_flags の
+ * 「ビットレイアウト (正式仕様)」を参照。
  *
  * PDM レイアウト (stencil1d.param):
- *   slot 8:  addr 0    — input  (4096 LW)
- *   slot 16: addr 4096 — output (4096 LW)
+ *   slot 8:  addr 0    — input  (4096 u64)
+ *   slot 16: addr 4096 — output (4096 u64)
  *
  * boundary flags は @boundary_flags_compute で HW レジスタから計算（PDM 不要）
  */
@@ -42,7 +31,7 @@
 
 int main(void)
 {
-    printf("=== stencil1d: 3-point sum with @boundary_flags distribute ===\n\n");
+    printf("=== stencil1d: 3-point sum with @boundary_flags_compute ===\n\n");
 
     mnc2_device_t dev = mnc2_open(0);
     if (dev == NULL) {

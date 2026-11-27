@@ -1,0 +1,10 @@
+;; send_wait_tag は、ホストが 0 以外のタグで送る slot にだけ付ける（vsmlink の E120）。
+;; slot 8 は distribute2 の入力（8192 個。前半 4096 個が各 PE の a、後半 4096 個が b）、slot 16 は collect2 の出力（8192 個）。
+;; :identify は get_global_id と同じ（ホストが PE の番号 [0..4095] を addr 0 へ送る）。
+;; :buffer は get_hypercube_neighbor の deep 9〜11 が PDM の作業領域として使う（4096 u64 以上）。
+((:version :0.1)
+ (:reserved_wait_tag #x3f)
+ (:slot 8 :place :pdm0 :addr 4096 :send_wait_tag #x11)
+ (:slot 16 :place :pdm0 :addr 16384 :recv_wait_tag #x1e)
+ (:identify 0 :place :pdm0 :addr 0 :send_wait_tag #x10)
+ (:buffer nbuf0 :place :pdm0 :addr 32768 :buf_size 4160))

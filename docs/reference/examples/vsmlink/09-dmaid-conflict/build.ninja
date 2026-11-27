@@ -4,7 +4,7 @@
 # 予約タグ (vsmlink が kernel の中の転送の待ちに使うタグ) の値は roundtrip.param の
 # :reserved_wait_tag だけで決め、ホストへは build で生成するヘッダで渡す。
 #
-# ninja              → vsmlink: _vsm + .param + .stparam → .vsm
+# ninja              → vsmlink: _vsm + .param → .vsm
 # ninja build-e2e    → + assemble3 + host C ビルド (emu:lib)
 # ninja test         → + 実行・検証
 #
@@ -15,10 +15,9 @@ include ../scripts/vsmlink.ninja
 builddir = _build
 
 # --- default: vsmlink only (reuse 01-roundtrip kernel) ---
-build $builddir/roundtrip.vsm: vsmlink roundtrip._vsm roundtrip.param roundtrip.stparam
+build $builddir/roundtrip.vsm: vsmlink roundtrip._vsm roundtrip.param
   vsm = roundtrip._vsm
   param = roundtrip.param
-  stparam = roundtrip.stparam
 
 # --- build-e2e: assemble + host C ---
 build $builddir/roundtrip.asm: asm3 $builddir/roundtrip.vsm

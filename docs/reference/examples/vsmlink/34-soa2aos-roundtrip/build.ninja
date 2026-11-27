@@ -12,16 +12,14 @@ include ../../scripts/sdk.ninja
 include ../scripts/vsmlink.ninja
 builddir = _build
 
-build $builddir/roundtrip.vsm: vsmlink roundtrip._vsm roundtrip.param roundtrip.stparam
+build $builddir/roundtrip.vsm: vsmlink roundtrip._vsm roundtrip.param
   vsm = roundtrip._vsm
   param = roundtrip.param
-  stparam = roundtrip.stparam
 build $builddir/roundtrip.idma.dat: asm3_loader $builddir/roundtrip.vsm
   stem = $builddir/roundtrip
-build $builddir/pe_order.vsm: vsmlink pe_order._vsm roundtrip.param roundtrip.stparam
+build $builddir/pe_order.vsm: vsmlink pe_order._vsm roundtrip.param
   vsm = pe_order._vsm
   param = roundtrip.param
-  stparam = roundtrip.stparam
 build $builddir/pe_order.idma.dat: asm3_loader $builddir/pe_order.vsm
   stem = $builddir/pe_order
 build $builddir/roundtrip.o: cc roundtrip.c

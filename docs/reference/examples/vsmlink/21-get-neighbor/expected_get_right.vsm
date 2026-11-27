@@ -22,7 +22,6 @@
 	mvp/n512i3f $p7680@0 $lc0@3.1
 	nop/2
 	nop; wait i3f
-	nop/5
 	l2bmb@0 $lc0 $lb0
 	l2bmb@1 $lc64 $lb0
 	l2bmb@2 $lc128 $lb0
@@ -31,11 +30,11 @@
 	l2bmb@5 $lc320 $lb0
 	l2bmb@6 $lc384 $lb0
 	l2bmb@7 $lc448 $lb0
-	nop/5
+	# L2BM -> L1BM の後、同じ番地を読む L1BM -> PE（distribute_tail.vsm の l1bmd）まで 2 ステップ（dev manual 3.6.3.6）
+	nop/2
 	l1bmd $lb0 $lm0v/1000
 # boundary_flags.vsm — @boundary_flags テンプレート
 
-	nop/24
 # @boundary_flags bf1 0 $lr416 data_edge_left data_edge_right cross_chip_left cross_chip_right cross_L2B_left cross_L2B_right cross_L1B_left cross_L1B_right cross_MAB_left cross_MAB_right
 # === @boundary_flags bf1: PDM → $lr416 ===
 # -- @boundary_flags distribute: PDM $p12288 → L2BM → L1BM → $lr416 --
@@ -49,7 +48,6 @@
 	mvp/n512i3f $p15872@0 $lc0@3.1
 	nop/2
 	nop; wait i3f
-	nop/5
 	l2bmb@0 $lc0 $lb0
 	l2bmb@1 $lc64 $lb0
 	l2bmb@2 $lc128 $lb0
@@ -58,22 +56,25 @@
 	l2bmb@5 $lc320 $lb0
 	l2bmb@6 $lc384 $lb0
 	l2bmb@7 $lc448 $lb0
-	nop/5
+	# L2BM -> L1BM の後、同じ番地を読む L1BM -> PE まで 2 ステップ（dev manual 3.6.3.6）
+	nop/2
 	l1bmd $lb0 $lr416v/1000
-	nop/24
+	# 直後の命令が $lr416 を読む場合の待ち（dev manual 3.6.3.9。LM0 / LM1 は 2 ステップ）
+	nop/2
 #@ @alloc right :omr 5 6 7 8 :grf0 0 32 80 88 402 404 96 84 86 90 92 :n 0
-#@ @get_neighbor $lr400 +1 $lm0 bf1 nbuf0 right
-# get_neighbor_right_clamp.vsm — @get_neighbor offset=+1 clamp テンプレート
+#@ @get_neighbor $lr400 +1 $lm0 bf1 nbuf0 right :reg $lm0
+# get_neighbor_right.vsm — @get_neighbor offset=+1 テンプレート
 #
 # put/get モデル: PDM0 上の専用バッファ（:buffer）を使用。
 # L1B0 のみ minimal。
-# clamp: data_edge の PE は自分自身の値を返す。
+# 端の PE（PE の番号 0 / 4095）の値は、このテンプレートでは決めない。続く get_neighbor_edge_*.vsm が、端の指定に従って書く。
 #
 # omr 導出: ixor でワンホット完全一致を検出
-# 結果選択: within MAB をデフォルトにし、maskr で上書き
+# 結果選択: within MAB をデフォルトにし、書き込みマスクで上書き
+#   マスクは結果レジスタ（dest）のレジスタファイル（GRF0/GRF1/LM0/LM1）に対して有効にする。
 #
-# レジスタ使用 (grf0: r0-r10, omr: omr0-omr3, n: n0):
-#   r0-r6: 作業用  r7-r10: imm マスク (_hi/_lo)
+# レジスタ使用 (grf0: r0-r9, omr: omr0-omr2, n: n0):
+#   r0-r6: 作業用  r7-r9: imm マスク (_hi/_lo)
 
 # ゼロレジスタ
 lxor $lr32 $lr32 $lr32
@@ -87,7 +88,8 @@ nop
 # put: PE → L1BM → L2BM → PDM（L1B0 のみ）
 # ============================================================
 l1bmd $lr0v $lb128
-nop/10
+# PE -> L1BM の後、同じ L1BM を読む L1BM -> L2BM まで 3 ステップ（dev manual 3.6.3.7）
+nop/3
 
 l2bm@0 $lb128 $lc0
 nop/3
@@ -108,7 +110,6 @@ mvp/n64 $lc0@3.0 $p19456@0
 mvp/n64i3f $lc0@3.1 $p19968@0
 nop/3
 nop; wait i3f
-nop/5
 
 # ============================================================
 # get: PDM → L2BM → L1BM → PE（1 L2B 分ずらして読む = right）
@@ -123,11 +124,11 @@ mvp/n64 $p19968@0 $lc1024@3.0
 mvp/n64i3f $p20480@0 $lc1024@3.1
 nop/2
 nop; wait i3f
-nop/5
 
 # L2BM → L1BM → PE
 l2bmb@7 $lc1024 $lb128
-nop/6
+# L2BM -> L1BM の後、同じ番地を読む L1BM -> PE まで 2 ステップ（dev manual 3.6.3.6）
+nop/2
 l1bmd-1 $lb128 $lr80v/1000
 nop/2
 msr $lr80 $lr80
@@ -137,7 +138,8 @@ msr $lr80 $lr80
 # ============================================================
 nop/2
 l1bmd $lr0v $lb128
-nop/10
+# PE -> L1BM の後、同じ L1BM を読む L1BM -> L2BM まで 3 ステップ（dev manual 3.6.3.7）
+nop/3
 
 l2bm@0 $lb128 $lc512
 l2bm@1 $lb128 $lc576
@@ -156,7 +158,8 @@ l2bmb@3 $lc768 $lb128
 l2bmb@4 $lc832 $lb128
 l2bmb@5 $lc896 $lb128
 l2bmb@6 $lc960 $lb128
-nop/6
+# L2BM -> L1BM の後、同じ番地を読む L1BM -> PE まで 2 ステップ（dev manual 3.6.3.6）
+nop/2
 
 l1bmd-1 $lb128 $lr88v/1000
 nop/2
@@ -191,10 +194,6 @@ imm i"4" $r87
 imm i"0" $r90
 imm i"1" $r91
 
-# data_edge_right = bit8 = 256
-imm i"0" $r92
-imm i"256" $r93
-
 nop/2
 
 # omr0: cross_L2B_right
@@ -220,16 +219,8 @@ ixor $ln0 $lr90 $lr96
 nop/2
 lpassa $lr96 $omr7
 
-# omr3: data_edge_right
-nop
-lpassa $lr416 $ln0
-nop/2
-ixor $ln0 $lr92 $lr96
-nop/2
-lpassa $lr96 $omr8
-
 # ============================================================
-# 結果選択 (within MAB デフォルト + maskr 上書き)
+# 結果選択 (within MAB デフォルト + 書き込みマスクで上書き)
 # ============================================================
 
 # default: within MAB
@@ -254,13 +245,42 @@ nop/2
 ipassa $lr80 $lr400
   mask 0
 
-# clamp: data_edge_right → self で上書き
+# 暫定: 直後に $lr400 を使う命令が来ると hazard になるため。 後で精査して正確な数に置き換える
 nop/2
+# get_neighbor_edge_right.vsm — @get_neighbor offset=+1 の末尾。端の PE の dest に $lm0 を書く
+#
+# 端の PE は、境界のフラグ（$lr416）に cross_chip_right（bit 6 = 64）か data_edge_right（bit 8 = 256）が立っている PE である
+# （directives-spec.md の @boundary_flags。フラグはワンホットで、1 つの PE に立つビットは 1 つだけ）。
+# それぞれの値との排他的論理和を r6 に置き、lpassa で omr3 に写して、0 の PE（その値と一致する PE）に書く（出力が全部 0 のときマスクフラグが 1。
+# dev manual 3.6.12.1 の表 3.11。本体の道筋の選択と同じ形）。
+# 書き込みマスクは dest のレジスタファイルに対して有効にする（3.6.2.1）。
+#
+# 境界のフラグを $ln0 に写してから比べる: 1 つの演算の 2 つの入力を、GRF0 の違う番地から取れない（本体の道筋の選択と同じ）。
+# nop/2（$ln0 に書いた後）: LM1 に書いた後の待ち（3.6.3.9）。
+# nop/2（$lr96 に書いた後）: GRF0 の同じ番地を読む前の待ち（3.6.3.9）。1 ステップでは assemble3 のハザード検査が止める（ixor の書き込みが
+#   完了まで 6 サイクルかかるため）。本体の道筋の選択と同じ数。
+# 末尾の nop/2: 直後の命令が $lr400 を読む場合の待ち（3.6.3.9）。
+#
+# レジスタ使用 (grf0: r6-r8, omr: omr3, n: n0)
+#   r7: 定数 64 (_hi / _lo)  r8: 定数 256 (_hi / _lo)  n0: 境界のフラグの写し  r6: 排他的論理和
+imm i"0" $r84
+imm i"64" $r85
+imm i"0" $r86
+imm i"256" $r87
+lpassa $lr416 $ln0
+nop/2
+ixor $ln0 $lr84 $lr96
+nop/2
+lpassa $lr96 $omr8
   maskr 8
 ipassa $lm0 $lr400
   mask 0
-
-# 暫定: 直後に $lr400 を使う命令が来ると hazard になるため。 後で精査して正確な数に置き換える
+ixor $ln0 $lr86 $lr96
+nop/2
+lpassa $lr96 $omr8
+  maskr 8
+ipassa $lm0 $lr400
+  mask 0
 nop/2
 #@ @free right
 	nop
@@ -271,9 +291,11 @@ nop/2
 # @collect _out to_param 16 size 1 $ln4088
 # === @collect _out: $ln4088 → L1BM → L2BM → PDM $p8192 ===
 # (:pdm :directive "@collect" :id "_out" :slot 16 :place :pdm0 :addr 8192 :size 4096 :access :write)
-	nop/24
+	# 直前の命令が $ln4088 に書いた場合の待ち（dev manual 3.6.3.9。LM0 / LM1 は 2 ステップ）
+	nop/2
 	l1bmd $ln4088v $lb0
-	nop/24
+	# PE -> L1BM の後、同じ L1BM を読む L1BM -> L2BM（collect_stage.vsm の l2bm@）まで 3 ステップ（dev manual 3.6.3.7）
+	nop/3
 	l2bm@0 $lb0 $lc0
 	l2bm@1 $lb0 $lc64
 	l2bm@2 $lb0 $lc128
@@ -282,7 +304,8 @@ nop/2
 	l2bm@5 $lb0 $lc320
 	l2bm@6 $lb0 $lc384
 	l2bm@7 $lb0 $lc448
-	nop/5
+	# L1BM -> L2BM の後、その L2BM を読む MV 命令まで 2 ステップ（dev manual 3.6.3.1 と assemble3 は 1 ステップとするが、実機では 1 ステップ後の MV 命令が、書き終わる前の L2BM を読む。2 ステップでは読まない）
+	nop/2
 	mvp/n512 $lc0@0.0 $p8192@0
 	mvp/n512i3f $lc0@0.1 $p8704@0
 	nop/3
@@ -299,4 +322,3 @@ nop/2
 	mvp/n512i1e $lc0@3.1 $p11776@0
 	nop/3
 	nop; wait i1e
-	nop/4

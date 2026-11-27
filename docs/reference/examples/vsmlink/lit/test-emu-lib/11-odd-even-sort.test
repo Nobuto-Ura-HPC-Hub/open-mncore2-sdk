@@ -1,1 +1,3 @@
+# 長いテスト: 奇偶転置ソートの完全版。整列が収束するまで回すことが確かめている内容。普段は流さず、--param long=1 のときだけ流す。
+# REQUIRES: long
 # RUN: ninja -C %root/examples/11-odd-even-sort test-emu-lib

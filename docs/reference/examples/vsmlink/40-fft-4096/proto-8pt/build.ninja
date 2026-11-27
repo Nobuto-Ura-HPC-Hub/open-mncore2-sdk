@@ -1,0 +1,65 @@
+# 40-fft-4096: FFT（4096 点、複素 f64、周波数間引き型、基数 2）。隣は @get_hypercube_neighbor で受け取る
+#   12 段（j = 11..0）。出力は PE の番号の順で、ビット反転順の周波数になる。期待値は Python（numpy）で作り、
+#   ノルム誤差で比べる（check.py。基準は README）。
+#
+# ninja              → vsmlink のみ
+# ninja build-e2e    → + assemble3 + C ビルド
+# ninja test-emu-lib → emu:lib で 12 段を実行し、golden と比べる
+# ninja test-device  → 実機で 12 段を実行し、golden と比べる
+
+include ../../../scripts/sdk.ninja
+include ../../scripts/vsmlink.ninja
+builddir = _build
+m = 3
+
+rule gen_vsm
+  command = python3 ../gen_vsm.py $m $out $param_out
+  description = GEN $out
+rule gen_input
+  command = python3 ../gen_input.py $m $in_out $tw_out $kind
+  description = GEN $out
+rule gen_golden
+  command = python3 ../gen_golden.py $m $in $out
+  description = GOLDEN $out
+rule run_check
+  command = LD_LIBRARY_PATH=${sdk_root}/lib/emu-lib ./$host $args $outfile && python3 ../check.py $m $outfile $golden
+  description = TEST [emu:lib] $outfile
+rule run_check_device
+  command = ./$host $args $outfile && python3 ../check.py $m $outfile $golden
+  description = TEST [device] $outfile
+
+build $builddir/fft._vsm $builddir/fft.param: gen_vsm ../gen_vsm.py
+  param_out = $builddir/fft.param
+build $builddir/fft.vsm: vsmlink $builddir/fft._vsm | $builddir/fft.param
+  vsm     = $builddir/fft._vsm
+  param   = $builddir/fft.param
+build $builddir/fft.asm: asm3 $builddir/fft.vsm
+build $builddir/fft.idma.dat: asm3_loader $builddir/fft.vsm
+  stem = $builddir/fft
+
+build $builddir/input.bin $builddir/tw.bin: gen_input ../gen_input.py
+  in_out = $builddir/input.bin
+  tw_out = $builddir/tw.bin
+  kind = --kind random
+build $builddir/golden.bin: gen_golden $builddir/input.bin | ../gen_golden.py
+
+build $builddir/fft_host.o: cc ../fft_host.c
+build $builddir/fft_host: link_exe $builddir/fft_host.o
+
+build build-e2e: phony $builddir/fft.asm $builddir/fft.idma.dat $builddir/fft_host
+
+build test: test_usage
+
+build test-emu-lib: run_check $builddir/fft.idma.dat | $builddir/fft_host $builddir/input.bin $builddir/tw.bin $builddir/golden.bin ../check.py
+  host = $builddir/fft_host
+  args = $builddir/fft.idma.dat $m $builddir/input.bin $builddir/tw.bin
+  outfile = $builddir/out.bin
+  golden = $builddir/golden.bin
+
+build test-device: run_check_device $builddir/fft.idma.dat | $builddir/fft_host $builddir/input.bin $builddir/tw.bin $builddir/golden.bin ../check.py
+  host = $builddir/fft_host
+  args = $builddir/fft.idma.dat $m $builddir/input.bin $builddir/tw.bin
+  outfile = $builddir/out.bin
+  golden = $builddir/golden.bin
+
+default $builddir/fft.vsm

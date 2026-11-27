@@ -1,0 +1,12 @@
+;; send_wait_tag は、ホストが 0 以外のタグで送るエントリにだけ付ける（タグ 0 で exec の前に送り終えるもの、
+;; kernel が PDM に書いたものを読むものには付けない）。vsmlink の param-spec.md「待ちのタグの規則」
+;; :boundary_flags と :buffer は load_neighbor 系が使う。:buffer は get_eoshift の M が 10 以上の組でも使う
+((:version :0.1)
+ (:reserved_wait_tag #x3f)
+ (:slot 8 :place :pdm0 :addr 0 :send_wait_tag #x10)          ; a
+ (:slot 16 :place :pdm0 :addr 4096 :recv_wait_tag #x1e)      ; clamp
+ (:slot 24 :place :pdm0 :addr 8192 :recv_wait_tag #x1d)      ; periodic
+ (:slot 32 :place :pdm0 :addr 12288 :recv_wait_tag #x1c)     ; 固定の境界値
+ (:slot 40 :place :pdm0 :addr 16384 :recv_wait_tag #x1b)     ; 格子の上隣（周期境界）
+ (:boundary_flags bf0 :place :pdm0 :addr 20480)
+ (:buffer nbuf0 :place :pdm0 :addr 24576 :buf_size 4160))

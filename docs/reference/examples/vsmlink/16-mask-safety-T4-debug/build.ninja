@@ -1,6 +1,6 @@
 # 16-mask-safety-T4-debug: mask safety E2E test (debug_read version)
 #
-# ninja              → vsmlink: _vsm + .param + .stparam → .vsm
+# ninja              → vsmlink: _vsm + .param → .vsm
 # ninja build-e2e    → + assemble3 + host C ビルド (emu:lib)
 # ninja test         → + emu:lib で実行・検証
 #                       debug_read 未対応バックエンドでは SKIP になる
@@ -12,10 +12,9 @@ include ../scripts/vsmlink.ninja
 builddir = _build
 
 # --- default: vsmlink only ---
-build $builddir/T4.vsm: vsmlink T4._vsm T4.param T4.stparam
+build $builddir/T4.vsm: vsmlink T4._vsm T4.param
   vsm = T4._vsm
   param = T4.param
-  stparam = T4.stparam
 
 # --- build-e2e: assemble + host C ---
 build $builddir/T4.asm: asm3 $builddir/T4.vsm

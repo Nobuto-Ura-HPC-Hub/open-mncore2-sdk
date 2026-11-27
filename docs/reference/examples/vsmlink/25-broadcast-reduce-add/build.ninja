@@ -20,10 +20,9 @@ rule test_device_inout
   description = TEST [device] $exe $opts $in_bin $out_bin
 
 # --- vsmlink ---
-build $builddir/broadcast_reduce.vsm: vsmlink broadcast_reduce._vsm | broadcast_reduce.param broadcast_reduce.stparam
+build $builddir/broadcast_reduce.vsm: vsmlink broadcast_reduce._vsm | broadcast_reduce.param
   vsm     = broadcast_reduce._vsm
   param   = broadcast_reduce.param
-  stparam = broadcast_reduce.stparam
 
 # --- assemble ---
 build $builddir/broadcast_reduce.asm: asm3 $builddir/broadcast_reduce.vsm

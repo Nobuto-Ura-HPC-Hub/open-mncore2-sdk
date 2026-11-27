@@ -7,7 +7,8 @@
 # 警告も出ない。変えるときは手で確認すること。
 #
 # cross L1B: 隣接 L1B のデータを取得する命令シーケンスを検証する。
-# これは @stencil ディレクティブが生成する 7 フェーズのうち、cross L1B 部分に対応する。
+# @get_neighbor の展開の cross L1B の部分と同じ経路（L1BM → L2BM → 隣の L1B の L1BM）を手で書いたもの。
+# PE の位置合わせは、いまの展開（`msl` 1 回）と違い、`msr` を 3 回使っている。
 #
 # ── MN-Core 2 のトポロジ（L1B 周辺） ──
 #
@@ -51,7 +52,7 @@
 # 経路: PDM → (mvp) → L2BM → (l2bmb) → L1BM → (l1bmd) → PE の LM0
 	nop; wait i10
 	nop/3
-# mvp: PDM → L2BM（512 長語単位 × 8 セクション）
+# mvp: PDM → L2BM（512 u64 × 8 セクション）
 # $p<addr>@<group> → $lc<offset>@<group>.<l2b>
 	mvp/n512 $p0@0 $lc0@0.0
 	mvp/n512 $p512@0 $lc0@0.1

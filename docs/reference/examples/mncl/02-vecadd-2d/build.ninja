@@ -1,4 +1,4 @@
-# 02-vecadd-2d: 同 kernel (vecadd.cl) + 2D pe_shape (vecadd-2d.stparam)
+# 02-vecadd-2d: 01-vecadd と同じ kernel (vecadd.cl)、同じ build
 #
 # ninja              -> .cl -> ._vsm -> .vsm
 # ninja build-e2e    -> + vsmlink + assemble3 + host C
@@ -13,10 +13,9 @@ builddir = _build
 # --- kernel ---
 build $builddir/vecadd._vsm: emit-vsm vecadd.cl
 
-build $builddir/vecadd-2d.vsm: vsmlink $builddir/vecadd._vsm vecadd.param vecadd-2d.stparam
+build $builddir/vecadd-2d.vsm: vsmlink $builddir/vecadd._vsm vecadd.param
   vsm = $builddir/vecadd._vsm
   param = vecadd.param
-  stparam = vecadd-2d.stparam
 
 build $builddir/vecadd.asm: asm3 $builddir/vecadd-2d.vsm
 build $builddir/vecadd.idma.dat | $builddir/vecadd.idma.inst $builddir/vecadd.idma.inst.txt $builddir/vecadd.ddma.dat $builddir/vecadd.ddma.inst $builddir/vecadd.ddma.inst.txt: asm3_loader $builddir/vecadd-2d.vsm

@@ -1,0 +1,2 @@
+# RUN: ninja -C %examples/27-fft-4096-sincos build-e2e
+# RUN: ninja -C %examples/27-fft-4096-sincos test-device

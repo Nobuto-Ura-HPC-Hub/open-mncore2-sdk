@@ -2,8 +2,8 @@
 """gen_nbody31.py — 手書き kernel と生成 accumulate kernel を 1 本の `_vsm` へ束ね、
 対応する `.param` を出力する。
 
-kernel 分割機能 (`@kernel_begin`/`@kernel_end`) を使い、vsmlink 1 回の呼び出しで
-kernel ごとの `.vsm` に分割させる。分割ごとに別々の `_vsm`/`.param` を生成していた
+マルチカーネル `_vsm` (`@kernel_begin`/`@kernel_end`) を使い、vsmlink 1 回の呼び出しで
+kernel ごとの `.vsm` に変換させる。分割ごとに別々の `_vsm`/`.param` を生成していた
 28-nbody-3d (`gen_accumulate.py` + `gen_chunks_ninja.py`) と異なり、accumulate は
 CHUNK 粒子分の固定 PDM 領域を読む 1 個の kernel にし、host が「次の区間を送信 -> 同じ
 kernel を exec」を繰り返す (ループが host 側に移る)。
@@ -29,9 +29,9 @@ ACC_SLOT = 40
 HEADER = """\
 # ABI PFN3_SBY64
 #
-# nbody31: kernel 分割版の 3D N 体 vsm。init / reset_acc / accumulate / kick /
+# nbody31: マルチカーネル `_vsm` 版の 3D N 体 vsm。init / reset_acc / accumulate / kick /
 # drift / collect_pos の 6 kernel を @kernel_begin/@kernel_end で束ねる。vsmlink がこれを
-# kernel ごとの .vsm に分割し、host が accumulate を CHUNK 粒子ずつ繰り返し exec する。
+# kernel ごとの .vsm に変換し、host が accumulate を CHUNK 粒子ずつ繰り返し exec する。
 # ** 自動生成: gen_nbody31.py。手で編集しない **
 #
 """

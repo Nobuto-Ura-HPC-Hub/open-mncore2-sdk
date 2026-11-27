@@ -4,9 +4,9 @@
  * 3 つの出力バッファ（$subpeid, $mabid, $l1bid）を PDM0 から読み出す。
  *
  * PDM レイアウト (boundary-collect.param):
- *   slot 8:  addr 0    — $subpeid (4096 LW)
- *   slot 16: addr 4096 — $mabid   (4096 LW)
- *   slot 24: addr 8192 — $l1bid   (4096 LW)
+ *   slot 8:  addr 0    — $subpeid (4096 u64)
+ *   slot 16: addr 4096 — $mabid   (4096 u64)
+ *   slot 24: addr 8192 — $l1bid   (4096 u64)
  */
 
 #include <stdio.h>
@@ -18,7 +18,7 @@
 #define NUM_PES      4096
 #define ELEM_BYTES   (NUM_PES * sizeof(uint64_t))
 
-/* PDM アドレス (LW 単位) → バイト単位 */
+/* PDM アドレス (u64 単位) → バイト単位 */
 #define OFFSET_SUBPEID  (0ULL * 8)
 #define OFFSET_MABID    (4096ULL * 8)
 #define OFFSET_L1BID    (8192ULL * 8)

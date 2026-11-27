@@ -37,15 +37,15 @@ ninja verify    # 全 2 bin の sha256 検証
 | `57b42dea.bin` | 10bit, data_edge なし (中間チャンク) |
 | `75c77b0f.bin` | 10bit, data_edge あり (全体が 1 チャンク、 4096 PE) |
 
-`@boundary_flags` ディレクティブの distribute モードで PDM に送る golden。
-`.stparam` の `:data_size` / `:data_offset` / `:pe_shape` から判定される data_edge 状態に応じて選択する。
+`@boundary_flags` ディレクティブの distribute モードで PDM に送る golden。この kit の examples は `75c77b0f.bin` を送る。
+`@get_neighbor` の端の PE は、PE の番号（0 / 4095）で決まる（端の値は MNCL の関数で選ぶ。`share/mncl/api-reference.md`）。
 
 | data_edge_left | data_edge_right | 用途 | バイナリ |
 |---|---|---|---|
 | 0 | 0 | 中間チャンク | `57b42dea.bin` |
 | 1 | 1 | 全体が 1 チャンク (4096 PE) | `75c77b0f.bin` |
 
-判定ロジックの仕様は vsm-linker チーム回答による (`gen_bf_golden.c` の `expected_flags()` 実装を参照)。
+判定ロジックの仕様は vsmlink による (`gen_bf_golden.c` の `expected_flags()` 実装を参照)。
 
 ## ツール
 
@@ -53,7 +53,7 @@ ninja verify    # 全 2 bin の sha256 検証
 |---|---|
 | `gen_bf_golden.c` | boundary_flags golden ジェネレータ。 `--edge-left` / `--edge-right` で data_edge を制御 |
 
-注: vsm-linker 由来 (vsmlink-kit `share/examples/vsmlink/data/gen_bf_golden.c` と同一実装)。 `@boundary_flags_compute` のテンプレート選択ロジックを host 側で再現したもの。
+注: vsmlink 由来 (vsmlink-kit `share/examples/vsmlink/data/gen_bf_golden.c` と同一実装)。 `@boundary_flags_compute`（vsmlink-kit 0.10.3 で廃止）のテンプレート選択ロジックを host 側で再現したもの。
 
 ## 検証
 
@@ -72,5 +72,5 @@ sha256 値は `build.ninja` 内の各 `verify-<sha>` edge の `expected = ...` �
 
 ## 関連
 
-- vsm-linker / MNCL 共通の data/ 管理規約 (sha256 集約 + ジェネレータ + .gitignore)
-- `@boundary_flags` のバイナリ選択基準 (vsm-linker チーム提供の仕様)
+- vsmlink / MNCL 共通の data/ 管理規約 (sha256 集約 + ジェネレータ + .gitignore)
+- `@boundary_flags` のバイナリ選択基準 (vsmlink の仕様)

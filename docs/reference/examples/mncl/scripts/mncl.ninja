@@ -1,5 +1,5 @@
 # mncl.ninja — examples/ 共通ビルドルール
-# (host-dma examples.ninja, vsm-linker vsmlink.ninja の MNCL 版)
+# (libmnc2 の examples.ninja、vsmlink の vsmlink.ninja の MNCL 版)
 #
 # 使い方: 各 build.ninja で sdk.ninja を include した後に
 #         include ../../scripts/mncl.ninja
@@ -28,8 +28,13 @@ rule emit-vsm
   description = MNCL $out
 
 rule vsmlink
-  command = vsmlink $vsm $param $stparam $out
+  command = vsmlink $vsm $param $out
   description = VSMLINK $out
+
+# 1 つの _vsm に kernel が複数あるとき。$outdir に kernel ごとの <_vsm の名前>-<kernel 名>.vsm を出す
+rule vsmlink-multikernel
+  command = mkdir -p $outdir && vsmlink $vsm $param $outdir
+  description = VSMLINK-MULTIKERNEL $outdir
 
 rule asm3
   command = assemble3 $in --output-file $out

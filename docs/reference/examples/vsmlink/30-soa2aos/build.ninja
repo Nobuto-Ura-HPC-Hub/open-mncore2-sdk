@@ -17,17 +17,15 @@ include ../../scripts/sdk.ninja
 include ../scripts/vsmlink.ninja
 builddir = _build
 
-build $builddir/aos.vsm: vsmlink aos._vsm aos.param aos.stparam
+build $builddir/aos.vsm: vsmlink aos._vsm aos.param
   vsm = aos._vsm
   param = aos.param
-  stparam = aos.stparam
 build $builddir/aos.idma.dat: asm3_loader $builddir/aos.vsm
   stem = $builddir/aos
-# --use-global-id 版 (m を on-device flat_id で上書き)。param/stparam は共用。
-build $builddir/aos_id.vsm: vsmlink aos_id._vsm aos.param aos.stparam
+# --use-global-id 版 (m を on-device flat_id で上書き)。param は共用。
+build $builddir/aos_id.vsm: vsmlink aos_id._vsm aos.param
   vsm = aos_id._vsm
   param = aos.param
-  stparam = aos.stparam
 build $builddir/aos_id.idma.dat: asm3_loader $builddir/aos_id.vsm
   stem = $builddir/aos_id
 build $builddir/soa2aos.o: cc soa2aos.c

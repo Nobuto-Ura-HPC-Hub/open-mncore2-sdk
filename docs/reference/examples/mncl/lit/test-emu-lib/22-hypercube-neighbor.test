@@ -1,0 +1,2 @@
+# RUN: ninja -C %examples/22-hypercube-neighbor build-e2e
+# RUN: ninja -C %examples/22-hypercube-neighbor test-emu-lib

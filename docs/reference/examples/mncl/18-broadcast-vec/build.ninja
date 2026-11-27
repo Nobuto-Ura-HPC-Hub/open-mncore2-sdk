@@ -11,10 +11,9 @@ builddir = _build
 # --- kernel ---
 build $builddir/bcast_vec._vsm: emit-vsm bcast_vec.cl
 
-build $builddir/bcast_vec.vsm: vsmlink $builddir/bcast_vec._vsm bcast_vec.param bcast_vec.stparam
+build $builddir/bcast_vec.vsm: vsmlink $builddir/bcast_vec._vsm bcast_vec.param
   vsm = $builddir/bcast_vec._vsm
   param = bcast_vec.param
-  stparam = bcast_vec.stparam
 
 build $builddir/bcast_vec.asm: asm3 $builddir/bcast_vec.vsm
 build $builddir/bcast_vec.idma.dat | $builddir/bcast_vec.idma.inst $builddir/bcast_vec.idma.inst.txt $builddir/bcast_vec.ddma.dat $builddir/bcast_vec.ddma.inst $builddir/bcast_vec.ddma.inst.txt: asm3_loader $builddir/bcast_vec.vsm

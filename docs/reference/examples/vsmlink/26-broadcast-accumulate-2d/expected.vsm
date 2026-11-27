@@ -15,9 +15,9 @@
 #
 	# 他粒子を 2 つの broadcast に分けて配る。位置は j ごとに変わり、質量は星ごとに
 	# 決まる値なので、ホスト側で別々の配列から別々の PDM 領域へ送る。
-# broadcast_load.vsm — @broadcast: PDM の区画を L1BM に載せる部分
-# その区画がまだ L1BM に載っていないときだけ展開される
-# HW パス: PDM から mvb で全 8 L2BM、 l2bmb で全 64 L1BM へ (64 u64 の区画ごと)
+# broadcast_load.vsm — @broadcast: PDM の 64 u64 を L1BM に移動する部分
+# その 64 u64 がまだ L1BM に移動していないときだけ展開される
+# HW パス: PDM から mvb で全 8 L2BM、 l2bmb で全 64 L1BM へ (64 u64 ごと)
 
 	nop; wait i10
 	nop/3
@@ -26,38 +26,41 @@
 	mvb/n64i3f $p12288@0 $lc0
 	nop/2
 	nop; wait i3f
-	nop/5
 	l2bmb $lc0 $lb0
-# broadcast_use.vsm — @broadcast: L1BM に載っている値を PE に配る部分
-# 毎回展開される。載っていなかった場合は直前に broadcast_load.vsm が展開されている
-# L1BM の番地は区画の先頭ではなく要求された位置 (ずれは vsmlink が加える)
+# broadcast_use.vsm — @broadcast: L1BM に移動した値を PE に配る部分
+# 毎回展開される。移動していなかった場合は直前に broadcast_load.vsm が展開されている
+# L1BM の番地は移動した 64 u64 の先頭ではなく要求された位置 (ずれは vsmlink が加える)
 
 
-	nop/5
+	# 直前の命令が L1BM に書いた場合の待ち。内部マルチキャスト => L1BM -> PE は 3 ステップ（dev manual 3.6.3.5）、
+	# L2BM -> L1BM（broadcast_load.vsm の l2bmb）=> L1BM -> PE は 2 ステップ（3.6.3.6）、PE -> L1BM => L1BM -> PE は 2 ステップ（3.6.3.8）
+	nop/3
 	l1bmp $lb0 $lr16v/1100
-	nop/24
-# broadcast_load.vsm — @broadcast: PDM の区画を L1BM に載せる部分
-# その区画がまだ L1BM に載っていないときだけ展開される
-# HW パス: PDM から mvb で全 8 L2BM、 l2bmb で全 64 L1BM へ (64 u64 の区画ごと)
+	# 直後の命令が $lr16 を読む場合の待ち（dev manual 3.6.3.9。LM0 / LM1 は 2 ステップ）
+	nop/2
+# broadcast_load.vsm — @broadcast: PDM の 64 u64 を L1BM に移動する部分
+# その 64 u64 がまだ L1BM に移動していないときだけ展開される
+# HW パス: PDM から mvb で全 8 L2BM、 l2bmb で全 64 L1BM へ (64 u64 ごと)
 
-	nop/4
 # @broadcast _mj from_param 16 size 1 $lr20    # mj -> $lr20
 # === @broadcast _mj: PDM $p12352 → 全 4096 PE $lr20 ===
 	mvb/n64i3f $p12352@0 $lc0
 	nop/2
 	nop; wait i3f
-	nop/5
 	l2bmb $lc0 $lb64
-# broadcast_use.vsm — @broadcast: L1BM に載っている値を PE に配る部分
-# 毎回展開される。載っていなかった場合は直前に broadcast_load.vsm が展開されている
-# L1BM の番地は区画の先頭ではなく要求された位置 (ずれは vsmlink が加える)
+# broadcast_use.vsm — @broadcast: L1BM に移動した値を PE に配る部分
+# 毎回展開される。移動していなかった場合は直前に broadcast_load.vsm が展開されている
+# L1BM の番地は移動した 64 u64 の先頭ではなく要求された位置 (ずれは vsmlink が加える)
 
 
-	nop/5
+	# 直前の命令が L1BM に書いた場合の待ち。内部マルチキャスト => L1BM -> PE は 3 ステップ（dev manual 3.6.3.5）、
+	# L2BM -> L1BM（broadcast_load.vsm の l2bmb）=> L1BM -> PE は 2 ステップ（3.6.3.6）、PE -> L1BM => L1BM -> PE は 2 ステップ（3.6.3.8）
+	nop/3
 	l1bmp $lb64 $lr20v/1000
-	nop/24
+	# 直後の命令が $lr20 を読む場合の待ち（dev manual 3.6.3.9。LM0 / LM1 は 2 ステップ）
+	nop/2
 	# dx = xi - xj  (LM0 - GRF0 -> LM1)
-	nop/24
+	nop/2
 	dvadd $lm0 -$lr16 $ln0
 	nop/2
 	# dy = yi - yj  (LM0 - GRF0 -> LM1)

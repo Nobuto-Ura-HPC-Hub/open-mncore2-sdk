@@ -1,0 +1,5 @@
+# 他粒子を各グループの DRAM から @broadcast で受ける 3D N 体 (N=32、3 ステップ) を emu:lib で実行し、
+# ホストの倍精度の leapfrog と照合する。
+# 長いテスト: N 体（アプリ系）。時間は 4096 粒子の全対全の大きさで決まり、ステップはすでに 3 に絞ってある。普段は流さず、--param long=1 のときだけ流す。
+# REQUIRES: long
+# RUN: ninja -C %examples/38-nbody-4096-dram test-emu-lib

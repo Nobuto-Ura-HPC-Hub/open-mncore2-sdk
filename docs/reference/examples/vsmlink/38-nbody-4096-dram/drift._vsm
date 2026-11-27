@@ -1,0 +1,34 @@
+# ABI PFN3_SBY64
+#
+# drift: leapfrog のドリフト x += v*dt。ホストが 1 ステップにつき 1 回実行する。
+# LM0 常駐: x=$lm0 y=$lm2 z=$lm4 dt=$lm20 vx=$lm22 vy=$lm24 vz=$lm26
+# バンク: LM0=$lm LM1=$ln GRF0=$lr GRF1=$ls
+#
+# x,v,dt はすべて LM0 なので、dt を GRF0 に写して LM0*LM0 のバンク衝突を避ける。
+#
+	lpassa $lm20 $lr0        # dt を GRF0 へ
+	nop/2
+	# x += vx*dt
+	dvmulu $lm22 $lr0 $nowrite
+	dvfmad $lm22 $lr0 $mauf $ls0
+	nop/2
+	dvadd $lm0 $ls0 $ln0
+	nop/2
+	lpassa $ln0 $lm0
+	nop/24
+	# y += vy*dt
+	dvmulu $lm24 $lr0 $nowrite
+	dvfmad $lm24 $lr0 $mauf $ls0
+	nop/2
+	dvadd $lm2 $ls0 $ln0
+	nop/2
+	lpassa $ln0 $lm2
+	nop/24
+	# z += vz*dt
+	dvmulu $lm26 $lr0 $nowrite
+	dvfmad $lm26 $lr0 $mauf $ls0
+	nop/2
+	dvadd $lm4 $ls0 $ln0
+	nop/2
+	lpassa $ln0 $lm4
+	nop/24

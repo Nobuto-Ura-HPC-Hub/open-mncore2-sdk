@@ -1,0 +1,37 @@
+# 26-fft-4096: FFT（4096 点、複素 f64。get_hypercube_neighbor と mad を使う）
+#
+# ninja              -> .cl -> ._vsm -> .vsm
+# ninja build-e2e    -> + vsmlink + assemble3 + host C
+# ninja test         -> usage 表示
+# ninja test-emu-lib -> emu:lib backend で実行・検証
+# ninja test-device  -> 実機 backend で実行・検証
+
+include ../scripts/mncl.ninja
+include ../../scripts/sdk.ninja
+builddir = _build
+
+# --- kernel ---
+build $builddir/fft-4096._vsm: emit-vsm fft-4096.cl
+
+build $builddir/fft-4096.vsm: vsmlink $builddir/fft-4096._vsm fft-4096.param
+  vsm = $builddir/fft-4096._vsm
+  param = fft-4096.param
+
+build $builddir/fft-4096.asm: asm3 $builddir/fft-4096.vsm
+build $builddir/fft-4096.idma.dat | $builddir/fft-4096.idma.inst $builddir/fft-4096.idma.inst.txt $builddir/fft-4096.ddma.dat $builddir/fft-4096.ddma.inst $builddir/fft-4096.ddma.inst.txt: asm3_loader $builddir/fft-4096.vsm
+  stem = $builddir/fft-4096
+
+# --- host driver ---
+build $builddir/test_fft-4096.o: cc test_fft-4096.c
+build $builddir/test_fft-4096: link $builddir/test_fft-4096.o
+
+# --- ビルド段階 phony ---
+build build-e2e: phony $builddir/fft-4096.asm $builddir/fft-4096.idma.dat $builddir/test_fft-4096
+
+# --- test 3 種 ---
+build test-emu-lib: test_emu_lib $builddir/test_fft-4096 | $builddir/fft-4096.asm $builddir/fft-4096.idma.dat
+build test-device:  test_device  $builddir/test_fft-4096 | $builddir/fft-4096.asm $builddir/fft-4096.idma.dat
+build test:         test_usage
+
+
+default $builddir/fft-4096.asm $builddir/fft-4096.idma.dat

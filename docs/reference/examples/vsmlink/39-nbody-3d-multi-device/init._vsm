@@ -1,0 +1,42 @@
+# ABI PFN3_SBY64
+#
+# init: 自粒子 (x,y,z,m) と速度 (vx,vy,vz) を distribute で LM 常駐、定数 (eps2,0.5,1.5,dt)
+# を broadcast で LM 常駐、accumulator ax,ay,az を 0 初期化。ホストが 1 回だけ実行する。
+# LM0 レイアウト: xi=$lm0 yi=$lm2 zi=$lm4 mi=$lm6 ax=$lm8 ay=$lm10 az=$lm12
+#              eps2=$lm14 c_half=$lm16 c_onehalf=$lm18 dt=$lm20
+#              vx=$lm22 vy=$lm24 vz=$lm26 dthalf=$lm28
+#
+# 位置は size 4 [x][y][z][m]、速度は size 3 [vx][vy][vz] の並びで配る。定数 0.5/1.5 は
+# rsqrt のニュートン補正、dt は時間積分で使う。dthalf = dt*0.5 は leapfrog の kick 用に
+# ここで一度計算する (定数 broadcast は size 4 で満杯なので送らず、dt と 0.5 から作る)。
+# 速度の slot には send_wait_tag を付けない (トリガー前に送るので、先頭の wait i10 の
+# 時点で PDM に載っている)。
+#
+	@distribute _p     from_param 8  size 4 $lm0     # x,y,z,m -> $lm0,2,4,6
+	@distribute _v     from_param 24 size 3 $lm22    # vx,vy,vz -> $lm22,24,26
+	@broadcast  _const from_param 16 size 4 $lr16    # eps2=$lr16 0.5=$lr18 1.5=$lr20 dt=$lr22
+	lpassa $lr16 $lm14       # eps2 -> LM0[7]
+	nop/24
+	lpassa $lr18 $lm16       # 0.5  -> LM0[8]
+	nop/24
+	lpassa $lr20 $lm18       # 1.5  -> LM0[9]
+	nop/24
+	lpassa $lr22 $lm20       # dt   -> LM0[10]
+	nop/24
+	# dthalf = dt * 0.5  (dt を GRF0 に写す。積は LM1 に出して LM0 の入出力衝突を避け、
+	# そのあと LM0[14] に写す)
+	lpassa $lm20 $lr0
+	nop/2
+	dvmulu $lr0 $lm16 $nowrite
+	dvfmad $lr0 $lm16 $mauf $ln0
+	nop/2
+	lpassa $ln0 $lm28
+	nop/24
+	imm i"0" $r0
+	nop/4
+	lpassa $lr0 $lm8         # ax = 0 -> LM0[4]
+	nop/24
+	lpassa $lr0 $lm10        # ay = 0 -> LM0[5]
+	nop/24
+	lpassa $lr0 $lm12        # az = 0 -> LM0[6]
+	nop/24

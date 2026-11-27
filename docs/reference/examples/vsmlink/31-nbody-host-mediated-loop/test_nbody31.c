@@ -1,4 +1,4 @@
-/* test_nbody31.c — kernel 分割版の 3D N 体 leapfrog + 入出力ファイル。
+/* test_nbody31.c — マルチカーネル `_vsm` 版の 3D N 体 leapfrog + 入出力ファイル。
  *
  * examples/28-nbody-3d の test_nbody3d.c を基礎に、accumulate を「CHUNK 粒子ずつ固定 PDM
  * 領域を読む 1 個の kernel」にし、host が「次の区間を送信 -> 同じ kernel を exec」を
@@ -149,7 +149,7 @@ static int eval_force(mnc2_device_t dev, mnc2_kernel_t k_reset_acc, mnc2_kernel_
 
 int main(int argc, char **argv) {
     const char *ic_path = (argc > 1) ? argv[1] : IC_DEFAULT;
-    printf("=== 3D N 体 leapfrog + kernel 分割 (N=%d, newton=%d, CHUNK=%d, %d ステップ, 入力 %s) ===\n\n",
+    printf("=== 3D N 体 leapfrog + マルチカーネル _vsm (N=%d, newton=%d, CHUNK=%d, %d ステップ, 入力 %s) ===\n\n",
            M, NEWTON, CHUNK, NSTEP, ic_path);
     mnc2_device_t dev = mnc2_open(0);
     if (!dev) { fprintf(stderr, "FAIL: open\n"); return 1; }

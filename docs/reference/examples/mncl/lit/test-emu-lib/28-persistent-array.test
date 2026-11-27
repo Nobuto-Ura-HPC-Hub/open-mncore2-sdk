@@ -1,0 +1,2 @@
+# RUN: ninja -C %examples/28-persistent-array build-e2e
+# RUN: ninja -C %examples/28-persistent-array test-emu-lib

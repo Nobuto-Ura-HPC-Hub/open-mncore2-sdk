@@ -2,7 +2,7 @@
 //
 // 13-odd-even-sort-gid の even kernel（get_global_id で左メンバ判定）をベースに、swap 有無を
 // 別 kernel の reduce ではなく **kernel 内で inline reduce_add** して swap_count に直接出す
-// （99 の inline reduce_add 方式。reduce の PDM 往復を省き、host の収束ループを速くする）。
+// （reduce の PDM 往復を省き、host の収束ループを速くする）。
 // host はこの swap_count を毎フェーズ受け取り、even+odd の 1 turn で 0 になったら収束と判定する。
 //
 // even フェーズ: PE 番号が偶数の PE がペアの左メンバ（is_left = ((id & 1) == 0)）。

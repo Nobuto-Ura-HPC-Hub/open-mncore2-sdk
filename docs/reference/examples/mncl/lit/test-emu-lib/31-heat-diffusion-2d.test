@@ -1,0 +1,2 @@
+# RUN: ninja -C %examples/31-heat-diffusion-2d build-e2e
+# RUN: ninja -C %examples/31-heat-diffusion-2d test-emu-lib

@@ -27,10 +27,10 @@ MN-Core2 の broadcast（HW の l1bmm 命令）は、PDM に置かれた 16 個�
 - **全 4096 PE を同じ値 v にしたいとき**: host が `PDM[12] = PDM[13] = PDM[14] = PDM[15] = v` にする。
   4 つとも同じ値にすることで、どの sub_pe_id も v を受け取り、結果として全 PE 同値になる。この example
   はこれをやっている（broadcast 入力バッファ全体を v で埋めている）。
-- **sub_pe_id ごとに別の値を配りたいとき**: `PDM[12..15]` に 4 つの別々の値を置く（vsm-linker の参照
+- **sub_pe_id ごとに別の値を配りたいとき**: `PDM[12..15]` に 4 つの別々の値を置く（vsmlink-kit の
   example `25-broadcast-reduce-add` がこの demo）。
 
-つまり **「何を配るか」「全 PE 同値にするか」を決めるのは host** であり、backend と HW は「PDM の
+つまり **「何を配るか」「全 PE 同値にするか」を決めるのは host** であり、コンパイラと vsmlink と HW は「PDM の
 どこから配るか」を担うだけ。この責任分担を踏まえずに index 12..15 を埋め忘れると、その sub_pe_id の
 1024 個の PE が意図しない値を受け取る（不一致が PE 番号 `i % 4` で規則的に出たら、これを疑う）。
 
@@ -75,5 +75,5 @@ ninja test-device   # 実機で実行
 ## 検証の内容
 
 host が全 4096 要素で `out[i] == v + i` を照合する。v は 32-bit を越える値（`0x0000000700000005`）に
-して i64 の両バンク（64-bit）を実際に使う。**不一致が PE 番号 `i % 4` で規則的に出たら、broadcast 入力
+して i64 の GRF0 と GRF1 の両方（64-bit）を実際に使う。**不一致が PE 番号 `i % 4` で規則的に出たら、broadcast 入力
 index 12..15 の埋め忘れ（sub_pe_id 別分配の罠）を疑う。**

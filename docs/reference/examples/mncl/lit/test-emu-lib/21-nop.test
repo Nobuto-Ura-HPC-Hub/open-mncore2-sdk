@@ -1,0 +1,3 @@
+# RUN: ninja -C %examples/21-nop build-e2e
+# RUN: grep -c "nop/8" %examples/21-nop/_build/nop._vsm | grep -x 1
+# RUN: ninja -C %examples/21-nop test-emu-lib

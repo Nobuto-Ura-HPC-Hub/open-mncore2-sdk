@@ -1,0 +1,63 @@
+# 35-emit-from-debug: @emit_from のデバッグ用の使い方
+#   @distribute で全 PE に初期値を配り、@broadcast の値を 1 回ごとに足し（dvadd）、足した後の値を @emit_from で書き出す。
+#   書き出す PE は、2048 回目までが HW PE ID 817、それ以降が HW PE ID 529。最後に @reduce で全 PE の合計を取り、
+#   その受信で kernel の終わりを待つ。C ホスト（test_emit_from_debug.c）が、書き出しと合計を照合する。
+#
+# ninja              → vsmlink のみ
+# ninja build-e2e    → + assemble3 + C ビルド
+# ninja test-emu-lib → + emu:lib で実行・検証
+# ninja test-device  → + 実機で実行・検証
+# ninja verify       → 短い版（8 回、切り替えは 4 回目）の vsmlink の出力と expected.vsm の diff
+
+include ../../scripts/sdk.ninja
+include ../scripts/vsmlink.ninja
+builddir = _build
+
+steps = 4197
+switch = 2048
+
+rule gen_vsm
+  command = python3 gen_vsm.py $steps $switch > $out
+  description = GEN $out
+
+# --- 全体（4197 回） ---
+build $builddir/emit_debug._vsm: gen_vsm gen_vsm.py
+  steps = 4197
+  switch = 2048
+build $builddir/emit_debug.vsm: vsmlink $builddir/emit_debug._vsm | emit_debug.param
+  vsm     = $builddir/emit_debug._vsm
+  param   = emit_debug.param
+build $builddir/emit_debug.asm: asm3 $builddir/emit_debug.vsm
+build $builddir/emit_debug.idma.dat: asm3_loader $builddir/emit_debug.vsm
+  stem = $builddir/emit_debug
+
+# --- 短い版（verify 用） ---
+build $builddir/short._vsm: gen_vsm gen_vsm.py
+  steps = 8
+  switch = 4
+build $builddir/short.vsm: vsmlink $builddir/short._vsm | emit_debug.param
+  vsm     = $builddir/short._vsm
+  param   = emit_debug.param
+
+# --- host C ---
+build $builddir/test_emit_from_debug.o: cc test_emit_from_debug.c
+build $builddir/test_emit_from_debug: link_exe $builddir/test_emit_from_debug.o
+
+build build-e2e: phony $
+    $builddir/emit_debug.asm $
+    $builddir/emit_debug.idma.dat $
+    $builddir/test_emit_from_debug
+
+build test: test_usage
+
+build test-emu-lib: test_emu_lib $builddir/test_emit_from_debug | $builddir/emit_debug.idma.dat
+  args = $builddir/emit_debug.idma.dat 4197 2048
+
+build test-device: test_device $builddir/test_emit_from_debug | $builddir/emit_debug.idma.dat
+  args = $builddir/emit_debug.idma.dat 4197 2048
+
+default $builddir/emit_debug.vsm
+
+build verify: verify_cmd $builddir/short.vsm
+  expected = expected.vsm
+  actual = $builddir/short.vsm

@@ -13,10 +13,9 @@ builddir = _build
 # --- kernel ---
 build $builddir/abs._vsm: emit-vsm abs.cl
 
-build $builddir/abs.vsm: vsmlink $builddir/abs._vsm abs.param abs.stparam
+build $builddir/abs.vsm: vsmlink $builddir/abs._vsm abs.param
   vsm = $builddir/abs._vsm
   param = abs.param
-  stparam = abs.stparam
 
 build $builddir/abs.asm: asm3 $builddir/abs.vsm
 build $builddir/abs.idma.dat | $builddir/abs.idma.inst $builddir/abs.idma.inst.txt $builddir/abs.ddma.dat $builddir/abs.ddma.inst $builddir/abs.ddma.inst.txt: asm3_loader $builddir/abs.vsm

@@ -10,7 +10,7 @@ directive が実アプリで使えることを、N 体と同じデータの流�
 **装置側は加算と乗算だけで組み、golden とビット一致で照合する。** これが本 example の
 設計の中心である。
 
-MN-Core 2 の倍精度は長語 64 bit、符号 1 / 指数部 11 / 仮数部 52 で、通常の範囲では
+MN-Core 2 の倍精度は 64 bit、符号 1 / 指数部 11 / 仮数部 52 で、通常の範囲では
 IEEE 754 に従う (dev manual の浮動小数点数フォーマットの節)。`dvadd` は `x + y`、
 `dvmul` は `dvfma` の第 3 入力を 0 とした `x * y` である。したがって加算と乗算だけで
 組んだ計算は、ホストが同じ順序で同じ演算をすればビット一致で再現できる。
@@ -131,10 +131,10 @@ fp64 命令 (`dvadd` / `dvmul` / `dvfma` / `drsqrt`) のオペランドの置き
 ## ビルド・実行
 
 ```
-source scripts/overlay
-ninja -C examples/26-broadcast-accumulate-2d build-e2e      # vsmlink + assemble3 + C ビルド
-ninja -C examples/26-broadcast-accumulate-2d test-emu-lib   # emu:lib で実行・照合
-ninja -C examples/26-broadcast-accumulate-2d test-device    # 実機で実行
+# SDK を有効にし、この example のディレクトリで実行する（examples の README.md の「動かし方」）
+ninja build-e2e      # vsmlink + assemble3 + C ビルド
+ninja test-emu-lib   # emu:lib で実行・照合
+ninja test-device    # 実機で実行
 ```
 
 ## 今後

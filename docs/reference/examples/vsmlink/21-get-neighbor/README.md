@@ -16,7 +16,7 @@
 - put: PE → PDM の書き込み。自分の情報を distribute 元の正しい PDM アドレスに書き込む
 - get: PDM → PE の読み込み。隣のアドレスの値を読む
 
-edge 処理における隣接値の扱いは TBD。
+端の PE（PE の番号 0 / 4095）の値は、端の指定 `:reg $lm0` で自分の値にする（下の「端の PE」）。
 
 **階層**: 袖交換が行われるレベル。
 
@@ -38,20 +38,13 @@ edge 処理における隣接値の扱いは TBD。
 - 隣接値取得: @get_neighbor で取得
 - 検証: データは予測しやすいものにし、整合性をチェック
 
-### edge 処理（:boundary 指定なし）
+### 端の PE
 
-`:boundary` 指定なしの場合、アプリが edge を自分で処理する。
-このテストでは、edge PE の外に値を意図的に PDM に置くことで対応する。
+`get_left._vsm` と `get_right._vsm` は、端の指定 `:reg $lm0`（`<src_reg>` と同じレジスタ）を書いている。端の PE
+（左隣では PE の番号 0、右隣では 4095）の結果は、その PE 自身の値になる。
 
-`input[i] = i + 1`（PE 0〜4095 に 1〜4096）の連続として：
-- left edge: PDM の PE -1 相当の位置に `0` を置く → PE 0 の get(-1) が 0 を返す
-- right edge: PDM の PE 4096 相当の位置に `4097` を置く → PE 4095 の get(+1) が 4097 を返す
-
-これにより全 4096 PE（edge PE 含む）で検証できる。
-
-### TBD
-
-- `:clamp` / `:periodic` の実装と検証
+`input[i] = i + 1`（PE 0〜4095 に 1〜4096）として、PE 0 の左隣の結果は 1、PE 4095 の右隣の結果は 4096 になる。
+これにより全 4096 PE（端の PE を含む）で照合する。
 
 ## 検証すべきこと
 
@@ -73,38 +66,19 @@ edge 処理における隣接値の扱いは TBD。
 ## テスト
 
 ```bash
-source scripts/overlay
-ninja -C examples/21-get-neighbor build-e2e
-ninja -C examples/21-get-neighbor test
+ninja build-e2e
+ninja test-emu-lib
 ```
 
-前提: `examples/17-boundary-collect` の `collected_flags.bin` が必要。
+境界フラグのデータは `../data/` で作ったものを使う（`data/README.md`）。
 
 ## ファイル構成
 
-### 正式ファイル
-
 | ファイル | 内容 |
 |---------|------|
-| `data/get_left._vsm` | `@distribute` + `@boundary_flags` + `@alloc` + `@get_neighbor -1` + `@free` + `@collect` |
-| `data/get_left.param` | PDM レイアウト: input(0), output(4096), bf(8192) |
-| `data/get_left.stparam` | 構造パラメタ（1D, 4096 PE） |
-| `test_get_left.c` | 全 4096 PE 検証: input[i]=i+1, output[i]=input[i-1] |
+| `data/get_left._vsm` | `@distribute` + `@boundary_flags` + `@alloc` + `@get_neighbor -1 ... :reg $lm0` + `@free` + `@collect` |
+| `data/get_right._vsm` | `get_left._vsm` の `@get_neighbor` を `+1` にしたもの |
+| `data/get_left.param` | PDM レイアウト: input(4096), output(8192), bf(12288), バッファ(16384)。`get_left` と `get_right` で共用 |
+| `test_get_left.c` | 全 4096 PE 検証: input[i]=i+1, output[i]=input[i-1]（PE 0 は input[0]） |
+| `test_get_right.c` | 全 4096 PE 検証: output[i]=input[i+1]（PE 4095 は input[4095]） |
 | `build.ninja` | vsmlink + assemble3 + C ビルド + テスト |
-
-### 暫定ファイル（c_step4 互換テスト用）
-
-c_step4（特定 PE テスト、ALL PASS 実績あり）を example 21 にコピーして、
-`@get_neighbor` のテンプレート出力が正しいことを段階的に検証するために使用した。
-
-| ファイル | 内容 |
-|---------|------|
-| `data/step4._vsm` | c_step4 の元 _vsm（@alloc/@get_neighbor に書き換え済み） |
-| `data/step4_out._vsm` | @boundary_flags 展開済み + @alloc/@get_neighbor/@free |
-| `data/step4.param` | c_step4 の .param |
-| `data/golden_step4.vsm` | 元の step4._vsm の vsmlink 出力（ALL PASS 確認済み基準） |
-| `ex_step4.c` | c_step4 のホスト C コード（特定 PE テスト） |
-| `build_step4.ninja` | c_step4 互換テスト + verify diff |
-| `do.sh` | clean + vsmlink + diff のショートカット |
-
-正式ファイルで全 4096 PE テスト PASS 後、暫定ファイルは整理対象。

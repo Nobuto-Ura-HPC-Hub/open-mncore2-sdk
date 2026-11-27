@@ -1,0 +1,58 @@
+# 37-bitonic-sort-8192: バイトニックソート（8192 個、f64、各 PE が 2 つの値を持つ）。隣は @get_hypercube_neighbor で受け取る
+#   全体は 91 ステップ（段 s = 1..13、各段で j = s-1..0）。比較・交換のたびに、相手 i XOR 2^j の値を受け取り、
+#   (i の bit j) == (i の bit s) なら小さい方、そうでなければ大きい方（dmin / dmax）を新しい値にする。
+#   emu:lib と実機の両方で、91 ステップを実行し、全体が昇順に並んでいることを確かめる。
+#
+# ninja              → vsmlink のみ
+# ninja build-e2e    → + assemble3 + C ビルド
+# ninja test-emu-lib → emu:lib で 91 ステップを実行・検証
+# ninja test-device  → 実機で 91 ステップを実行・検証
+# ninja verify       → 代表的なステップだけの版の vsmlink の出力と expected.vsm の diff
+
+include ../../scripts/sdk.ninja
+include ../scripts/vsmlink.ninja
+builddir = _build
+
+rule gen_vsm
+  command = python3 gen_vsm.py $steps > $out
+  description = GEN $out
+
+# --- 全体（91 ステップ） ---
+build $builddir/step91._vsm: gen_vsm gen_vsm.py
+  steps = 91
+build $builddir/step91.vsm: vsmlink $builddir/step91._vsm | sort8192.param
+  vsm     = $builddir/step91._vsm
+  param   = sort8192.param
+build $builddir/step91.asm: asm3 $builddir/step91.vsm
+build $builddir/step91.idma.dat: asm3_loader $builddir/step91.vsm
+  stem = $builddir/step91
+
+# --- 代表的なステップだけの版（verify 用） ---
+build $builddir/short._vsm: gen_vsm gen_vsm.py
+  steps = --verify
+build $builddir/short.vsm: vsmlink $builddir/short._vsm | sort8192.param
+  vsm     = $builddir/short._vsm
+  param   = sort8192.param
+
+# --- host C ---
+build $builddir/sort_host.o: cc sort_host.c
+build $builddir/sort_host: link_exe $builddir/sort_host.o
+
+build build-e2e: phony $
+    $builddir/step91.asm $
+    $builddir/step91.idma.dat $
+    $builddir/sort_host
+
+build test: test_usage
+
+build test-emu-lib: test_emu_lib $builddir/sort_host | $builddir/step91.idma.dat
+  args = $builddir/step91.idma.dat 91
+
+build test-device: test_device $builddir/sort_host | $builddir/step91.idma.dat
+  args = $builddir/step91.idma.dat 91
+
+default $builddir/step91.vsm
+
+build verify: verify_cmd $builddir/short.vsm
+  expected = expected.vsm
+  actual = $builddir/short.vsm

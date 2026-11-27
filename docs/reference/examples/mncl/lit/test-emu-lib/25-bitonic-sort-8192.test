@@ -1,0 +1,2 @@
+# RUN: ninja -C %examples/25-bitonic-sort-8192 build-e2e
+# RUN: ninja -C %examples/25-bitonic-sort-8192 test-emu-lib

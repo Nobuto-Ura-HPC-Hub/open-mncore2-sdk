@@ -41,33 +41,29 @@ kernel 数を N に依存させない点は同じだが、host が繰り返す�
 (28) / `gen_nbody31.py` (31) と同じ、Python の文字列テンプレート（`.format()` に
 よる埋め込みと繰り返し）で足りる。
 
-### 経路 A: 1 本にまとめてから `vsmlink --split-only` で分割する（本 example で採用）
+### 経路 A: 1 本にまとめてから `vsmlink --no-link` で kernel ごとに書き出す（本 example で採用）
 
 `gen_nbody32.py` が `init` / `reset_acc` / `accumulate_PH` / `kick` / `drift` /
 `collect_pos` の 6 kernel を `@kernel_begin`/`@kernel_end` で 1 本の `_vsm` に
-まとめ、`vsmlink --split-only` で kernel ごとに分割する（31 と同じ合成の仕方）。
+まとめ、`vsmlink --no-link` で kernel ごとの `._vsm` に書き出す（31 と同じ合成の仕方）。
 
 31 との違いは、**合成した `_vsm` の中身が全体として文法的に正しくない**ことである。
 `accumulate_PH` kernel の `@broadcast` 行（16 個、CHUNK=16 の unroll ぶん）は、
 `from_param` に渡すスロット番号の位置に、`PH` という整数ではない目印を残す（16 行とも
 同じ目印。chunk の 16 粒子を、1 つのスロットの続きとして順に読むため）。通常の `vsmlink` 呼び出し（`link()` を伴う）はこの行を展開しようとして失敗する
-（実際に `E226` で失敗することを確認済み）ため、**この経路では通常の分割ではなく
-`--split-only` を使う**。`--split-only` は kernel 境界の分割だけを行い、`@broadcast`
+（実際に `E226` で失敗することを確認済み）ため、**この経路では通常の vsmlink の呼び出しではなく
+`--no-link` を使う**。`--no-link` は kernel ごとの `._vsm` を書くだけで、`@broadcast`
 を含む他の directive のエラーチェック・展開を一切行わないため、この不完全な行が
-残っていても分割自体は成功する。31 が通常の分割で足りたのは、31 の合成 `_vsm` が
+残っていても書き出し自体は成功する。31 が通常の呼び出しで足りたのは、31 の合成 `_vsm` が
 最初から全体として文法的に正しいためである。
 
-**`--split-only` の出力にはひと手間必要。** `--split-only` は分割の組み立てルール上、
-各 kernel の出力に `@kernel_begin <name>` / `@kernel_end <name>` の行をそのまま残す。
-この状態のファイルをそのまま通常の `vsmlink` に渡すと、入力にまた `@kernel_begin` が
-あると判定され、出力がファイルではなくディレクトリになってしまう（1 kernel だけの
-ディレクトリが 1 個できる、という意図しない結果になることを確認済み）。そのため
-`build.ninja` では、この 2 行を取り除いてから通常の `vsmlink` に渡す（`strip_kernel_markers`
-rule）。この点は `--split-only` 自体の一般的な注意点であり、本 example の設計判断ではない。
+`--no-link` の出力では、各 kernel の `@kernel_begin <name>` / `@kernel_end <name>` の行が
+`#@ ` を付けたコメントになる。そのため、出力をそのまま通常の `vsmlink` に渡せる
+（出力は 1 つのファイルになり、直接 link した場合と同じ結果になる）。
 
-### 経路 B: 最初から複数ファイルで生成する（分割不要、本 example では未実装）
+### 経路 B: 最初から複数ファイルで生成する（本 example では未実装）
 
-`vsmlink` の kernel 分割を経由せず、生成器が `init._vsm` / `kick._vsm` / … を
+マルチカーネル `_vsm` を経由せず、生成器が `init._vsm` / `kick._vsm` / … を
 最初から個別ファイルとして書き出す案。`accumulate` に対応するファイルだけ、経路 A と
 同じ理由で `from_param` の引数位置に整数ではない文字列が残る。経路 A・B のどちらを
 選んでも、この先に渡る 2 種類のファイルの中身は同じになる（`vsmlink` を経由したかどうかの
@@ -80,7 +76,7 @@ rule）。この点は `--split-only` 自体の一般的な注意点であり、
 `init._vsm` / `reset_acc._vsm` / `kick._vsm` / `drift._vsm` / `collect_pos._vsm`
 の 5 個は、経路 A・B どちらでも、生成された時点で directive の文法が完成している。
 これは既存の確立した用語である「`_vsm`」そのものであり、新しい呼び方は要らない。
-28・31 と同様、ビルド時に `.param`/`.stparam` を添えて `vsmlink` へ通し、通常どおり
+28・31 と同様、ビルド時に `.param` を添えて `vsmlink` へ通し、通常どおり
 `.vsm` にしておける。
 
 ### `@broadcast` のスロット番号がまだ決まっていないファイル
@@ -95,7 +91,7 @@ size 4 $lr16` の `<ここ>` に、`PH` という、整数でも `from_param` �
 
 このファイルには、生成した時点で分かる名前として `accumulate_PH._vsm` を付ける。
 経路 A では `@kernel_begin accumulate_PH` として kernel 名にこの目印を含めておくことで、
-`--split-only` の出力ファイル名（`<入力ファイル名の stem>-accumulate_PH._vsm`）にも
+`--no-link` の出力ファイル名（`<入力ファイル名の stem>-accumulate_PH._vsm`）にも
 そのまま反映される。
 
 **`_PH` という目印は、このファイルの名前としてのみ扱う。** 本 README の説明文の
@@ -113,8 +109,8 @@ size 4 $lr16` の `<ここ>` に、`PH` という、整数でも `from_param` �
 `mnc2_wait_idma_idle` で待つ。31 のように chunk ごとにデータを送り直すことはしない。
 
 その後、host が chunk ごとに次の手順を繰り返す（テンプレートは build.ninja が
-ビルド時に `--split-only` + marker 除去まで済ませておいた
-`_build/k/stripped/nbody32_n32-accumulate_PH._vsm` を使う）。
+ビルド時に `--no-link` で書き出しておいた
+`_build/k/nbody32_n32-accumulate_PH._vsm` を使う）。
 
 1. テンプレート中の目印 `PH`（`from_param` の引数）を、その chunk のスロット番号へ
    文字列置換し、文法どおりの `_vsm` を作る。16 個の `@broadcast` は同じスロットを使い、
@@ -161,16 +157,15 @@ chunk g の先頭粒子）をあらかじめ列挙してあるので、host が�
 |---------|------|
 | `gen_nbody32.py` | 6 kernel を 1 本の `_vsm` に合成する生成器（経路 A）。`.param` も出力する |
 | `init._vsm` `reset_acc._vsm` `kick._vsm` `drift._vsm` `collect_pos._vsm` | 文法どおりの `_vsm`（31 からの複製） |
-| `nbody32.stparam` | 31 の `nbody31.stparam` と同一内容 |
 | `gen_ic.py` | 31 と同一（初期条件生成） |
 | `test_nbody32.c` | host 側。テンプレートの読み込み・chunk ごとのスロット番号埋め込み・`vsmlink`/`assemble3` のサブプロセス呼び出し・load・exec を行う |
-| `build.ninja` | 生成 → `vsmlink --split-only` → marker 除去 → 確定済み 5 kernel の link・assemble3 → host C ビルド。`accumulate_PH._vsm` は host が実行時に link するためビルド時の link・assemble3 の対象外 |
+| `build.ninja` | 生成 → `vsmlink --no-link` → 確定済み 5 kernel の link・assemble3 → host C ビルド。`accumulate_PH._vsm` は host が実行時に link するためビルド時の link・assemble3 の対象外 |
 | `expected-init.vsm` | `ninja verify` 用の golden（init kernel の展開結果） |
 
 ## 検証状況
 
-- **vsmlink の kernel 分割 + host 実行時 link**: `ninja` で `--split-only` による
-  6 kernel への分割、`ninja verify` で init kernel の golden 一致を確認済み。通常の
+- **マルチカーネル `_vsm` + host 実行時 link**: `ninja` で `--no-link` による
+  6 kernel の書き出し、`ninja verify` で init kernel の golden 一致を確認済み。通常の
   `vsmlink` が `accumulate_PH._vsm` を E226（`from_param` の引数が整数でない）で
   拒否し、host が目印 `PH` を chunk のスロット番号に書き換えた後は link に成功する
   ことを確認済み。実行時に link した accumulate の PDM からの移動（`mvb`）は 1 回

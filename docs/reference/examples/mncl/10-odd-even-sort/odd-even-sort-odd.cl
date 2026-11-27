@@ -1,7 +1,6 @@
 // 奇偶転置ソート 1 フェーズ (odd kernel)。 kernel 本体は even と同一 (kernel 名のみ相違)。
 // 偶数 / 奇数フェーズの差は host が渡す flag と、 .param での data_in / data_out の割り当て
-// 入れ替えだけで表現する。 MNCL では even の cross 経路省略が再現できないため、 even と同じ
-// 内容になる (README.md「even と odd が同じ内容な理由」参照)。
+// 入れ替えだけで表現する。 even と同じ内容である理由は README.md「even と odd が同じ内容な理由」。
 //
 // data_in:    in  (このフェーズの入力配列。 distribute / load_neighbor が読む)
 // data_out:   out (1 フェーズ後の配列。 collect 先)

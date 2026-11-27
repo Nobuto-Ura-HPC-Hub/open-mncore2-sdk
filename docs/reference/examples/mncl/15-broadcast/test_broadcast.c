@@ -12,7 +12,7 @@
  * broadcast の HW 特性: @broadcast は PDM の index 12..15 の 4 u64 を MAB 内 4 PE
  * (sub_pe_id 0..3) に配る。全 PE 同値にするには 12..15 を同値にする（ここでは broadcast
  * 入力バッファ全体を V で埋めるので 12..15 も V になる）。詳細は
- * _mncore2-sdk-v1/share/examples/vsmlink/25-broadcast-reduce-add/README.md
+ * vsmlink-kit の example（SDK の share/examples/vsmlink/25-broadcast-reduce-add/README.md）
  *
  * send のトリガ順（13-odd-even-sort-gid と同じ考え方）:
  *   broadcast 入力を tag 0（非トリガ）で送り、id 表を tag 0x10（トリガ）で送る。

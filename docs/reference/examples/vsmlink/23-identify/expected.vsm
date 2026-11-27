@@ -32,7 +32,6 @@
 	mvp/n512i3f $p3584@0 $lc0@3.1
 	nop/2
 	nop; wait i3f
-	nop/5
 	l2bmb@0 $lc0 $lb0
 	l2bmb@1 $lc64 $lb0
 	l2bmb@2 $lc128 $lb0
@@ -41,10 +40,11 @@
 	l2bmb@5 $lc320 $lb0
 	l2bmb@6 $lc384 $lb0
 	l2bmb@7 $lc448 $lb0
-	nop/5
+	# L2BM -> L1BM の後、同じ番地を読む L1BM -> PE（distribute_tail.vsm の l1bmd）まで 2 ステップ（dev manual 3.6.3.6）
+	nop/2
 	l1bmd $lb0 $lr8v/1000
 # 定数 1 → ln0
-	nop/24
+	nop/2
 	imm i"0" $r0
 	imm i"1" $r1
 	nop/4
@@ -77,9 +77,11 @@
 # @collect _out to_param 24 size 1 $lm16
 # === @collect _out: $lm16 → L1BM → L2BM → PDM $p8192 ===
 # (:pdm :directive "@collect" :id "_out" :slot 24 :place :pdm0 :addr 8192 :size 4096 :access :write)
-	nop/24
+	# 直前の命令が $lm16 に書いた場合の待ち（dev manual 3.6.3.9。LM0 / LM1 は 2 ステップ）
+	nop/2
 	l1bmd $lm16v $lb0
-	nop/24
+	# PE -> L1BM の後、同じ L1BM を読む L1BM -> L2BM（collect_stage.vsm の l2bm@）まで 3 ステップ（dev manual 3.6.3.7）
+	nop/3
 	l2bm@0 $lb0 $lc0
 	l2bm@1 $lb0 $lc64
 	l2bm@2 $lb0 $lc128
@@ -88,7 +90,8 @@
 	l2bm@5 $lb0 $lc320
 	l2bm@6 $lb0 $lc384
 	l2bm@7 $lb0 $lc448
-	nop/5
+	# L1BM -> L2BM の後、その L2BM を読む MV 命令まで 2 ステップ（dev manual 3.6.3.1 と assemble3 は 1 ステップとするが、実機では 1 ステップ後の MV 命令が、書き終わる前の L2BM を読む。2 ステップでは読まない）
+	nop/2
 	mvp/n512 $lc0@0.0 $p8192@0
 	mvp/n512i3f $lc0@0.1 $p8704@0
 	nop/3
@@ -105,4 +108,3 @@
 	mvp/n512i1e $lc0@3.1 $p11776@0
 	nop/3
 	nop; wait i1e
-	nop/4

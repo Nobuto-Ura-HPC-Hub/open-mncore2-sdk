@@ -40,15 +40,14 @@ ir  = ir * (1.5 - 0.5*r2*ir*ir)      // Newton-Raphson を 3 回（約 40bit へ
 f  += (m_k * ir^3) * d               // スカラ × ベクタ（splat）
 ```
 
-- `rsqrt` を直接使う（`1/r^3` は fdiv より rsqrt が効率的）。`sqrt()` / `fma()` の明示呼び出しは
-  backend が未対応なので使わない（`a*b+c` は fmul+fadd に展開されて通る）。
-- 定数（eps2=0.0625, 1.5, 0.5）は**下位 32bit=0** の値にする。f64 の一般定数はレジスタに載らない。
+- `rsqrt` を直接使う（`1/r^3` は fdiv より rsqrt が効率的）。`sqrt()` / `fma()` はコンパイラが対応していない
+  （呼ぶとコンパイルの誤りになる。`a*b+c` は乗算と加算のまま通る。積和は `mad`。`share/mncl/standard-functions.md`）。
 
 ## broadcast の HW 特性（host 側の協力）
 
 broadcast は host が **放送領域の先頭を配りたい値で埋める**ことで全 PE 同値になる（16-broadcast-f64 /
 15-broadcast の README 参照）。粒子は位置（size 2）と質量（size 1）を別々に broadcast する
-（位置と質量を 1 本にまとめると、要素の取り出しが backend の未対応経路に落ちるため）。
+（この example を書いた 0.3.3 の時点では、位置と質量を 1 本にまとめると、要素の取り出しがコンパイルできなかったため。0.3.4 から、ベクタの組み立てと要素の取り出しは書ける）。
 
 ## kernel インターフェース
 
@@ -75,5 +74,14 @@ host が同じ softened 式で O(N^2) 直接計算 (golden) を作り、全 N �
 
 ## 性能について（先送りにした最適化）
 
-いまは 1 粒子ずつ broadcast する構成（1 ターン = N カーネル起動）である。1 カーネルに複数粒子ブロックを
-畳んで内側を unroll すればカーネル起動回数を減らせる（1 カーネルの命令数上限の確定待ち）。
+いまは 1 粒子ずつ broadcast する構成（1 ターン = N カーネル起動）である。
+
+**1 つの kernel の中で複数の粒子を読める。** 同じ引数の `broadcast` を繰り返し呼ぶと、呼ぶたびに続きのデータを読む（mncl-kit 0.3.4 から。
+`15-broadcast` などの書き方）。`#pragma unroll` のループで粒子を順に読めば、起動の回数を減らせる。この example 自身は、1 粒子ずつの
+構成のままにしてある。
+
+**kernel の大きさの扱いは libmnc2 が決める。** libmnc2-kit 0.4.3 から、大きな kernel は、連続した領域（1 つが既定 4 MiB。以下、分割領域。libmnc2 の `piece`）に分けて load され、IDMA の
+キューに積める分割領域の数は `idma_queue_limit`（既定 16、1〜31 で設定できる）で決まる。待たない版の `mnc2_exec_kernel` は、分割領域の数がこの値を
+超える kernel（既定の値では 64 MiB を超えるもの）に `MNC2_ERROR_QUEUE_LIMIT` を返す。そのような kernel は、待つ版の
+`mnc2_exec_kernel_blocking` で積む。数字は libmnc2 の既定値で、変わりうる。詳しくは libmnc2 の `share/mnc2/api-reference.md`
+（「カーネル実行」「IDMA キューの上限」）。

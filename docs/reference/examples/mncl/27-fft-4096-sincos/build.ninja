@@ -1,0 +1,37 @@
+# 26-fft-4096-sincos: FFT（4096 点、複素 f64。get_hypercube_neighbor と mad を使う）
+#
+# ninja              -> .cl -> ._vsm -> .vsm
+# ninja build-e2e    -> + vsmlink + assemble3 + host C
+# ninja test         -> usage 表示
+# ninja test-emu-lib -> emu:lib backend で実行・検証
+# ninja test-device  -> 実機 backend で実行・検証
+
+include ../scripts/mncl.ninja
+include ../../scripts/sdk.ninja
+builddir = _build
+
+# --- kernel ---
+build $builddir/fft-4096-sincos._vsm: emit-vsm fft-4096-sincos.cl
+
+build $builddir/fft-4096-sincos.vsm: vsmlink $builddir/fft-4096-sincos._vsm fft-4096-sincos.param
+  vsm = $builddir/fft-4096-sincos._vsm
+  param = fft-4096-sincos.param
+
+build $builddir/fft-4096-sincos.asm: asm3 $builddir/fft-4096-sincos.vsm
+build $builddir/fft-4096-sincos.idma.dat | $builddir/fft-4096-sincos.idma.inst $builddir/fft-4096-sincos.idma.inst.txt $builddir/fft-4096-sincos.ddma.dat $builddir/fft-4096-sincos.ddma.inst $builddir/fft-4096-sincos.ddma.inst.txt: asm3_loader $builddir/fft-4096-sincos.vsm
+  stem = $builddir/fft-4096-sincos
+
+# --- host driver ---
+build $builddir/test_fft-4096-sincos.o: cc test_fft-4096-sincos.c
+build $builddir/test_fft-4096-sincos: link $builddir/test_fft-4096-sincos.o
+
+# --- ビルド段階 phony ---
+build build-e2e: phony $builddir/fft-4096-sincos.asm $builddir/fft-4096-sincos.idma.dat $builddir/test_fft-4096-sincos
+
+# --- test 3 種 ---
+build test-emu-lib: test_emu_lib $builddir/test_fft-4096-sincos | $builddir/fft-4096-sincos.asm $builddir/fft-4096-sincos.idma.dat
+build test-device:  test_device  $builddir/test_fft-4096-sincos | $builddir/fft-4096-sincos.asm $builddir/fft-4096-sincos.idma.dat
+build test:         test_usage
+
+
+default $builddir/fft-4096-sincos.asm $builddir/fft-4096-sincos.idma.dat

@@ -1,0 +1,37 @@
+# 29-float2-float8: f32 を u64 に 2 つずつ詰める float2（u64 1 つ）と float8（u64 4 つ。1 命令で 8 要素）
+#
+# ninja              -> .cl -> ._vsm -> .vsm
+# ninja build-e2e    -> + vsmlink + assemble3 + host C
+# ninja test         -> usage 表示
+# ninja test-emu-lib -> emu:lib backend で実行・検証
+# ninja test-device  -> 実機 backend で実行・検証
+
+include ../scripts/mncl.ninja
+include ../../scripts/sdk.ninja
+builddir = _build
+
+# --- kernel ---
+build $builddir/float2-float8._vsm: emit-vsm float2-float8.cl
+
+build $builddir/float2-float8.vsm: vsmlink $builddir/float2-float8._vsm float2-float8.param
+  vsm = $builddir/float2-float8._vsm
+  param = float2-float8.param
+
+build $builddir/float2-float8.asm: asm3 $builddir/float2-float8.vsm
+build $builddir/float2-float8.idma.dat | $builddir/float2-float8.idma.inst $builddir/float2-float8.idma.inst.txt $builddir/float2-float8.ddma.dat $builddir/float2-float8.ddma.inst $builddir/float2-float8.ddma.inst.txt: asm3_loader $builddir/float2-float8.vsm
+  stem = $builddir/float2-float8
+
+# --- host driver ---
+build $builddir/test_float2_float8.o: cc test_float2_float8.c
+build $builddir/test_float2_float8: link $builddir/test_float2_float8.o
+
+# --- ビルド段階 phony ---
+build build-e2e: phony $builddir/float2-float8.asm $builddir/float2-float8.idma.dat $builddir/test_float2_float8
+
+# --- test 3 種 ---
+build test-emu-lib: test_emu_lib $builddir/test_float2_float8 | $builddir/float2-float8.idma.dat
+build test-device:  test_device  $builddir/test_float2_float8 | $builddir/float2-float8.idma.dat
+build test:         test_usage
+
+
+default $builddir/float2-float8.asm $builddir/float2-float8.idma.dat

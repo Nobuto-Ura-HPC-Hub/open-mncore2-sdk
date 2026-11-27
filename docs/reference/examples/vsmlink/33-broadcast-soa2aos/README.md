@@ -254,7 +254,7 @@ mvb 1 回 → L1BM に 16 粒子ぶんが載る
 ## 実行
 
 ```bash
-source scripts/overlay
+# SDK を有効にし、この example のディレクトリで実行する（examples の README.md の「動かし方」）
 
 ninja                      # vsmlink (.vsm 生成)
 ninja build-e2e            # + assemble3 + host C

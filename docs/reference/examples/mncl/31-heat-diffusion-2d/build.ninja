@@ -1,0 +1,37 @@
+# 31-heat-diffusion-2d: get_eoshift_boundary による 2 次元の熱拡散（32 x 128、double、4 回の更新。格子の外側は温度 1.0）
+#
+# ninja              -> .cl -> ._vsm -> .vsm
+# ninja build-e2e    -> + vsmlink + assemble3 + host C
+# ninja test         -> usage 表示
+# ninja test-emu-lib -> emu:lib backend で実行・検証
+# ninja test-device  -> 実機 backend で実行・検証
+
+include ../scripts/mncl.ninja
+include ../../scripts/sdk.ninja
+builddir = _build
+
+# --- kernel ---
+build $builddir/heat-diffusion-2d._vsm: emit-vsm heat-diffusion-2d.cl
+
+build $builddir/heat-diffusion-2d.vsm: vsmlink $builddir/heat-diffusion-2d._vsm heat-diffusion-2d.param
+  vsm = $builddir/heat-diffusion-2d._vsm
+  param = heat-diffusion-2d.param
+
+build $builddir/heat-diffusion-2d.asm: asm3 $builddir/heat-diffusion-2d.vsm
+build $builddir/heat-diffusion-2d.idma.dat | $builddir/heat-diffusion-2d.idma.inst $builddir/heat-diffusion-2d.idma.inst.txt $builddir/heat-diffusion-2d.ddma.dat $builddir/heat-diffusion-2d.ddma.inst $builddir/heat-diffusion-2d.ddma.inst.txt: asm3_loader $builddir/heat-diffusion-2d.vsm
+  stem = $builddir/heat-diffusion-2d
+
+# --- host driver ---
+build $builddir/test_heat-diffusion-2d.o: cc test_heat-diffusion-2d.c
+build $builddir/test_heat-diffusion-2d: link $builddir/test_heat-diffusion-2d.o
+
+# --- ビルド段階 phony ---
+build build-e2e: phony $builddir/heat-diffusion-2d.asm $builddir/heat-diffusion-2d.idma.dat $builddir/test_heat-diffusion-2d
+
+# --- test 3 種 ---
+build test-emu-lib: test_emu_lib $builddir/test_heat-diffusion-2d | $builddir/heat-diffusion-2d.asm $builddir/heat-diffusion-2d.idma.dat
+build test-device:  test_device  $builddir/test_heat-diffusion-2d | $builddir/heat-diffusion-2d.asm $builddir/heat-diffusion-2d.idma.dat
+build test:         test_usage
+
+
+default $builddir/heat-diffusion-2d.asm $builddir/heat-diffusion-2d.idma.dat

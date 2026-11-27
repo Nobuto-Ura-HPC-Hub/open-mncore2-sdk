@@ -140,9 +140,12 @@ N 反復入れて精度を上げる。二次収束し、ホスト倍精度との
 
 ## 分割 accumulate (device の 1 カーネル load 上限)
 
-全 N を 1 カーネルに unroll すると device で `mnc2_load_kernel` が NULL を返す。原因は命令数
-上限ではなく、**host 側の連続 DMA バッファ確保の失敗** (要求サイズを 2 の冪乗に切り上げる)。実測で N=128 (`.idma.dat` 1.44 MB -> 2 MB 確保) は load 成功、N=1024 (11.5 MB
--> 16 MB) と N=4096 (46 MB -> 64 MB) は失敗。上限は CMA 設定と断片化に依存し固定値ではない。
+この example を作ったとき（libmnc2 0.4.2 まで）は、全 N を 1 カーネルに unroll すると device で `mnc2_load_kernel` が
+NULL を返した。原因は命令数の上限ではなく、host 側の連続 DMA バッファ確保の失敗 (要求サイズを 2 の冪乗に切り上げる)
+だった。実測で N=128 (`.idma.dat` 1.44 MB -> 2 MB 確保) は load 成功、N=1024 (11.5 MB -> 16 MB) と N=4096
+(46 MB -> 64 MB) は失敗した。libmnc2 0.4.3 からはカーネルを片（既定 4 MiB）に分けて読み込むので、1 カーネルの上限は
+片の大きさ × `idma_queue_limit`（既定 64 MiB）になった（libmnc2 の `api-reference.md`）。0.4.3 で全 N の 1 カーネルを
+実機で読み込めるかは確かめていない。
 
 そこで accumulate を `chunk` 粒子ずつの分割カーネルにする (既定 128。1 分割 約 1.44 MB で
 load 実績サイズ内)。host は 1 回の力評価で分割を順に exec する。要点:
@@ -151,8 +154,8 @@ load 実績サイズ内)。host は 1 回の力評価で分割を順に exec す
 - **accumulator は exec をまたいで LM に残る** (init -> accumulate -> kick が既にこの性質に依存)。
   先頭分割だけリセット、以降は加算。
 - **送信は全 N を 1 回 PDM に置くだけ** (各分割はその slice を読む)。分割間で PDM 往復なし。
-- **IDMA queue の深さは 31**。ライブラリは既定 16 で `MNC2_ERROR_BUSY` を返す。分割を積む
-  とき、この戻り値を受けたら積み直す (`exec_q`)。完全 idle 待ちで毎回 drain すると並列性が
+- **IDMA queue の深さ（ハードウェア）は 31、libmnc2 が積むのを止める数 `idma_queue_limit` は既定 16** で、別の数である。
+  16 を超えて積もうとすると `MNC2_ERROR_BUSY` が返る。分割を積むとき、この戻り値を受けたら積み直す (`exec_q`)。完全 idle 待ちで毎回 drain すると並列性が
   切れるので、分割間は drain しない。
 - **collect の出力を host が recv する前に `mnc2_wait_idma_idle` で IDMA を流し切る**。流し切らないと、多数分割の後ろに積まれた collect の done タグが立つ前に recv の DDMA
   待ちが尽きる (N=4096 で顕在化)。
@@ -185,9 +188,9 @@ load 実績サイズ内)。host は 1 回の力評価で分割を順に exec す
 ## ビルド・実行
 
 ```
-source scripts/overlay
-ninja -C examples/28-nbody-3d build-e2e      # 生成 + vsmlink + assemble3 + C ビルド
-ninja -C examples/28-nbody-3d test-emu-lib   # emu:lib で実行・照合 (CI は N=32・3 ステップ)
+# SDK を有効にし、この example のディレクトリで実行する（examples の README.md の「動かし方」）
+ninja build-e2e      # 生成 + vsmlink + assemble3 + C ビルド
+ninja test-emu-lib   # emu:lib で実行・照合 (CI は N=32・3 ステップ)
 ```
 
 ### device で全 4096・多数ステップ (段階 7)
@@ -198,9 +201,11 @@ device は HW 速度なので大きい N・多数ステップが実用的に回�
 
 ```
 # nstep を増やすとき (dynamical time ぶん、例 数百) は build.ninja の nstep を編集
-../../libmnc2-0.4.1-rc2/u02-run-idma/_build/reset   # 27 の教訓: reset してから
-ninja -C examples/28-nbody-3d test-device-n4096     # または -n128 / -n1024
+ninja test-device-n4096     # または -n128 / -n1024
 ```
+
+実機に前回の実行の状態が残っている場合は、リセットしてから実行する（libmnc2 の `mnc2_reset`、
+`share/mnc2/api-reference.md`）。
 
 出力の `N=...` と `_result_nN/run_*.json` の `"N"`、値照合・エネルギー・束縛の PASS を見る。
 入力は既定で N 別の `_build/ic_nN.bin` (gen_ic 生成)。mkplummer の Plummer 球を struct 形に

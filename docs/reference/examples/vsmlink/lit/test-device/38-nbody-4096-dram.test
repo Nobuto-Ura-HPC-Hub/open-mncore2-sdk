@@ -1,0 +1,4 @@
+# 他粒子を各グループの DRAM から @broadcast で受ける 3D N 体 (N=4096、3 ステップ) を実機 (デバイス 0) で実行し、
+# ホストの倍精度の leapfrog と照合する。
+# REQUIRES: device, assemble3
+# RUN: ninja -C %examples/38-nbody-4096-dram test-device

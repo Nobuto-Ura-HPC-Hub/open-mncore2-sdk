@@ -1,0 +1,37 @@
+# 23-emit-from-debug: emit_from でデバッグ用に PE の値を書き出す（4096 PE）
+#
+# ninja              -> .cl -> ._vsm -> .vsm
+# ninja build-e2e    -> + vsmlink + assemble3 + host C
+# ninja test         -> usage 表示
+# ninja test-emu-lib -> emu:lib backend で実行・検証
+# ninja test-device  -> 実機 backend で実行・検証
+
+include ../scripts/mncl.ninja
+include ../../scripts/sdk.ninja
+builddir = _build
+
+# --- kernel ---
+build $builddir/emit-from-debug._vsm: emit-vsm emit-from-debug.cl
+
+build $builddir/emit-from-debug.vsm: vsmlink $builddir/emit-from-debug._vsm emit-from-debug.param
+  vsm = $builddir/emit-from-debug._vsm
+  param = emit-from-debug.param
+
+build $builddir/emit-from-debug.asm: asm3 $builddir/emit-from-debug.vsm
+build $builddir/emit-from-debug.idma.dat | $builddir/emit-from-debug.idma.inst $builddir/emit-from-debug.idma.inst.txt $builddir/emit-from-debug.ddma.dat $builddir/emit-from-debug.ddma.inst $builddir/emit-from-debug.ddma.inst.txt: asm3_loader $builddir/emit-from-debug.vsm
+  stem = $builddir/emit-from-debug
+
+# --- host driver ---
+build $builddir/test_emit-from-debug.o: cc test_emit-from-debug.c
+build $builddir/test_emit-from-debug: link $builddir/test_emit-from-debug.o
+
+# --- ビルド段階 phony ---
+build build-e2e: phony $builddir/emit-from-debug.asm $builddir/emit-from-debug.idma.dat $builddir/test_emit-from-debug
+
+# --- test 3 種 ---
+build test-emu-lib: test_emu_lib $builddir/test_emit-from-debug | $builddir/emit-from-debug.asm $builddir/emit-from-debug.idma.dat
+build test-device:  test_device  $builddir/test_emit-from-debug | $builddir/emit-from-debug.asm $builddir/emit-from-debug.idma.dat
+build test:         test_usage
+
+
+default $builddir/emit-from-debug.asm $builddir/emit-from-debug.idma.dat

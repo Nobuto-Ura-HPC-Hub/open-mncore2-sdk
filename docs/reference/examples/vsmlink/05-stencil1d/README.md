@@ -2,7 +2,7 @@
 
 ## 概要
 
-このテストは `@stencil` ディレクティブが **MN-Core 2 の全階層**で正しく袖交換を行うことを検証する。
+このテストは `@get_neighbor` ディレクティブが **MN-Core 2 の全階層**で正しく袖交換を行うことを検証する。
 カーネルは 3 点和: `output[i] = left[i] + center[i] + right[i]` を計算する。
 
 4096 PE に `input[i] = i + 1` を配置し、各 PE が左隣 (`offset=-1`) と右隣 (`offset=+1`) の値を取得して加算する。
@@ -26,14 +26,14 @@ PE は直接通信できるのは **同じ MAB 内の 4 PE** だけ（`msl`/`msr
 
 ## 袖交換のデータパス
 
-`@stencil $lr400 -1 _arg_a`（左隣を取得）の場合:
+`@get_neighbor $lr400 -1 $lm0 bf1 nbuf0 left`（左隣を取得）の場合:
 
 | 対象 PE | 隣接 PE の位置 | データパス |
 |---------|-------------|-----------|
 | PE 1-3 | 同一 MAB 内 | `msl`（PE 間シフト）|
-| PE 0 (MAB 1-15) | 隣接 MAB | `l1bmd → l1bmd+1 → msr*3` |
-| PE 0 (MAB 0, L1B 1-7) | 隣接 L1B | `l1bmd → l2bm → l2bmb → l1bmd+1 → msr*3` |
-| PE 0 (MAB 0, L1B 0, Sec 1-7) | 隣接セクション | `l1bmd → l2bm → mvp → l2bmb → l1bmd+1 → msr*3` |
+| PE 0 (MAB 1-15) | 隣接 MAB | `l1bmd → l1bmd+1 → msl` |
+| PE 0 (MAB 0, L1B 1-7) | 隣接 L1B | `l1bmd → l2bm → l2bmb → l1bmd+1 → msl` |
+| PE 0 (MAB 0, L1B 0, Sec 1-7) | 隣接セクション | `l1bmd → l2bm → mvp → l2bmb → l1bmd+1 → msl` |
 | PE 0 (MAB 0, L1B 0, Sec 0) | 存在しない | 境界条件（値 = 0）|
 
 ## 生成される .vsm の構造
@@ -49,75 +49,47 @@ PDM → (mvp) → L2BM → (l2bmb) → L1BM → (l1bmd) → PE
 
 ホストから送られた入力データを全 4096 PE に配布する。
 
-### 2. @stencil_boundary: 境界 PE 検出
+### 2. @boundary_flags: 境界フラグの配布
 
-HW レジスタ（`$subpeid`, `$mabid`, `$l1bid`）を使って各 PE が自分の位置を判定し、
-omr フラグレジスタに書き込む。
+ホストが PDM に置いた境界フラグを、PDM → L2BM → L1BM → `$lr416` の経路で各 PE に配る。
+各 PE には、その PE が接する境界のうち最も外側のレベルのビットが 1 つだけ立つ。ビットの割り当ては
+`share/vsmlink/directives-spec.md` の `@boundary_flags` 節を参照。`@get_neighbor` はこのフラグ（`bf1`）を
+見て、各 PE がどの経路の結果を使うかを選ぶ。
 
-| omr | 条件 | 用途 |
-|-----|------|------|
-| omr13 | `$subpeid == 0` (PE 左端) | PE マージで使用 |
-| omr14 | `$subpeid == 3` (PE 右端) | PE マージで使用 |
-| omr11 | `$mabid == 0` (MAB 左端) | MAB マージで使用 |
-| omr12 | `$mabid == 15` (MAB 右端) | MAB マージで使用 |
-| omr9  | `$l1bid == 0` (L1B 左端) | L1B マージで使用 |
-| omr10 | `$l1bid == 7` (L1B 右端) | L1B マージで使用 |
+### 3. @get_neighbor: 左隣と右隣の値を受け取る
 
-### 3. cross MAB
+`@get_neighbor` を 2 回使う。左隣（offset -1）の結果は `$lr400`、右隣（offset +1）の結果は `$lr408` に入る。
+端の PE（PE の番号 0 / 4095）には自分の値を入れるので、端の指定 `:reg $lm0`（src と同じレジスタ）を書いている。
+展開には、本体のテンプレート（`get_neighbor_left.vsm` / `get_neighbor_right.vsm`）と、端の PE に書くテンプレート
+（`get_neighbor_edge_left.vsm` / `get_neighbor_edge_right.vsm`）が使われる。左右は向きが違うだけで、構成は同じである。
+以下は左隣の場合で、右隣では `l1bmd+1` が `l1bmd-1` に、`msl` が `msr` になる。
 
-L1BM を経由して隣接 MAB のデータを取得する。
+1 回の `@get_neighbor` の展開は、次の順に並ぶ（`share/vsmlink/directives-spec.md` の `@get_neighbor` の「展開内容」）。
 
-```
-PE → (l1bmd) → L1BM → (l1bmd+1) → PE → (msr*3) → PE
-```
+1. **ゼロレジスタの作成と、入力データを GRF0 へ写す**
+2. **cross L2B**: 隣の L2B の値を、`.param` の `:buffer`（`nbuf0`）で宣言した PDM0 上のバッファを経由して受け取る。
+   各 L2B の L1B 7 の値を `l1bmd` → `l2bm@7` → `mvp` でバッファに書き（put）、1 L2B 分ずらした位置から
+   `mvp` → `l2bmb@0` で読み戻し（get）、`l1bmd+1` と `msl` で PE の位置を合わせる
+3. **cross L1B**: 隣の L1B の値を、L2BM を経由して受け取る。`l1bmd` で L1BM に出し、`l2bm@0..7` で L2BM に上げ、
+   `l2bmb@1..7` で隣の L1B の L1BM に下ろし、`l1bmd+1` と `msl` で PE の位置を合わせる
+4. **cross MAB**: 隣の MAB の値を、L1BM を経由して受け取る。`l1bmd` で L1BM に出し、`l1bmd+1` と `msl`
+5. **within MAB**: 同じ MAB の中の隣の PE の値を、`msl` で受け取る
+6. **omr の導出**: `@boundary_flags` で配った境界フラグ（`bf1`）と、各経路のビット（cross L2B、cross L1B、cross MAB）を
+   `ixor` で比べ、一致した PE を omr に立てる。使う omr は `@alloc` で確保したもの
+   （この example では `:omr 9 10 11 12`）
+7. **マージ**: within MAB の結果を既定として `lpassa` で結果のレジスタに書き、cross MAB、cross L1B、cross L2B の
+   順に `maskr` と `ipassa` で上書きする
+8. **端の PE に書く**: 端の指定 `:reg $lm0` により、PE の位置から選んだ端の PE（左隣では PE の番号 0、右隣では 4095）の結果を、
+   自分の `$lm0` で上書きする
 
-- `l1bmd`: 元データを L1BM に gather
-- `l1bmd+1`: 隣接 MAB（番号 -1）のスロットを読み出し
-- `msr*3`: PE 位置を 3 つ回転（MAB 15 の PE 3 → PE 0 に補正）
+どの経路の結果を使うかは、2〜5 をすべての PE で計算したあとに、マスクで選ぶ（directives-spec の
+「マージフェーズの実装方針」）。
 
-**注意**: MAB 0 は L1B 内でラップして MAB 15 のデータを読む。
-これは L1B 0 以外では正しいが、L1B 0 では不正確 → 後のマージで修正される。
+### 4. 3 点の和
 
-### 4. cross L1B
+`$lr0`（自分の値）に、`$lr400`（左隣）と `$lr408`（右隣）を `dvadd` で足す。
 
-L2BM を経由して隣接 L1B のデータを取得する。
-
-```
-PE → (l1bmd) → L1BM → (l2bm@N) → L2BM → (l2bmb@N-1) → L1BM → (l1bmd+1) → PE → (msr*3)
-```
-
-- `l2bm@0..@7`: L1BM のデータを L2BM に scatter（各 L1B → 各 L2BM スロット）
-- `l2bmb@1..@7`: L2BM スロット N-1 のデータを L1B N の L1BM に broadcast
-  - L1B 0 は受信しない（左隣が同一セクション内にないため）
-- `l1bmd+1 → msr*3`: cross MAB と同じ補正
-
-### 5. cross L2B（セクション間）
-
-PDM を経由して隣接セクションのデータを取得する。
-
-```
-PE → L1BM → L2BM → (mvp collect) → PDM → (mvp redistribute) → L2BM → (l2bmb@0) → L1BM → (l1bmd+1) → PE → (msr*3)
-```
-
-- **collect**: 各セクションの L2BM → PDM（8 セクション × 512 u64 = 4096 u64 の一時領域を使用）
-- **redistribute**: PDM → 隣接セクションの L2BM
-  - offset=-1: sec 0→1, 1→2, ..., 6→7（7 転送）
-  - sec 0 は左隣なし → 受信データなし → 境界条件
-- `l2bmb@0`: L1B 7 のデータ（L2BM 内 offset 7*64）を L1B 0 の L1BM にロード
-- `l1bmd+1 → msr*3`: 同じ補正
-
-### 6. マージ（内側から外側へ）
-
-各階層の結果を `maskr`/`ipassa` で段階的にマージする。
-外側の結果が内側の結果を上書きする。
-
-```
-L1B マージ:  L1B 0/7 → L2B 結果で上書き（omr9/10）
-MAB マージ:  MAB 0/15 → L1B/L2B 結果で上書き（omr11/12）
-PE マージ:   PE 0/3 → マージ結果で上書き、PE 1-3 は msl/msr（omr13/14）
-```
-
-### 7. @collect: PE → ホスト
+### 5. @collect: PE → ホスト
 
 ```
 PE → (l1bmd) → L1BM → (l2bm) → L2BM → (mvp) → PDM
@@ -128,7 +100,7 @@ PE → (l1bmd) → L1BM → (l2bm) → L2BM → (mvp) → PDM
 ## 検証結果
 
 ```
-=== stencil1d: 3-point sum with @stencil (4096 PE) ===
+=== stencil1d: 3-point sum with @get_neighbor (4096 PE) ===
 
   [boundary] PE0:    got=3       (left=0, center=1, right=2)
   [boundary] PE4095: got=8191    (left=4095, center=4096, right=0)
@@ -142,9 +114,8 @@ PE → (l1bmd) → L1BM → (l2bm) → L2BM → (mvp) → PDM
 
 | ファイル | 説明 |
 |---------|------|
-| `stencil1d._vsm` | 入力: @stencil ディレクティブを含む _vsm |
+| `stencil1d._vsm` | 入力: @get_neighbor ディレクティブを含む _vsm |
 | `stencil1d.param` | 配置パラメタ: PDM アドレス |
-| `stencil1d.stparam` | 構造パラメタ: ステンシル型 |
 | `expected.vsm` | vsmlink が生成する展開済み .vsm |
 | `test_stencil1d.c` | E2E テスト（emu:lib で実行） |
 | `build.ninja` | ビルド定義 |

@@ -154,9 +154,9 @@ PDM の上では常に番号の順に置くので、この分かれ方は起き�
 ## 使い方
 
 ```
-source scripts/overlay
-ninja -C examples/30-soa2aos test-emu-lib   # emu:lib で自己テスト (テストデータで自己完結)
-ninja -C examples/30-soa2aos test-device    # 実機で自己テスト
+# SDK を有効にし、この example のディレクトリで実行する（examples の README.md の「動かし方」）
+ninja test-emu-lib   # emu:lib で自己テスト (テストデータで自己完結)
+ninja test-device    # 実機で自己テスト
 ```
 
 ### フィルタ (--pipe)
@@ -179,7 +179,7 @@ on-device で計算**して m を上書きする別カーネル (`aos_id._vsm`) 
 使わない** (ホストが id 配列を用意しない)。出力 struct の m は「その粒子を処理した PE の flat_id」に
 なる。付けなければ m は保持 (デフォルトは今までどおり)。
 
-- `ninja -C examples/30-soa2aos test-emu-lib-id` — 自己テスト (m が 0..4095 の順列)。
+- `ninja test-emu-lib-id` — 自己テスト (m が 0..4095 の順列)。
 - フィルタ: `cat soa.bin | ./_build/soa2aos --pipe --use-global-id > aos_id.bin`。
 - flat_id = `peid + (l1bid<<6) + (l2bid<<9)` を `lpassa`/`imm`/`ilsl`/`iadd` で合成 (`24/init.vsm`
   が手本)。固定値オペランド (`$peid` 等) は ALU 第 1 入力専用なので `lpassa` 退避。
@@ -202,6 +202,5 @@ on-device で計算**して m を上書きする別カーネル (`aos_id._vsm`) 
 | `aos._vsm` | distribute size4 + `dmwrite`/`dmread` 転置 + collect size4 (m 保持) |
 | `aos_id._vsm` | 上に on-device flat_id 計算 + m 上書きを足した `--use-global-id` 版 |
 | `aos.param` | slot 8 (SoA 入力)、slot 16 (AoS 出力) の PDM 番地と wait tag (両カーネル共用) |
-| `aos.stparam` | `:pe_shape (4096)` `:pe_local (4)` |
 | `soa2aos.c` | 引数なし=自己テスト (CI)、`--pipe`=フィルタ、`--gen`=テスト入力生成 |
 | `build.ninja` | vsmlink + assemble3 + host ビルド + test target |

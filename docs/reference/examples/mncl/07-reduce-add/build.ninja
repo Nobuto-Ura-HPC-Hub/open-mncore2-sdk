@@ -17,10 +17,9 @@ builddir = _build
 # --- kernel ---
 build $builddir/reduce._vsm: emit-vsm reduce.cl
 
-build $builddir/reduce.vsm: vsmlink $builddir/reduce._vsm reduce.param reduce.stparam
+build $builddir/reduce.vsm: vsmlink $builddir/reduce._vsm reduce.param
   vsm = $builddir/reduce._vsm
   param = reduce.param
-  stparam = reduce.stparam
 
 build $builddir/reduce.asm: asm3 $builddir/reduce.vsm
 build $builddir/reduce.idma.dat | $builddir/reduce.idma.inst $builddir/reduce.idma.inst.txt $builddir/reduce.ddma.dat $builddir/reduce.ddma.inst $builddir/reduce.ddma.inst.txt: asm3_loader $builddir/reduce.vsm

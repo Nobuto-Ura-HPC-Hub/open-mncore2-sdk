@@ -1,0 +1,37 @@
+# 25-bitonic-sort-8192: バイトニックソート（8192 個、double。各 PE が 2 つ持つ。get_hypercube_neighbor を使う）
+#
+# ninja              -> .cl -> ._vsm -> .vsm
+# ninja build-e2e    -> + vsmlink + assemble3 + host C
+# ninja test         -> usage 表示
+# ninja test-emu-lib -> emu:lib backend で実行・検証
+# ninja test-device  -> 実機 backend で実行・検証
+
+include ../scripts/mncl.ninja
+include ../../scripts/sdk.ninja
+builddir = _build
+
+# --- kernel ---
+build $builddir/bitonic-sort-8192._vsm: emit-vsm bitonic-sort-8192.cl
+
+build $builddir/bitonic-sort-8192.vsm: vsmlink $builddir/bitonic-sort-8192._vsm bitonic-sort-8192.param
+  vsm = $builddir/bitonic-sort-8192._vsm
+  param = bitonic-sort-8192.param
+
+build $builddir/bitonic-sort-8192.asm: asm3 $builddir/bitonic-sort-8192.vsm
+build $builddir/bitonic-sort-8192.idma.dat | $builddir/bitonic-sort-8192.idma.inst $builddir/bitonic-sort-8192.idma.inst.txt $builddir/bitonic-sort-8192.ddma.dat $builddir/bitonic-sort-8192.ddma.inst $builddir/bitonic-sort-8192.ddma.inst.txt: asm3_loader $builddir/bitonic-sort-8192.vsm
+  stem = $builddir/bitonic-sort-8192
+
+# --- host driver ---
+build $builddir/test_bitonic-sort-8192.o: cc test_bitonic-sort-8192.c
+build $builddir/test_bitonic-sort-8192: link $builddir/test_bitonic-sort-8192.o
+
+# --- ビルド段階 phony ---
+build build-e2e: phony $builddir/bitonic-sort-8192.asm $builddir/bitonic-sort-8192.idma.dat $builddir/test_bitonic-sort-8192
+
+# --- test 3 種 ---
+build test-emu-lib: test_emu_lib $builddir/test_bitonic-sort-8192 | $builddir/bitonic-sort-8192.asm $builddir/bitonic-sort-8192.idma.dat
+build test-device:  test_device  $builddir/test_bitonic-sort-8192 | $builddir/bitonic-sort-8192.asm $builddir/bitonic-sort-8192.idma.dat
+build test:         test_usage
+
+
+default $builddir/bitonic-sort-8192.asm $builddir/bitonic-sort-8192.idma.dat

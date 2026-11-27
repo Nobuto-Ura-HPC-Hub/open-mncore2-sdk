@@ -1,0 +1,41 @@
+# 30-neighbor-edge: 隣の PE の値を受け取る関数の端の扱い（clamp、periodic、固定の境界値。load_neighbor 系と get_eoshift_periodic）
+#
+# ninja              -> .cl -> ._vsm -> .vsm
+# ninja build-e2e    -> + vsmlink + assemble3 + host C + boundary_flags fetch
+# ninja test         -> usage 表示
+# ninja test-emu-lib -> emu:lib backend で実行・検証
+# ninja test-device  -> 実機 backend で実行・検証
+
+include ../scripts/mncl.ninja
+include ../../scripts/sdk.ninja
+builddir = _build
+
+# --- kernel ---
+build $builddir/neighbor-edge._vsm: emit-vsm neighbor-edge.cl
+
+build $builddir/neighbor-edge.vsm: vsmlink $builddir/neighbor-edge._vsm neighbor-edge.param
+  vsm = $builddir/neighbor-edge._vsm
+  param = neighbor-edge.param
+
+build $builddir/neighbor-edge.asm: asm3 $builddir/neighbor-edge.vsm
+build $builddir/neighbor-edge.idma.dat | $builddir/neighbor-edge.idma.inst $builddir/neighbor-edge.idma.inst.txt $builddir/neighbor-edge.ddma.dat $builddir/neighbor-edge.ddma.inst $builddir/neighbor-edge.ddma.inst.txt: asm3_loader $builddir/neighbor-edge.vsm
+  stem = $builddir/neighbor-edge
+
+# --- host driver ---
+build $builddir/test_neighbor-edge.o: cc test_neighbor-edge.c
+build $builddir/test_neighbor-edge: link $builddir/test_neighbor-edge.o
+
+# --- boundary flags (../../data/<sha>.bin から fetch) ---
+build $builddir/collected_flags.bin: fetch_data
+  bin = 75c77b0f.bin
+
+# --- ビルド段階 phony ---
+build build-e2e: phony $builddir/neighbor-edge.asm $builddir/neighbor-edge.idma.dat $builddir/test_neighbor-edge $builddir/collected_flags.bin
+
+# --- test 3 種 ---
+build test-emu-lib: test_emu_lib $builddir/test_neighbor-edge | $builddir/neighbor-edge.asm $builddir/neighbor-edge.idma.dat $builddir/collected_flags.bin
+build test-device:  test_device  $builddir/test_neighbor-edge | $builddir/neighbor-edge.asm $builddir/neighbor-edge.idma.dat $builddir/collected_flags.bin
+build test:         test_usage
+
+
+default $builddir/neighbor-edge.asm $builddir/neighbor-edge.idma.dat

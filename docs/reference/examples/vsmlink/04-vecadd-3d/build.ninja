@@ -1,6 +1,6 @@
 # 04-vecadd-3d: c[i][j][k] = a[i][j][k] + b[i][j][k]  (pe_shape 16x16x16)
 #
-# ninja              → vsmlink: _vsm + .param + .stparam → .vsm
+# ninja              → vsmlink: _vsm + .param → .vsm
 # ninja build-e2e    → + assemble3 + host C ビルド (emu:lib)
 # ninja test         → + emu:lib で実行・検証
 #
@@ -11,10 +11,9 @@ include ../scripts/vsmlink.ninja
 builddir = _build
 
 # --- default: vsmlink only ---
-build $builddir/vecadd-3d.vsm: vsmlink ../02-vecadd/vecadd._vsm ../02-vecadd/vecadd.param vecadd-3d.stparam
+build $builddir/vecadd-3d.vsm: vsmlink ../02-vecadd/vecadd._vsm ../02-vecadd/vecadd.param
   vsm = ../02-vecadd/vecadd._vsm
   param = ../02-vecadd/vecadd.param
-  stparam = vecadd-3d.stparam
 
 # --- build-e2e: assemble + host C ---
 build $builddir/vecadd.asm: asm3 $builddir/vecadd-3d.vsm

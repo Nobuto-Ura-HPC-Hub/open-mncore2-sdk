@@ -25,7 +25,6 @@ broadcast の源は AoS (struct 連続 4 u64) なので、往復は AoS -> SoA �
 |---------|------|
 | `broadcast_collect._vsm` | `@broadcast size 4` + `lpassa` で collect 源に {x,y,z,id} を並べる + `@collect size 4` |
 | `broadcast_collect.param` | slot 8 (broadcast 源)、16 (distribute id)、24 (collect 出力) の PDM 番地と wait tag |
-| `broadcast_collect.stparam` | `:pe_shape (4096)` `:pe_local (4)` |
 | `test_broadcast_collect.c` | struct を送信 (broadcast 非トリガー、id をトリガー) -> exec -> recv -> 成分ごと出力を照合 |
 | `build.ninja` | vsmlink + assemble3 + host ビルド + test target |
 
@@ -40,9 +39,9 @@ broadcast の源は AoS (struct 連続 4 u64) なので、往復は AoS -> SoA �
 ## ビルド・実行
 
 ```
-source scripts/overlay
-ninja -C examples/29-broadcast-collect test-emu-lib   # emu:lib で往復検証
-ninja -C examples/29-broadcast-collect test-device    # 実機で検証
+# SDK を有効にし、この example のディレクトリで実行する（examples の README.md の「動かし方」）
+ninja test-emu-lib   # emu:lib で往復検証
+ninja test-device    # 実機で検証
 ```
 
 ## 設計メモ

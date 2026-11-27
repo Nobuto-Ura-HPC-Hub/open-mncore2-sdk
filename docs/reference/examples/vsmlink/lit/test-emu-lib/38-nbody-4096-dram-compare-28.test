@@ -1,0 +1,5 @@
+# 38-nbody-4096-dram (他粒子を DRAM から読む) と 28-nbody-3d (他粒子を PDM から読む) を、同じ IC・同じ刻みで
+# emu:lib で実行し、位置と速度のスナップショットがバイト単位で一致することを確かめる。
+# 長いテスト: N 体（アプリ系）。時間は 4096 粒子の全対全の大きさで決まり、ステップはすでに 3 に絞ってある。普段は流さず、--param long=1 のときだけ流す。
+# REQUIRES: long
+# RUN: ninja -C %examples/38-nbody-4096-dram compare-28

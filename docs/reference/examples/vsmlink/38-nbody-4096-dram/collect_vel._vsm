@@ -1,0 +1,14 @@
+# ABI PFN3_SBY64
+#
+# collect_vel: LM 常駐の更新後の速度 (vx,vy,vz) を PDM へ回収する。ホストが実行する。
+# LM0 常駐: vx=$lm22 vy=$lm24 vz=$lm26
+#
+# size 3 の 1 回で回収する。基点は $ln4088、成分は $ln4088 (vx) $ln4090 (vy) $ln4092 (vz)。
+#
+	lpassa $lm22 $ln4088    # vx -> collect reg 成分 0
+	nop/2
+	lpassa $lm24 $ln4090    # vy -> collect reg 成分 1
+	nop/2
+	lpassa $lm26 $ln4092    # vz -> collect reg 成分 2
+	nop/2
+	@collect _vel to_param 8 size 3 $ln4088

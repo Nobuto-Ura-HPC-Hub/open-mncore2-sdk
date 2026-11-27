@@ -1,15 +1,15 @@
 # ABI PFN3_SBY64
 #
-# T4: @stencil in nested if-if (flag1 ∧ flag2) — debug_read 版
+# T4: @get_neighbor in nested if-if (flag1 ∧ flag2) — debug_read 版
 #
 # PDM layout:
-#   slot 8:  input  (stencil source, 1 LW/PE)
+#   slot 8:  input  (stencil source, 1 u64/PE)
 #   slot 24: flag1  (outer if: 0=true, nonzero=false)
 #   slot 32: flag2  (inner if: 0=true, nonzero=false)
 #
 # if(flag1) {
 #     r16=1
-#     if(flag2) { r16=5; @stencil; r18=1 } else { r16=9 }
+#     if(flag2) { r16=5; @get_neighbor; r18=1 } else { r16=9 }
 # } else {
 #     r16=2
 #     if(flag2) { r16=6 } else { r16=10 }
@@ -119,7 +119,7 @@
 	  mask 0
 	nop
 	nop
-# inner if (flag1 ∧ flag2): r16=5, @stencil, r18=1
+# inner if (flag1 ∧ flag2): r16=5, @get_neighbor, r18=1
 	imm i"5" $r24
 	imm i"0" $r25
 	nop
@@ -129,10 +129,10 @@
 	  mask 0
 	nop
 	nop
-# @stencil
+# @get_neighbor
 	@boundary_flags bf1 0 $lr416 data_edge_left data_edge_right cross_chip_left cross_chip_right cross_L2B_left cross_L2B_right cross_L1B_left cross_L1B_right cross_MAB_left cross_MAB_right
 	@alloc left :omr 9 10 11 12 :grf0 200 202 204 206 208 210 212 214 216 218 220 :n 0
-	@get_neighbor $lr400 -1 $lm0 bf1 nbuf0 left
+	@get_neighbor $lr400 -1 $lm0 bf1 nbuf0 left :reg $lm0
 	@free left
 # r18 = 1 (stencil completion)
 	imm i"1" $r24

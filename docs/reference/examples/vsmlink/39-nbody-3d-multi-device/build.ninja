@@ -1,0 +1,184 @@
+# 39-nbody-3d-multi-device: MN-Core2 を複数枚使う 3D N 体 (他粒子は各デバイスの DRAM から @broadcast で受ける)
+#
+# examples/28-nbody-3d の方式 (accumulate を chunk 粒子ずつの分割カーネルにし、host が順に exec する) に、
+# 次の 2 点を足した。
+#   1. 他粒子を DRAM から読む (examples/38-nbody-4096-dram と同じ。stage kernel が PDM0 から全グループの DRAM へ置く)
+#   2. 粒子を複数のデバイスに分ける。1 枚あたり N / (デバイス数) 粒子。ホストが毎タイムステップ、全デバイスの結果を集めて送り直す
+#
+# ninja                       vsmlink (.vsm 生成)
+# ninja verify                accumulate 分割 0 と stage kernel (N=32) の出力と、expected*.vsm の diff
+# ninja build-e2e             + assemble3 + host C ビルド
+# ninja test-emu-lib          + emu:lib で実行・値照合 (N=32、デバイス 1 枚)
+# ninja test-device           + 実機で実行・値照合 (N=32、デバイス 1 枚。lit 用)
+#
+# 以下は実機で手動 (名指ししたときだけ build される。2 枚が見える環境で):
+# ninja test-device-n4096     N=4096、デバイス 1 枚で値照合
+# ninja compare-split-device  N=4096 を、デバイス 1 枚と 2 枚 (1 枚あたり 2048) で回し、バイト単位で一致すること
+# ninja test-device-n8192     N=8192、デバイス 2 枚で値照合 (4 タイムステップ)
+# ninja run-device            N=8192、デバイス 2 枚で星団 2 個の衝突を 2000 タイムステップ
+# ninja test-device-n16384    N=16384、デバイス 4 枚で値照合 (4 タイムステップ)
+# ninja run-device-n16384     N=16384、デバイス 4 枚で星団 2 個の衝突を 2000 タイムステップ
+#
+# N=4096 以上はエミュレータでは実行しない (emu:lib では現実的な時間で終わらない)。
+# emu:lib ではデバイス 2 枚を使えない (デバイス 1 は開けず、デバイス 0 を 2 回開くと異常終了する)。
+# 2 枚の動作と、1 枚との一致は、実機でだけ確かめる。
+
+include ../../scripts/sdk.ninja
+include ../scripts/vsmlink.ninja
+builddir = _build
+
+# rsqrt のニュートン補正の反復数。0 で補正なし。
+newton = 3
+# 時間積分のタイムステップ数。値照合 (emu:lib、lit、実機の短い実行) は 4、本番 (run-device) は 2000。
+# (「ステップ」単独は MN-Core2 側の用語と重なるので「タイムステップ」と書く)
+ntimestep = 4
+ntimestep_run = 2000
+# 分割単位 (粒子数)。gen_chunks_ninja.py の CHUNK と一致させること。
+chunk = 128
+
+rule gen_acc
+  command = python3 gen_accumulate.py $start $count $newton $first $out_vsm $out_param
+  description = GEN accumulate 分割 (start=$start count=$count newton=$newton first=$first)
+
+rule gen_stage
+  command = python3 gen_stage.py $n $out_vsm $out_param
+  description = GEN stage (n=$n)
+
+# 初期条件 (束縛系) を struct 形バイナリで生成する。実行時に別のファイルを渡せば差し替えられる。
+rule gen_ic
+  command = python3 gen_ic.py $unroll $out
+  description = GEN ic (N=$unroll)
+
+# Plummer 球 2 個の衝突 (星団 1 個あたり N/2 粒子)
+rule gen_ic_plummer
+  command = python3 gen_ic_plummer.py $unroll $out $opts
+  description = GEN ic Plummer (N=$unroll $opts)
+
+# accumulate 分割カーネルと stage kernel の edge (生成物)。N ごとに phony accum-n{N} を提供する。
+include accumulate-chunks.ninja
+
+# --- 初期条件 ---
+build $builddir/ic_n32.bin: gen_ic gen_ic.py
+  unroll = 32
+build $builddir/ic_n4096.bin: gen_ic gen_ic.py
+  unroll = 4096
+# 衝突の初期条件の値 (sep、vrel) は目安で、実機で見て調整する (README)
+build $builddir/ic_collide_n8192.bin: gen_ic_plummer gen_ic_plummer.py
+  unroll = 8192
+  opts = --clusters=2 --sep=6 --vrel=0.8
+build $builddir/ic_collide_n16384.bin: gen_ic_plummer gen_ic_plummer.py
+  unroll = 16384
+  opts = --clusters=2 --sep=6 --vrel=0.8
+
+# --- 共有カーネル (N 非依存: init / kick / drift / collect) ---
+build $builddir/init.vsm: vsmlink init._vsm init.param
+  vsm = init._vsm
+  param = init.param
+build $builddir/init.idma.dat: asm3_loader $builddir/init.vsm
+  stem = $builddir/init
+build $builddir/kick.vsm: vsmlink kick._vsm kick.param
+  vsm = kick._vsm
+  param = kick.param
+build $builddir/kick.idma.dat: asm3_loader $builddir/kick.vsm
+  stem = $builddir/kick
+build $builddir/drift.vsm: vsmlink drift._vsm drift.param
+  vsm = drift._vsm
+  param = drift.param
+build $builddir/drift.idma.dat: asm3_loader $builddir/drift.vsm
+  stem = $builddir/drift
+build $builddir/collect_pos.vsm: vsmlink collect_pos._vsm collect_pos.param
+  vsm = collect_pos._vsm
+  param = collect_pos.param
+build $builddir/collect_pos.idma.dat: asm3_loader $builddir/collect_pos.vsm
+  stem = $builddir/collect_pos
+build $builddir/collect_vel.vsm: vsmlink collect_vel._vsm collect_vel.param
+  vsm = collect_vel._vsm
+  param = collect_vel.param
+build $builddir/collect_vel.idma.dat: asm3_loader $builddir/collect_vel.vsm
+  stem = $builddir/collect_vel
+
+build shared-kernels: phony $builddir/init.idma.dat $builddir/kick.idma.dat $builddir/drift.idma.dat $builddir/collect_pos.idma.dat $builddir/collect_vel.idma.dat
+
+# host のソースの sha256 先頭 16 桁を埋め込む。実機で走らせているバイナリがどの版か、
+# 出力そのものから分かるようにする (手で sha256sum を突き合わせなくてよい)。
+rule gen_buildid
+  command = printf '#define BUILD_ID "%s"\n' "$$(sha256sum $in | cut -c1-16)" > $out
+  description = GEN build id
+
+build $builddir/build_id.h: gen_buildid nbody.c
+
+# --- host (アプリ本体) ---
+# kernel のパスは -DACC_FMT / -DSTAGE_PATH / -DKERNEL_PREFIX で外から渡す (host にベタ書きしない)。
+# 出力ファイル名は固定 (pos_0000.bin / run.json)。pod からの回収は result-list.txt に
+# 相対パスを 1 行 1 個で列挙する方式でワイルドカードが使えないため、実行前に名前が
+# 確定している必要がある。使うデバイスは実行時の --devs=<n>,<n> で決まり、-DDEVS_DEFAULT は既定である。
+#
+# N=32 (値照合。emu:lib)、N=4096 (実機。分け方の比較)、N=8192 の短い実行 (実機。値照合)、N=8192 の本番 (実機。2000 タイムステップ)
+build $builddir/nbody_n32.o: cc nbody.c | $builddir/build_id.h
+  cflags = -DUNROLL=32 -DCHUNK=$chunk -DNEWTON=$newton -DNTIMESTEP=$ntimestep -DACC_FMT=\"_build/accumulate_n32_g%d.idma.dat\" -DSTAGE_PATH=\"_build/stage_n32.idma.dat\" -DKERNEL_PREFIX=\"_build/\" -DIC_DEFAULT=\"_build/ic_n32.bin\" -DRESULT_DIR=\"_result_n32\" -DDEVS_DEFAULT=\"0\" -I$builddir
+build $builddir/nbody_n32: link_exe $builddir/nbody_n32.o
+build $builddir/nbody_n4096.o: cc nbody.c | $builddir/build_id.h
+  cflags = -DUNROLL=4096 -DCHUNK=$chunk -DNEWTON=$newton -DNTIMESTEP=$ntimestep -DACC_FMT=\"_build/accumulate_n4096_g%d.idma.dat\" -DSTAGE_PATH=\"_build/stage_n4096.idma.dat\" -DKERNEL_PREFIX=\"_build/\" -DIC_DEFAULT=\"_build/ic_n4096.bin\" -DRESULT_DIR=\"_result_n4096\" -DDEVS_DEFAULT=\"0\" -I$builddir
+build $builddir/nbody_n4096: link_exe $builddir/nbody_n4096.o
+build $builddir/nbody_n8192_short.o: cc nbody.c | $builddir/build_id.h
+  cflags = -DUNROLL=8192 -DCHUNK=$chunk -DNEWTON=$newton -DNTIMESTEP=$ntimestep -DACC_FMT=\"_build/accumulate_n8192_g%d.idma.dat\" -DSTAGE_PATH=\"_build/stage_n8192.idma.dat\" -DKERNEL_PREFIX=\"_build/\" -DIC_DEFAULT=\"_build/ic_collide_n8192.bin\" -DRESULT_DIR=\"_result_n8192_short\" -DDEVS_DEFAULT=\"0,1\" -I$builddir
+build $builddir/nbody_n8192_short: link_exe $builddir/nbody_n8192_short.o
+build $builddir/nbody_n8192.o: cc nbody.c | $builddir/build_id.h
+  cflags = -DUNROLL=8192 -DCHUNK=$chunk -DNEWTON=$newton -DNTIMESTEP=$ntimestep_run -DACC_FMT=\"_build/accumulate_n8192_g%d.idma.dat\" -DSTAGE_PATH=\"_build/stage_n8192.idma.dat\" -DKERNEL_PREFIX=\"_build/\" -DIC_DEFAULT=\"_build/ic_collide_n8192.bin\" -DRESULT_DIR=\"_result_n8192\" -DDEVS_DEFAULT=\"0,1\" -I$builddir
+build $builddir/nbody_n8192: link_exe $builddir/nbody_n8192.o
+# N=16384 (デバイス 4 枚、1 枚あたり 4096 粒子)。短い実行 (値照合) と本番 (2000 タイムステップ)
+build $builddir/nbody_n16384_short.o: cc nbody.c | $builddir/build_id.h
+  cflags = -DUNROLL=16384 -DCHUNK=$chunk -DNEWTON=$newton -DNTIMESTEP=$ntimestep -DACC_FMT=\"_build/accumulate_n16384_g%d.idma.dat\" -DSTAGE_PATH=\"_build/stage_n16384.idma.dat\" -DKERNEL_PREFIX=\"_build/\" -DIC_DEFAULT=\"_build/ic_collide_n16384.bin\" -DRESULT_DIR=\"_result_n16384_short\" -DDEVS_DEFAULT=\"0,1,2,3\" -I$builddir
+build $builddir/nbody_n16384_short: link_exe $builddir/nbody_n16384_short.o
+build $builddir/nbody_n16384.o: cc nbody.c | $builddir/build_id.h
+  cflags = -DUNROLL=16384 -DCHUNK=$chunk -DNEWTON=$newton -DNTIMESTEP=$ntimestep_run -DACC_FMT=\"_build/accumulate_n16384_g%d.idma.dat\" -DSTAGE_PATH=\"_build/stage_n16384.idma.dat\" -DKERNEL_PREFIX=\"_build/\" -DIC_DEFAULT=\"_build/ic_collide_n16384.bin\" -DRESULT_DIR=\"_result_n16384\" -DDEVS_DEFAULT=\"0,1,2,3\" -I$builddir
+build $builddir/nbody_n16384: link_exe $builddir/nbody_n16384.o
+
+# --- build-e2e ---
+build build-e2e: phony shared-kernels accum-n32 $builddir/nbody_n32 $builddir/ic_n32.bin
+
+# --- test targets (値照合。CI は N=32、デバイス 1 枚) ---
+build test: test_usage
+build test-emu-lib: test_emu_lib $builddir/nbody_n32 | shared-kernels accum-n32 $builddir/ic_n32.bin
+  args = --verify=$ntimestep
+build test-device: test_device $builddir/nbody_n32 | shared-kernels accum-n32 $builddir/ic_n32.bin
+  args = --verify=$ntimestep
+
+# --- 実機で手動 (2 枚が見える環境。名指ししたときだけ build される) ---
+
+# デバイスの分け方を変えた 2 つの実行が、バイト単位で一致すること。
+# 各粒子が受ける力の足し込みの順序は、全粒子を DRAM から同じ順で読むので、分け方に依らない。
+# 割り当ての番号のずれ、片方のデバイスの結果が古いままになる誤りは、許容誤差つきの照合では見えない。
+build test-device-n4096: test_device $builddir/nbody_n4096 | shared-kernels accum-n4096 $builddir/ic_n4096.bin
+  args = --verify=$ntimestep
+rule compare_split_device
+  command = ./$in --devs=0 --vel --out=_result_split_d1 && ./$in --devs=0,1 --vel --out=_result_split_d2 && sh compare_runs.sh _result_split_d1 _result_split_d2
+  description = COMPARE split (実機, N=4096, デバイス 1 枚と 2 枚)
+build compare-split-device: compare_split_device $builddir/nbody_n4096 | shared-kernels accum-n4096 $builddir/ic_n4096.bin
+build test-device-n8192: test_device $builddir/nbody_n8192_short | shared-kernels accum-n8192 $builddir/ic_collide_n8192.bin
+  args = --verify=$ntimestep
+
+# N=16384、デバイス 4 枚 (1 枚あたり 4096)。4 タイムステップで値照合。
+build test-device-n16384: test_device $builddir/nbody_n16384_short | shared-kernels accum-n16384 $builddir/ic_collide_n16384.bin
+  args = --verify=$ntimestep
+# N=16384、デバイス 4 枚で星団 2 個の衝突を 2000 タイムステップ (10 タイムステップごとに記録)
+build run-device-n16384: test_device $builddir/nbody_n16384 | shared-kernels accum-n16384 $builddir/ic_collide_n16384.bin
+  args = --devs=0,1,2,3 --every=10 --monitor=10
+
+# 星団 2 個の衝突を 2000 タイムステップ。10 タイムステップごとに記録して 200 コマ (約 40 MB、pos_0000.bin 〜 pos_0001.bin)。
+# 別のコマ数で回したいときは ./_build/nbody_n8192 --devs=0,1 --every=<n> を直接実行する。
+build run-device: test_device $builddir/nbody_n8192 | shared-kernels accum-n8192 $builddir/ic_collide_n8192.bin
+  args = --devs=0,1 --every=10 --monitor=10
+
+build clean: clean
+
+# --- verify: golden data ---
+build verify-accumulate: verify_cmd $builddir/accumulate_n32_g0.vsm
+  expected = expected.vsm
+  actual = $builddir/accumulate_n32_g0.vsm
+build verify-stage: verify_cmd $builddir/stage_n32.vsm
+  expected = expected_stage.vsm
+  actual = $builddir/stage_n32.vsm
+build verify: phony verify-accumulate verify-stage
+
+default $builddir/accumulate_n32_g0.vsm

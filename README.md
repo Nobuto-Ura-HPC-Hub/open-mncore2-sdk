@@ -23,7 +23,7 @@ PFN が公開している MN-Core SDK（apt パッケージ `mncore-sdk`）と�
 ## 前提
 
 - Ubuntu 24.04+
-- PFN の apt パッケージ `mncore-sdk`（0.8 で確認）
+- PFN の apt パッケージ `mncore-sdk`（0.9 で確認）
   - 次の 2 つが `/opt/pfn/pfcomp/codegen/build/tools/` に入ります。`source $PREFIX/bin/activate`
     がこのディレクトリを `PATH` に加えます
     - `assemble3` — MN-Core 2 アセンブラ
@@ -37,7 +37,7 @@ PFN が公開している MN-Core SDK（apt パッケージ `mncore-sdk`）と�
     echo 'deb [signed-by=/usr/share/keyrings/mncore-packages-archive-keyring.gpg.asc] https://asia-northeast1-apt.pkg.dev/projects/mncore-packages noble main' \
         | sudo tee /etc/apt/sources.list.d/mncore-packages.list
     sudo apt-get update
-    sudo apt-get install -y mncore-sdk=0.8
+    sudo apt-get install -y mncore-sdk=0.9
     ```
 - `libgomp` がインストールされていること（`apt install libgomp1`）
 

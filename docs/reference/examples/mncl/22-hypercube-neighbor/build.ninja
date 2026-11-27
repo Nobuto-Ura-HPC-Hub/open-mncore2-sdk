@@ -1,0 +1,37 @@
+# 22-hypercube-neighbor: get_hypercube_neighbor（deep 0 と 10。4096 PE）
+#
+# ninja              -> .cl -> ._vsm -> .vsm
+# ninja build-e2e    -> + vsmlink + assemble3 + host C
+# ninja test         -> usage 表示
+# ninja test-emu-lib -> emu:lib backend で実行・検証
+# ninja test-device  -> 実機 backend で実行・検証
+
+include ../scripts/mncl.ninja
+include ../../scripts/sdk.ninja
+builddir = _build
+
+# --- kernel ---
+build $builddir/hypercube-neighbor._vsm: emit-vsm hypercube-neighbor.cl
+
+build $builddir/hypercube-neighbor.vsm: vsmlink $builddir/hypercube-neighbor._vsm hypercube-neighbor.param
+  vsm = $builddir/hypercube-neighbor._vsm
+  param = hypercube-neighbor.param
+
+build $builddir/hypercube-neighbor.asm: asm3 $builddir/hypercube-neighbor.vsm
+build $builddir/hypercube-neighbor.idma.dat | $builddir/hypercube-neighbor.idma.inst $builddir/hypercube-neighbor.idma.inst.txt $builddir/hypercube-neighbor.ddma.dat $builddir/hypercube-neighbor.ddma.inst $builddir/hypercube-neighbor.ddma.inst.txt: asm3_loader $builddir/hypercube-neighbor.vsm
+  stem = $builddir/hypercube-neighbor
+
+# --- host driver ---
+build $builddir/test_hypercube-neighbor.o: cc test_hypercube-neighbor.c
+build $builddir/test_hypercube-neighbor: link $builddir/test_hypercube-neighbor.o
+
+# --- ビルド段階 phony ---
+build build-e2e: phony $builddir/hypercube-neighbor.asm $builddir/hypercube-neighbor.idma.dat $builddir/test_hypercube-neighbor
+
+# --- test 3 種 ---
+build test-emu-lib: test_emu_lib $builddir/test_hypercube-neighbor | $builddir/hypercube-neighbor.asm $builddir/hypercube-neighbor.idma.dat
+build test-device:  test_device  $builddir/test_hypercube-neighbor | $builddir/hypercube-neighbor.asm $builddir/hypercube-neighbor.idma.dat
+build test:         test_usage
+
+
+default $builddir/hypercube-neighbor.asm $builddir/hypercube-neighbor.idma.dat

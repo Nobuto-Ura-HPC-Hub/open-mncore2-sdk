@@ -11,10 +11,9 @@ builddir = _build
 # --- kernel ---
 build $builddir/nbody2d._vsm: emit-vsm nbody2d.cl
 
-build $builddir/nbody2d.vsm: vsmlink $builddir/nbody2d._vsm nbody2d.param nbody2d.stparam
+build $builddir/nbody2d.vsm: vsmlink $builddir/nbody2d._vsm nbody2d.param
   vsm = $builddir/nbody2d._vsm
   param = nbody2d.param
-  stparam = nbody2d.stparam
 
 build $builddir/nbody2d.asm: asm3 $builddir/nbody2d.vsm
 build $builddir/nbody2d.idma.dat | $builddir/nbody2d.idma.inst $builddir/nbody2d.idma.inst.txt $builddir/nbody2d.ddma.dat $builddir/nbody2d.ddma.inst $builddir/nbody2d.ddma.inst.txt: asm3_loader $builddir/nbody2d.vsm

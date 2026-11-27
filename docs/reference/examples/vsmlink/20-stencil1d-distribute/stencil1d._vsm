@@ -1,18 +1,255 @@
 # ABI PFN3_SBY64
 #
 # 1D 3-point stencil: output[i] = left[i] + center[i] + right[i]
-# （@boundary_flags_compute: HW レジスタから境界フラグを計算。PDM 不要）
+# （境界フラグは HW レジスタから計算する。PDM 不要。廃止した @boundary_flags_compute の展開をそのまま書いた）
 #
-	@alloc bfcomp :omr 1 2 3 4 :grf0 200 32 34 40 42 44 46 :n 0
-	@boundary_flags_compute bf1 0 $lr416 bfcomp
-	@free bfcomp
+	@alias bf1 $lr416
+	# 以下は、廃止した @boundary_flags_compute（data_edge 00）の展開をそのまま書いたもの:
+	#   @boundary_flags_compute bf1 0 $lr416 bfcomp
+# boundary_flags_compute.vsm — @boundary_flags_compute テンプレート
+#
+# HW レジスタ ($subpeid, $mabid, $l1bid, $l2bid) から
+# 排他的 10bit ワンホットフラグを計算し $lr416 に書き込む。
+#
+# レジスタ使用 (grf0: r0-r4, omr: omr0-omr3, n: n0):
+#   r0: 出力中間  r1: ゼロ  r2: imm (_hi/_lo)
+#   r3: acc (_hi/_lo)  r4: T1
+#   omr0-omr3: 条件計算用（left/right で使い回し）
+#   n0: LM1 作業用
+# -- @boundary_flags_compute: 排他的 10bit → $lr416 --
+	lxor $lr32 $lr32 $lr32
+	nop/4
+	lpassa $lr32 $ln0
+	nop/24
+	imm i"0" $r200
+	imm i"0" $r201
+	nop/4
+# -- right flags --
+	imm i"0" $r34
+	imm i"3" $r35
+	nop/4
+	lpassa $lr34 $ln0
+	lpassa $subpeid $lr40
+	nop/24
+	lxor $lr40 $ln0 $omr1
+	imm i"0" $r34
+	imm i"3" $r35
+	nop/4
+	lpassa $lr34 $ln0
+	lpassa $subpeid $lr40
+	nop/24
+	lxor $lr40 $ln0 $lr40
+	nop/4
+	imm i"0" $r34
+	imm i"15" $r35
+	nop/4
+	lpassa $lr34 $ln0
+	lpassa $mabid $lr42
+	nop/24
+	lxor $lr42 $ln0 $lr42
+	nop/4
+	lpassa $lr40 $ln0
+	nop/24
+	ior $lr42 $ln0 $lr40
+	nop/4
+	lpassa $lr32 $ln0
+	nop/24
+	lxor $lr40 $ln0 $omr2
+	imm i"0" $r34
+	imm i"3" $r35
+	nop/4
+	lpassa $lr34 $ln0
+	lpassa $subpeid $lr40
+	nop/24
+	lxor $lr40 $ln0 $lr40
+	nop/4
+	imm i"0" $r34
+	imm i"15" $r35
+	nop/4
+	lpassa $lr34 $ln0
+	lpassa $mabid $lr42
+	nop/24
+	lxor $lr42 $ln0 $lr42
+	nop/4
+	lpassa $lr40 $ln0
+	nop/24
+	ior $lr42 $ln0 $lr40
+	nop/4
+	imm i"0" $r34
+	imm i"7" $r35
+	nop/4
+	lpassa $lr34 $ln0
+	lpassa $l1bid $lr42
+	nop/24
+	lxor $lr42 $ln0 $lr42
+	nop/4
+	lpassa $lr40 $ln0
+	nop/24
+	ior $lr42 $ln0 $lr40
+	nop/4
+	lpassa $lr32 $ln0
+	nop/24
+	lxor $lr40 $ln0 $omr3
+	imm i"0" $r34
+	imm i"3" $r35
+	nop/4
+	lpassa $lr34 $ln0
+	lpassa $subpeid $lr40
+	nop/24
+	lxor $lr40 $ln0 $lr40
+	nop/4
+	imm i"0" $r34
+	imm i"15" $r35
+	nop/4
+	lpassa $lr34 $ln0
+	lpassa $mabid $lr42
+	nop/24
+	lxor $lr42 $ln0 $lr42
+	nop/4
+	lpassa $lr40 $ln0
+	nop/24
+	ior $lr42 $ln0 $lr40
+	nop/4
+	imm i"0" $r34
+	imm i"7" $r35
+	nop/4
+	lpassa $lr34 $ln0
+	lpassa $l1bid $lr42
+	nop/24
+	lxor $lr42 $ln0 $lr42
+	nop/4
+	lpassa $lr40 $ln0
+	nop/24
+	ior $lr42 $ln0 $lr40
+	nop/4
+	imm i"0" $r34
+	imm i"7" $r35
+	nop/4
+	lpassa $lr34 $ln0
+	lpassa $l2bid $lr42
+	nop/24
+	lxor $lr42 $ln0 $lr42
+	nop/4
+	lpassa $lr40 $ln0
+	nop/24
+	ior $lr42 $ln0 $lr40
+	nop/4
+	lpassa $lr32 $ln0
+	nop/24
+	lxor $lr40 $ln0 $omr4
+	imm i"0" $r40
+	imm i"1" $r41
+	nop/4
+  maskr 1
+	ipassa $lr40 $lr200
+  mask 0
+	nop
+	nop
+	imm i"0" $r40
+	imm i"4" $r41
+	nop/4
+  maskr 2
+	ipassa $lr40 $lr200
+  mask 0
+	nop
+	nop
+	imm i"0" $r40
+	imm i"16" $r41
+	nop/4
+  maskr 3
+	ipassa $lr40 $lr200
+  mask 0
+	nop
+	nop
+	imm i"0" $r40
+	imm i"64" $r41
+	nop/4
+  maskr 4
+	ipassa $lr40 $lr200
+  mask 0
+	nop
+	nop
+# -- left flags --
+	lpassa $lr32 $ln0
+	lpassa $subpeid $lr40
+	nop/24
+	lxor $lr40 $ln0 $omr1
+	lpassa $mabid $ln0
+	nop/24
+	ior $subpeid $ln0 $lr40
+	nop/4
+	lpassa $lr32 $ln0
+	nop/24
+	lxor $lr40 $ln0 $omr2
+	lpassa $mabid $ln0
+	nop/24
+	ior $l1bid $ln0 $lr40
+	nop/4
+	lpassa $lr40 $ln0
+	nop/24
+	ior $subpeid $ln0 $lr40
+	nop/4
+	lpassa $lr32 $ln0
+	nop/24
+	lxor $lr40 $ln0 $omr3
+	lpassa $mabid $ln0
+	nop/24
+	ior $l1bid $ln0 $lr40
+	nop/4
+	lpassa $lr40 $ln0
+	nop/24
+	ior $subpeid $ln0 $lr40
+	nop/4
+	lpassa $lr40 $ln0
+	nop/24
+	ior $l2bid $ln0 $lr40
+	nop/4
+	lpassa $lr32 $ln0
+	nop/24
+	lxor $lr40 $ln0 $omr4
+	imm i"0" $r40
+	imm i"2" $r41
+	nop/4
+  maskr 1
+	ipassa $lr40 $lr200
+  mask 0
+	nop
+	nop
+	imm i"0" $r40
+	imm i"8" $r41
+	nop/4
+  maskr 2
+	ipassa $lr40 $lr200
+  mask 0
+	nop
+	nop
+	imm i"0" $r40
+	imm i"32" $r41
+	nop/4
+  maskr 3
+	ipassa $lr40 $lr200
+  mask 0
+	nop
+	nop
+	imm i"0" $r40
+	imm i"128" $r41
+	nop/4
+  maskr 4
+	ipassa $lr40 $lr200
+  mask 0
+	nop
+	nop
+	lpassa $lr200 $lr416
+	nop
+	nop
+	nop/4
 	@distribute _arg_a from_param 8 size 1 $lm0
 	lpassa $lm0 $lr0
 	@alloc left :omr 9 10 11 12 :grf0 200 202 204 206 208 210 212 214 216 218 220 :n 0
-	@get_neighbor $lr400 -1 $lm0 bf1 nbuf0 left
+	@get_neighbor $lr400 -1 $lm0 bf1 nbuf0 left :reg $lm0
 	@free left
 	@alloc right :omr 9 10 11 12 :grf0 200 202 204 206 208 210 212 214 216 218 220 :n 0
-	@get_neighbor $lr408 +1 $lm0 bf1 nbuf0 right
+	@get_neighbor $lr408 +1 $lm0 bf1 nbuf0 right :reg $lm0
 	@free right
 	lpassa $lr400 $lm0
 	nop

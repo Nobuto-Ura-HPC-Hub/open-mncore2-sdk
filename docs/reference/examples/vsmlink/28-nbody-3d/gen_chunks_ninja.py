@@ -46,10 +46,9 @@ def main():
                 "  first = {}".format(first),
                 "  out_vsm = {b}._vsm".format(b=b),
                 "  out_param = {b}.param".format(b=b),
-                "build {b}.vsm: vsmlink {b}._vsm {b}.param nbody3d.stparam".format(b=b),
+                "build {b}.vsm: vsmlink {b}._vsm {b}.param".format(b=b),
                 "  vsm = {b}._vsm".format(b=b),
                 "  param = {b}.param".format(b=b),
-                "  stparam = nbody3d.stparam",
                 "build {b}.idma.dat: asm3_loader {b}.vsm".format(b=b),
                 "  stem = {b}".format(b=b),
             ]

@@ -1,4 +1,3 @@
-{% raw %}
 # vsmlink コマンド テストガイド
 
 vsmlink が生成した `.vsm` が正しいことをどう確かめるかをまとめる。
@@ -9,10 +8,10 @@ vsmlink が生成した `.vsm` が正しいことをどう確かめるかをま�
 - assemble3 に PATH が通っていること（アセンブル以降を確かめる場合）
 - エミュレータで実行する場合は `gpfn3_package_main` に PATH が通っていること
 
-CLI は 4 引数すべてが必須である。
+CLI は 3 引数すべてが必須である。
 
 ```bash
-vsmlink <input._vsm> <input.param> <input.stparam> <output.vsm>
+vsmlink <input._vsm> <input.param> <output.vsm>
 ```
 
 ---
@@ -79,7 +78,7 @@ ninja test         # 3. エミュレータで正しい結果が得られる
 vsmlink を走らせ、出力を期待値と比べる。
 
 ```bash
-vsmlink input._vsm input.param input.stparam /tmp/out.vsm
+vsmlink input._vsm input.param /tmp/out.vsm
 diff /tmp/out.vsm expected.vsm
 ```
 
@@ -93,13 +92,13 @@ diff /tmp/out.vsm expected.vsm
 | `@alias` | 別名が元のバッファと同じ番地に解決される |
 | `@broadcast` | 放送命令が出る。size に応じたサイクルマスクが付く（size 1 なら `/1000`、2 なら `/1100`、4 ならマスク無し（size 3 は E227））。着地先は指定レジスタから 2 ずつ進む |
 | `@identify` | 次元ごとの識別値が PE に配られる |
-| `@access_pattern` | 指定したパターンに対応するテンプレートが選ばれている |
+| `@access_pattern` | 行が `#@ ` を付けたコメントとして元のまま出力される（展開もテンプレートの選択もしない） |
 | `@boundary_flags` | 境界の判定に使うビット列が配られる。ビットレイアウトは `directives-spec.md` を参照 |
-| `@get_neighbor` | 隣接 PE からの読み出しが出る。第 3 引数は読み出し元の PE レジスタである |
+| `@get_neighbor` | 隣接 PE からの読み出しが出る。第 3 引数は読み出し元の PE レジスタである。端の指定があれば、最後に端の PE（境界のフラグに cross_chip か data_edge が立っている PE）への書き込みが出る |
+| `@get_eoshift` | 組ごとに、2^N 離れた PE からの読み出しが出る。端の指定があれば、区切りの端の PE への書き込みが出る |
 | `@reduce` | 縮約が L1BM、L2BM、PDM の順に段を追って進む |
 
 L1BM と L2BM の番地は vsmlink が割り当てる。**番地を直接書いてはいけない。**
-テンプレートでは `{{lb+N}}` / `{{lc+N}}` を使う。直接書くと E114 で弾かれ、
 入力 `_vsm` に書いた場合は W003 で警告される。
 
 割り当ての結果、同じディレクティブでも並べ方によって番地が変わる。
@@ -138,15 +137,25 @@ host-dma との連携、複数カーネルの実行、debug read/write による
 
 ## エラーの読み方
 
-エラーはすべて S 式で出力し、ID を持つ。上位のツールから種別を判別できる。
+エラーと警告はすべて S 式で出力し、ID を持つ。上位のツールから種別を判別できる。
 
 ```lisp
-(:error "reserved_wait_tags[0] = #x00 out of range (must be 0x01..0x3f)" :id "E102")
-(:error "@broadcast: size は 1, 2, 4 のいずれかでなければならない" :id "E227" :line 5)
+(:error "reserved_wait_tags[0] = #x00 out of range (must be 0x01..0x3f)" :id "E102" :file "kernel.param")
+(:error "@broadcast: size は 1, 2, 4 のいずれかでなければならない" :id "E227" :file "kernel._vsm" :line 5)
 ```
 
-配置パラメタとリンク解決のエラーが E1xx、ディレクティブのエラーが E2xx である。
-E2xx には `_vsm` の何行目かを示す `:line` が付く。
+`:file` は誤りのある入力ファイルである。ID の番号の範囲は、どの入力のどの段階の誤りかで分かれている。
+
+| 範囲 | 誤り |
+|---|---|
+| E0xx | CLI（ファイルを読めない、出力が入力と同じ、など） |
+| E1xx | 配置パラメタ（`.param`）とリンク解決 |
+| E2xx | ディレクティブ |
+| E3xx | マルチカーネル `_vsm` |
+| E9xx | vsmlink コマンド自身の不具合（入力を直しても解決しない） |
+
+E2xx と E3xx には `_vsm` の何行目かを示す `:line` が付く。`.param` を S 式として読めなかった
+ときは、ID の無い `(:error "cannot read as S-expression" :file "...")` が出る。
 
 資源の確保に失敗した場合は 2 つ出る。なぜ失敗したか（空きが足りない等）を E110 系が、
 どの行のどのディレクティブで失敗したかを E233 から E235 が示す。両方を読むこと。
@@ -175,4 +184,3 @@ ID の一覧は `param-spec.md` の「エラー・警告一覧」にある。
 | `maskr N` | 以降の命令を特定の PE のみ条件実行する |
 | `mask 0` | 条件実行を解除して全 PE 実行に戻す |
 | `ipassa $src $dst` | パススルー。`maskr` の下では条件付きの上書きになる |
-{% endraw %}

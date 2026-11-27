@@ -1,0 +1,11 @@
+;; slot 8  = a（distribute の入力。PE j の初期値 j + 1）。ホストがタグ #x10 で送る
+;; slot 16 = b（broadcast の入力。1, 2, ..., 100。呼ぶたびに続きを読む）。ホストが exec の前にタグ 0 で送り終えるので、タグは付けない
+;; slot 24 = d（emit_from の書き先。100 回 × 64 u64 = 6400 u64。待ちのタグは付けない。ホストと同期しない）
+;; slot 32 = c（collect の出力。ホストは、この完了を待って kernel の終わりを知り、その後で d を読む）
+;; d の後ろに、ほかの slot を置かないこと（emit_from は PDM 全体の範囲しか検査しない。ここでは d の後ろに何も置かない）。
+((:version :0.1)
+ (:reserved_wait_tag #x3f)
+ (:slot 8  :place :pdm0 :addr 0     :send_wait_tag #x10)
+ (:slot 16 :place :pdm0 :addr 4096)
+ (:slot 24 :place :pdm0 :addr 16384)
+ (:slot 32 :place :pdm0 :addr 8192  :recv_wait_tag #x1e))

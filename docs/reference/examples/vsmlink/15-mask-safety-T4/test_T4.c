@@ -1,8 +1,8 @@
-/* test_T4.c — T4: @stencil in nested if-if, mask safety E2E test
+/* test_T4.c — T4: @get_neighbor in nested if-if, mask safety E2E test
  *
  * if(flag1) {
  *     r16=1
- *     if(flag2) { r16=5; @stencil; r18=1 } else { r16=9 }
+ *     if(flag2) { r16=5; @get_neighbor; r18=1 } else { r16=9 }
  * } else {
  *     r16=2
  *     if(flag2) { r16=6 } else { r16=10 }
@@ -129,7 +129,7 @@ static int run_test(mnc2_device_t dev, mnc2_kernel_t kernel,
 
 int main(void)
 {
-    printf("=== T4: @stencil in nested if-if (mask safety) ===\n\n");
+    printf("=== T4: @get_neighbor in nested if-if (mask safety) ===\n\n");
 
     mnc2_device_t dev = mnc2_open(0);
     if (!dev) { fprintf(stderr, "FAIL: mnc2_open\n"); return 1; }

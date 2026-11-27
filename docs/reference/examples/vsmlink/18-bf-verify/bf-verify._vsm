@@ -3,7 +3,7 @@
 # @boundary_flags 検証: 外部 golden data で $lr416 を上書き → stencil
 # OK ケース（正しい golden）→ PASS、NG ケース（ゼロ golden）→ 結果変化
 #
-# golden は $lm8 に配布（$lm0 は入力データ用 → @stencil が読む）
+# golden は $lm8 に配布（$lm0 は入力データ用 → @get_neighbor が読む）
 #
 	@distribute _arg_a from_param 8 size 1 $lm0
 	lpassa $lm0 $lr0
@@ -12,10 +12,10 @@
 	lpassa $lm8 $lr416
 	nop/24
 	@alloc left :omr 9 10 11 12 :grf0 200 202 204 206 208 210 212 214 216 218 220 :n 0
-	@get_neighbor $lr400 -1 $lm0 bf1 nbuf0 left
+	@get_neighbor $lr400 -1 $lm0 bf1 nbuf0 left :reg $lm0
 	@free left
 	@alloc right :omr 9 10 11 12 :grf0 200 202 204 206 208 210 212 214 216 218 220 :n 0
-	@get_neighbor $lr408 +1 $lm0 bf1 nbuf0 right
+	@get_neighbor $lr408 +1 $lm0 bf1 nbuf0 right :reg $lm0
 	@free right
 	lpassa $lr400 $lm0
 	nop

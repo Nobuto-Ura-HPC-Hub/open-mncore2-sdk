@@ -1,6 +1,6 @@
 # 11-odd-even-sort: Odd-Even Transposition Sort on 4096 PEs
 #
-# ninja              → vsmlink: _vsm + .param + .stparam → .vsm
+# ninja              → vsmlink: _vsm + .param → .vsm
 # ninja build-e2e    → + assemble3 + C ホストビルド
 # ninja test-emu-lib → + emu:lib で実行・検証
 # ninja test-device  → + 実機で実行・検証
@@ -12,15 +12,13 @@ include ../scripts/vsmlink.ninja
 builddir = _build
 
 # --- default: vsmlink only ---
-build $builddir/sort_even.vsm: vsmlink sort_even._vsm sort.param sort.stparam
+build $builddir/sort_even.vsm: vsmlink sort_even._vsm sort.param
   vsm    = sort_even._vsm
   param  = sort.param
-  stparam = sort.stparam
 
-build $builddir/sort_odd.vsm: vsmlink sort_odd._vsm sort.param sort.stparam
+build $builddir/sort_odd.vsm: vsmlink sort_odd._vsm sort.param
   vsm    = sort_odd._vsm
   param  = sort.param
-  stparam = sort.stparam
 
 # --- build-e2e: assemble + host C ---
 build $builddir/sort_even.asm: asm3 $builddir/sort_even.vsm

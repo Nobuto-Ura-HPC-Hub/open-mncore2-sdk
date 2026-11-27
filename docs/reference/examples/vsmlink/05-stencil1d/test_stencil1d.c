@@ -1,9 +1,9 @@
 /* test_stencil1d.c — 1D 3-point stencil E2E 検証 (emu:lib)
  *
  * カーネル: output[i] = left[i] + center[i] + right[i]
- *   left  = @stencil offset -1 (左隣 PE の値、境界 PE は 0)
+ *   left  = @get_neighbor offset -1 (左隣 PE の値、境界 PE は 0)
  *   center = 入力値そのまま
- *   right = @stencil offset +1 (右隣 PE の値、境界 PE は 0)
+ *   right = @get_neighbor offset +1 (右隣 PE の値、境界 PE は 0)
  *
  * 検証: 内部 PE (1..4094) で output[i] == input[i-1] + input[i] + input[i+1]
  *        境界 PE (0, 4095) は袖交換の境界処理に依存するため別途レポート
@@ -33,7 +33,7 @@
 
 int main(void)
 {
-    printf("=== stencil1d: 3-point sum with @stencil (4096 PE) ===\n\n");
+    printf("=== stencil1d: 3-point sum with @get_neighbor (4096 PE) ===\n\n");
 
     mnc2_device_t dev = mnc2_open(0);
     if (dev == NULL) {

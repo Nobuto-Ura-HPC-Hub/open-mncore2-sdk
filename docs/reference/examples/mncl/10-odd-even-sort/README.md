@@ -14,7 +14,7 @@ swap が起きた回数を集計する例。 `load_neighbor` と `if` / `else` (
 
 - 偶数フェーズ: ペア (0,1),(2,3),... を比較交換。 flag = {1,0,1,0,...}
 - 奇数フェーズ: ペア (1,2),(3,4),... を比較交換。 flag = {0,1,0,1,...}。 両端 (PE 0 と PE 4095) は
-  boundary_flags の clamp で self 比較となり swap しない
+  `load_neighbor` の既定 (端の PE に自分の値を返す clamp) で self 比較となり swap しない
 
 各フェーズごとに、 交換後の配列と「PE ごとの swap 有無」を得る。 swap 有無は reduce kernel が
 全 PE ぶん足し合わせ、 swap 回数 (収束判定に使える 1 値) にする。
@@ -26,7 +26,6 @@ swap が起きた回数を集計する例。 `load_neighbor` と `if` / `else` (
 | `odd-even-sort-even.cl` / `odd-even-sort-even.param`     | even kernel。 偶数フェーズの比較交換と swap 有無の書き出し |
 | `odd-even-sort-odd.cl`  / `odd-even-sort-odd.param`      | odd kernel。 kernel 本体は even と同一 (下記) |
 | `odd-even-sort-reduce.cl` / `odd-even-sort-reduce.param` | reduce kernel。 swap 有無を全 PE 集計する |
-| `odd-even-sort.stparam`  | PE 形状 (4096 PE 1D)。 3 kernel 共通 |
 | `test_odd-even-sort.c`   | host driver |
 
 ## kernel を even / odd / reduce に分けた理由
@@ -98,7 +97,7 @@ in/out を共用しても結果は正しい。 kernel は distribute / load_neig
 | data_a     | 0      | 0        | even の入力 / odd の出力 |
 | flag       | 4096   | 32768    | in |
 | boundary_flags | 8192 | 65536  | in |
-| load_neighbor buffer | 16384 | 131072 | 内部スクラッチ |
+| load_neighbor の作業領域（`:buffer nbuf0`） | 16384 | 131072 | vsmlink の `@get_neighbor` が使う |
 | data_b     | 24576  | 196608   | even の出力 / odd の入力 |
 | swap_flags | 32768  | 262144   | even/odd が書き、 reduce が読む |
 | swap_count | 131072 | 1048576  | reduce の出力 (4 partial sum) |

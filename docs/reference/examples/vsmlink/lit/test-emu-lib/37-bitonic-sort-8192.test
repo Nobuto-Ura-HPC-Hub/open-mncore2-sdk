@@ -1,0 +1,2 @@
+# 8192 個のバイトニックソートの全 91 ステップ（f64。各 PE が 2 つの値を持つ。全体が昇順になること）
+# RUN: ninja -C %examples/37-bitonic-sort-8192 test-emu-lib
